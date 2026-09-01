@@ -164,8 +164,8 @@
         .lista-pendientes li { margin-bottom: 8px; font-size: 14px; }
         .mensaje-dia { text-align: center; font-size: 18px; font-weight: 600; color: #10b981; margin: 20px 0; }
         .btn-contenedor { text-align: center; margin-top: 20px; }
-        .btn-cerrar { background: var(--primary); padding: 10px 24px; width: auto; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
-        .btn-cerrar:hover { background: var(--primary-hover); }
+        .btn-cerrar { background: #64748b; padding: 10px 24px; width: auto; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .btn-cerrar:hover { background: #475569; }
 
         @media print {
             body { background: white; padding: 0; color: black; }
@@ -465,7 +465,7 @@
             </div>
             <div style="display: flex; gap: 10px;">
                 <button class="btn-guardar-accion" onclick="guardarNotasModal()">💾 Guardar Notas</button>
-                <button class="btn-cerrar" onclick="cerrarModalNotasYPasarAgenda()">✖️ Cerrar y Ver Agenda</button>
+                <button class="btn-cerrar" onclick="cerrarModalSimple()">✖️ Cerrar</button>
             </div>
         </div>
         
@@ -501,7 +501,7 @@
             <button class="btn-pdf" onclick="window.print()">📄 Exportar a PDF</button>
             <div style="display: flex; gap: 10px;">
                 <button class="btn-guardar-accion" onclick="guardarNotasModal()">💾 Guardar Notas</button>
-                <button class="btn-cerrar" onclick="cerrarModalNotasYPasarAgenda()">✖️ Cerrar y Ver Agenda</button>
+                <button class="btn-cerrar" onclick="cerrarModalSimple()">✖️ Cerrar</button>
             </div>
         </div>
     </div>
@@ -819,12 +819,10 @@ async function guardarNotasModal() {
     }
 }
 
-async function cerrarModalNotasYPasarAgenda() {
-    await guardarNotasModal();
+function cerrarModalSimple() {
     document.getElementById('modalNotas').style.display = 'none';
     folioNotaActual = null;
     cargarPendientes();
-    cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
 }
 
 async function sincronizarNotasComoActividades(folioReunion, notas, fechaReunion) {
@@ -832,7 +830,6 @@ async function sincronizarNotasComoActividades(folioReunion, notas, fechaReunion
         const res = await fetch('/api/pendientes');
         let todas = await res.json();
 
-        // Identificar actividades existentes generadas por esta reunión (marcador en observaciones)
         let actividadesExistentes = todas.filter(item => item.observaciones && item.observaciones.includes(`[Origen: ${folioReunion}]`));
 
         for (let i = 0; i < notas.length; i++) {
@@ -842,7 +839,6 @@ async function sincronizarNotasComoActividades(folioReunion, notas, fechaReunion
                 let existente = actividadesExistentes.find(act => act.observaciones.includes(marcaOrigen));
 
                 if (!existente && !nota.completado) {
-                    // Crear nueva actividad
                     await fetch('/api/pendientes', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -856,7 +852,6 @@ async function sincronizarNotasComoActividades(folioReunion, notas, fechaReunion
                         })
                     });
                 } else if (existente && nota.completado && !existente.finalizado) {
-                    // Si se marcó como realizado en la nota, marcar completada la actividad
                     await fetch(`/api/pendientes/${existente.folio}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
