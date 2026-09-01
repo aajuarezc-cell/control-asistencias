@@ -930,7 +930,7 @@ async function sincronizarNotasComoActividades(folioReunion, notas, fechaReunion
         }
 
         for (let act of actividadesExistentes) {
-            let matchNota = act.observaciones.match(/\[Origen:\s*Folio-\d+-nota-(\d+)\]/);
+            let matchNota = act.observaciones.match(/\[Origen:\s*?.+?-nota-(\d+)\]/);
             if (matchNota && matchNota.length >= 2) {
                 let idxNotaOriginal = parseInt(matchNota[1]);
                 if (!indicesActuales.has(idxNotaOriginal)) {
@@ -1321,10 +1321,11 @@ async function toggleEstado(folio, finalizado) {
         });
         const registroActualizado = await resReg.json();
 
+        // 1. Si es una Actividad derivada de una nota de reunión, actualizar la nota dentro de la reunión padre
         if (registroActualizado.tipo !== 'Reunión' && registroActualizado.observaciones && registroActualizado.observaciones.includes('[Origen:')) {
-            const matchOrigen = registroActualizado.observaciones.match(/\[Origen:\s*(Folio-\d+)-nota-(\d+)\]/);
+            const matchOrigen = registroActualizado.observaciones.match(/\[Origen:\s*(.+?)-nota-(\d+)\]/);
             if (matchOrigen && matchOrigen.length >= 3) {
-                const folioReunionPadre = matchOrigen[1];
+                const folioReunionPadre = matchOrigen[1].trim();
                 const indexNota = parseInt(matchOrigen[2]);
 
                 const resPadre = await fetch('/api/pendientes');
@@ -1342,6 +1343,8 @@ async function toggleEstado(folio, finalizado) {
                 }
             }
         } 
+        
+        // 2. Si es una Reunión, sincronizar sus notas hacia las actividades vinculadas
         else if (registroActualizado.tipo === 'Reunión' && registroActualizado.notasLista) {
             const resTodas = await fetch('/api/pendientes');
             const todas = await resTodas.json();
