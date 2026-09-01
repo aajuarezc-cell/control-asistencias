@@ -19,7 +19,13 @@
         .container { width: 100%; max-width: 1400px; margin: auto; background: var(--card-bg); padding: 30px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05); box-sizing: border-box; }
         
         .header-box { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; }
+        .header-box-left { display: flex; align-items: center; gap: 12px; }
         .header-box h2 { margin: 0; color: var(--text-main); font-weight: 700; font-size: 24px; }
+        
+        /* BOTÓN HOME */
+        .btn-home { background: #e2e8f0; color: var(--text-main); border: none; width: 40px; height: 40px; border-radius: 8px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; text-decoration: none; }
+        .btn-home:hover { background: var(--primary); color: white; }
+
         .reloj-widget { background: #0f172a; color: #38bdf8; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 16px; font-family: monospace; letter-spacing: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
         /* DASHBOARD DE KPI'S */
@@ -197,7 +203,10 @@
 <body>
 <div class="container">
     <div class="header-box">
-        <h2 id="tituloForm">Control de Reuniones, Pendientes y Asistencias</h2>
+        <div class="header-box-left">
+            <button class="btn-home" onclick="irAlHome()" title="Ir al Home">🏠</button>
+            <h2 id="tituloForm">Control de Reuniones, Pendientes y Asistencias</h2>
+        </div>
         <div id="relojWidget" class="reloj-widget">--:--:--</div>
     </div>
 
@@ -558,6 +567,11 @@ const personalLista = [
 
 let folioNotaActual = null;
 let notasTemporalesModal = [];
+
+function irAlHome() {
+    cambiarModulo('moduloNuevoRegistro', document.querySelector('.nav-modulos button:first-child'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 function cambiarModulo(idModulo, btnElement) {
     document.querySelectorAll('.modulo-vista').forEach(v => v.classList.remove('activo'));
@@ -1321,7 +1335,6 @@ async function toggleEstado(folio, finalizado) {
         });
         const registroActualizado = await resReg.json();
 
-        // 1. Si es una Actividad derivada de una nota de reunión, actualizar la nota dentro de la reunión padre
         if (registroActualizado.tipo !== 'Reunión' && registroActualizado.observaciones && registroActualizado.observaciones.includes('[Origen:')) {
             const matchOrigen = registroActualizado.observaciones.match(/\[Origen:\s*(.+?)-nota-(\d+)\]/);
             if (matchOrigen && matchOrigen.length >= 3) {
@@ -1343,8 +1356,6 @@ async function toggleEstado(folio, finalizado) {
                 }
             }
         } 
-        
-        // 2. Si es una Reunión, sincronizar sus notas hacia las actividades vinculadas
         else if (registroActualizado.tipo === 'Reunión' && registroActualizado.notasLista) {
             const resTodas = await fetch('/api/pendientes');
             const todas = await resTodas.json();
