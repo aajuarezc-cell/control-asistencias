@@ -36,6 +36,42 @@ async function enviarNotificacionDiscord(mensaje) {
     }
 }
 
+// FUNCIÓN AUXILIAR PARA ARMAR EL REPORTE DIVIDIDO
+async function generarYEnviarReporteDiscord(esManual = false) {
+    const pendientesActivos = await Pendiente.find({ finalizado: false });
+    const reuniones = pendientesActivos.filter(p => p.tipo === 'Reunión');
+    const actividades = pendientesActivos.filter(p => p.tipo !== 'Reunión');
+
+    const horaActual = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+    let mensaje = esManual ? `🕹️ **REPORTE MANUAL (FORZADO) - ${horaActual}**\n\n` : `📋 **REPORTE HORARIO - ${horaActual}**\n\n`;
+
+    // SECCIÓN 1: AGENDA DE REUNIONES
+    mensaje += `📅 **AGENDA DE REUNIONES (${reuniones.length})**\n`;
+    if (reuniones.length === 0) {
+        mensaje += `_No hay reuniones activas._\n\n`;
+    } else {
+        reuniones.forEach(r => {
+            let iconoPri = r.prioridad === 'Alta' ? '🔴' : (r.prioridad === 'Baja' ? '🟢' : '🟡');
+            mensaje += `• ${iconoPri} **[${r.folio}]** ${r.incidente} _(${r.vencimiento} ${r.horaReunion ? 'a las ' + r.horaReunion + 'h' : ''})_\n`;
+        });
+        mensaje += `\n`;
+    }
+
+    // SECCIÓN 2: ACTIVIDADES Y PENDIENTES
+    mensaje += `⚡ **ACTIVIDADES Y PENDIENTES (${actividades.length})**\n`;
+    if (actividades.length === 0) {
+        mensaje += `_No hay actividades activas._\n`;
+    } else {
+        actividades.forEach(a => {
+            let iconoPri = a.prioridad === 'Alta' ? '🔴' : (a.prioridad === 'Baja' ? '🟢' : '🟡');
+            mensaje += `• ${iconoPri} **[${a.folio}]** ${a.incidente} -> *Asignado a: ${a.turnado}* _(Vence: ${a.vencimiento})_\n`;
+        });
+    }
+
+    await enviarNotificacionDiscord(mensaje);
+}
+
 // 1. ESQUEMA Y MODELO DE PENDIENTES Y REUNIONES
 const pendienteSchema = new mongoose.Schema({
     folio: { type: String, unique: true },
@@ -57,7 +93,7 @@ const Pendiente = mongoose.model('Pendiente', pendienteSchema);
 const asistenciaSchema = new mongoose.Schema({
     personal: String,
     fecha: String,
-    estatus: String // 'Asistencia', 'Retardo', 'Falta'
+    estatus: String
 });
 
 const Asistencia = mongoose.model('Asistencia', asistenciaSchema);
@@ -155,6 +191,17 @@ app.delete('/api/pendientes/:folio', async (req, res) => {
     }
 });
 
+// --- RUTA API PARA FORZAR DISCORD DESDE EL BOTÓN ---
+app.post('/api/forzar-discord', async (req, res) => {
+    try {
+        await generarYEnviarReporteDiscord(true);
+        res.json({ exito: true });
+    } catch (error) {
+        console.error("Error al forzar envío a Discord:", error);
+        res.status(500).json({ exito: false, error: error.message });
+    }
+});
+
 // --- RUTAS API ASISTENCIAS ---
 
 app.get('/api/asistencias', async (req, res) => {
@@ -184,43 +231,10 @@ app.post('/api/asistencias', async (req, res) => {
 });
 
 // --- ⏱️ PROGRAMADOR DE TAREAS (CRON JOB HORARIO DIVIDIDO) ---
-// Se ejecuta cada hora en punto, desde las 08:00 (8 AM) hasta las 21:00 (9 PM)
 cron.schedule('0 8-21 * * *', async () => {
     try {
-        const pendientesActivos = await Pendiente.find({ finalizado: false });
-        
-        // Dividimos en Agenda (Reuniones) y Actividades (Pendientes)
-        const reuniones = pendientesActivos.filter(p => p.tipo === 'Reunión');
-        const actividades = pendientesActivos.filter(p => p.tipo !== 'Reunión');
-
+        await generarYEnviarReporteDiscord(false);
         const horaActual = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-
-        let mensaje = `📋 **REPORTE HORARIO - ${horaActual}**\n\n`;
-
-        // SECCIÓN 1: AGENDA DE REUNIONES
-        mensaje += `📅 **AGENDA DE REUNIONES (${reuniones.length})**\n`;
-        if (reuniones.length === 0) {
-            mensaje += `_No hay reuniones activas._\n\n`;
-        } else {
-            reuniones.forEach(r => {
-                let iconoPri = r.prioridad === 'Alta' ? '🔴' : (r.prioridad === 'Baja' ? '🟢' : '🟡');
-                mensaje += `• ${iconoPri} **[${r.folio}]** ${r.incidente} _(${r.vencimiento} ${r.horaReunion ? 'a las ' + r.horaReunion + 'h' : ''})_\n`;
-            });
-            mensaje += `\n`;
-        }
-
-        // SECCIÓN 2: ACTIVIDADES Y PENDIENTES
-        mensaje += `⚡ **ACTIVIDADES Y PENDIENTES (${actividades.length})**\n`;
-        if (actividades.length === 0) {
-            mensaje += `_No hay actividades activas._\n`;
-        } else {
-            actividades.forEach(a => {
-                let iconoPri = a.prioridad === 'Alta' ? '🔴' : (a.prioridad === 'Baja' ? '🟢' : '🟡');
-                mensaje += `• ${iconoPri} **[${a.folio}]** ${a.incidente} -> *Asignado a: ${a.turnado}* _(Vence: ${a.vencimiento})_\n`;
-            });
-        }
-
-        await enviarNotificacionDiscord(mensaje);
         console.log(`[CRON] Reporte horario dividido enviado a Discord a las ${horaActual}`);
     } catch (error) {
         console.error("Error al enviar el reporte horario programado:", error);
