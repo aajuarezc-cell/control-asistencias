@@ -131,14 +131,16 @@
 
     <!-- BARRA DE NAVEGACIÓN POR MÓDULOS -->
     <div class="nav-modulos">
-        <button class="btn-modulo activo" onclick="cambiarModulo('moduloPendientes', this)">📋 Reuniones y Actividades</button>
+        <button class="btn-modulo activo" onclick="cambiarModulo('moduloNuevoRegistro', this)">➕ Nuevo Registro</button>
+        <button class="btn-modulo" onclick="cambiarModulo('moduloVisualizar', this)">👁️ Visualizar Agenda y Pendientes</button>
         <button class="btn-modulo" onclick="cambiarModulo('moduloAsistencias', this)">⏱️ Control Diario Asistencias</button>
         <button class="btn-modulo" onclick="cambiarModulo('moduloSemanal', this)">📊 Reporte Semanal</button>
         <button class="btn-modulo" onclick="cambiarModulo('moduloMensual', this)">📅 Reporte Mensual</button>
     </div>
     
-    <!-- MÓDULO 1: REUNIONES Y ACTIVIDADES -->
-    <div id="moduloPendientes" class="modulo-vista activo">
+    <!-- MÓDULO 1: NUEVO REGISTRO (FORMULARIO) -->
+    <div id="moduloNuevoRegistro" class="modulo-vista activo">
+        <h3 class="section-title">✏️ Registrar Nueva Reunión o Actividad</h3>
         <form id="formPendiente">
             <input type="hidden" id="editFolio">
             
@@ -180,7 +182,10 @@
             
             <button type="submit" class="btn-guardar" id="btnSubmitText">Guardar Registro</button>
         </form>
+    </div>
 
+    <!-- MÓDULO 2: VISUALIZAR AGENDA Y PENDIENTES -->
+    <div id="moduloVisualizar" class="modulo-vista">
         <div class="filter-box">
             <label for="filtroFecha">📅 Filtrar por Día:</label>
             <input type="date" id="filtroFecha" onchange="cargarPendientes();">
@@ -225,7 +230,7 @@
         </div>
     </div>
 
-    <!-- MÓDULO 2: CONTROL DIARIO DE ASISTENCIAS -->
+    <!-- MÓDULO 3: CONTROL DIARIO DE ASISTENCIAS -->
     <div id="moduloAsistencias" class="modulo-vista">
         <div class="filter-box" style="background: #fdf4ff; border-color: #f5d0fe;">
             <label for="asistFechaCalendario" style="color: #7e22ce;">📅 Seleccionar Fecha de Asistencia:</label>
@@ -247,7 +252,7 @@
         <button type="button" class="btn-guardar" style="background: #9333ea; margin-bottom: 30px;" onclick="guardarCambiosAsistencias()">💾 Guardar Cambios de Asistencia</button>
     </div>
 
-    <!-- MÓDULO 3: REPORTE SEMANAL -->
+    <!-- MÓDULO 4: REPORTE SEMANAL -->
     <div id="moduloSemanal" class="modulo-vista">
         <h3 class="section-title">
             <span>📊 Reporte Dinámico de Faltas y Retardos por Semana</span>
@@ -285,7 +290,7 @@
         </div>
     </div>
 
-    <!-- MÓDULO 4: REPORTE MENSUAL -->
+    <!-- MÓDULO 5: REPORTE MENSUAL -->
     <div id="moduloMensual" class="modulo-vista">
         <h3 class="section-title">
             <span>📅 Reporte Consolidado Mensual</span>
@@ -347,12 +352,9 @@ const personalLista = [
 ];
 
 function cambiarModulo(idModulo, btnElement) {
-    // Ocultar todas las vistas de módulos
     document.querySelectorAll('.modulo-vista').forEach(v => v.classList.remove('activo'));
-    // Desactivar todos los botones del menú
     document.querySelectorAll('.btn-modulo').forEach(b => b.classList.remove('activo'));
     
-    // Mostrar el módulo seleccionado y activar su botón
     document.getElementById(idModulo).classList.add('activo');
     btnElement.classList.add('activo');
 }
@@ -760,6 +762,9 @@ function prepararEdicion(folio, tipo, incidente, turnado, vencimiento, horaReuni
     document.getElementById('vencimiento').value = vencimiento !== 'N/A' ? vencimiento : '';
     document.getElementById('observaciones').value = observaciones !== 'undefined' ? observaciones : '';
     document.getElementById('btnSubmitText').innerText = `Actualizar (${folio})`;
+    
+    // Cambiar automáticamente a la pestaña del formulario para editar cómodamente
+    cambiarModulo('moduloNuevoRegistro', document.querySelector('.nav-modulos button:first-child'));
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
