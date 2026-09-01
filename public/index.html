@@ -325,6 +325,7 @@
                         <th class="text-center">Fecha y Horario</th>
                         <th class="text-center">Cantidad de Notas</th>
                         <th>Notas asignadas a:</th>
+                        <th class="text-center">Notas Pendientes</th>
                         <th>Observaciones</th>
                         <th class="text-center">Finalizado</th>
                         <th class="text-center">Acciones</th>
@@ -346,6 +347,7 @@
                         <th class="text-center">Fecha y Horario</th>
                         <th class="text-center">Cantidad de Notas</th>
                         <th>Notas asignadas a:</th>
+                        <th class="text-center">Notas Pendientes</th>
                         <th>Observaciones</th>
                         <th class="text-center">Finalizado</th>
                         <th class="text-center">Acciones</th>
@@ -746,7 +748,7 @@ async function cargarPendientes() {
         const reunionesFinalizadas = dataReuniones.filter(p => p.finalizado);
 
         if (reunionesActivas.length === 0) {
-            tbodyReuniones.innerHTML = `<tr><td colspan="10" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay reuniones activas registradas.</td></tr>`;
+            tbodyReuniones.innerHTML = `<tr><td colspan="11" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay reuniones activas registradas.</td></tr>`;
         } else {
             reunionesActivas.forEach(p => {
                 const tr = document.createElement('tr');
@@ -756,6 +758,8 @@ async function cargarPendientes() {
                 if (p.prioridad === 'Baja') badgePri = '<span class="prioridad-baja">BAJA</span>';
 
                 const totalNotas = p.notasLista ? p.notasLista.length : 0;
+                let notasPendientesCount = p.notasLista ? p.notasLista.filter(nt => !nt.completado).length : 0;
+
                 let asignadosSet = new Set();
                 if (p.notasLista) {
                     p.notasLista.forEach(nt => {
@@ -765,6 +769,7 @@ async function cargarPendientes() {
                     });
                 }
                 const asignadosStr = asignadosSet.size > 0 ? Array.from(asignadosSet).join(', ') : '-';
+                const badgePendientes = notasPendientesCount > 0 ? `<span class="badge" style="background: #fef2f2; color: #b91c1c; font-size: 13px;">${notasPendientesCount} Pendientes</span>` : `<span class="badge" style="background: #f0fdf4; color: #15803d; font-size: 13px;">0 Pendientes</span>`;
 
                 tr.innerHTML = `
                     <td><span class="badge badge-reu">${p.folio}</span></td>
@@ -774,6 +779,7 @@ async function cargarPendientes() {
                     <td class="text-center">${p.vencimiento} - ${p.horaReunion} hrs</td>
                     <td class="text-center"><b>${totalNotas}</b></td>
                     <td>${asignadosStr}</td>
+                    <td class="text-center">${badgePendientes}</td>
                     <td>${p.observaciones || '-'}</td>
                     <td class="text-center"><input type="checkbox" onclick="toggleEstado('${p.folio}', this.checked)"></td>
                     <td class="text-center">
@@ -789,7 +795,7 @@ async function cargarPendientes() {
         }
 
         if (reunionesFinalizadas.length === 0) {
-            tbodyReunionesFinalizadas.innerHTML = `<tr><td colspan="10" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay reuniones finalizadas todavía.</td></tr>`;
+            tbodyReunionesFinalizadas.innerHTML = `<tr><td colspan="11" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay reuniones finalizadas todavía.</td></tr>`;
         } else {
             reunionesFinalizadas.forEach(p => {
                 const tr = document.createElement('tr');
@@ -800,6 +806,8 @@ async function cargarPendientes() {
                 if (p.prioridad === 'Baja') badgePri = '<span class="prioridad-baja">BAJA</span>';
 
                 const totalNotas = p.notasLista ? p.notasLista.length : 0;
+                let notasPendientesCount = p.notasLista ? p.notasLista.filter(nt => !nt.completado).length : 0;
+
                 let asignadosSet = new Set();
                 if (p.notasLista) {
                     p.notasLista.forEach(nt => {
@@ -809,6 +817,7 @@ async function cargarPendientes() {
                     });
                 }
                 const asignadosStr = asignadosSet.size > 0 ? Array.from(asignadosSet).join(', ') : '-';
+                const badgePendientes = notasPendientesCount > 0 ? `<span class="badge" style="background: #fef2f2; color: #b91c1c; font-size: 13px;">${notasPendientesCount} Pendientes</span>` : `<span class="badge" style="background: #f0fdf4; color: #15803d; font-size: 13px;">0 Pendientes</span>`;
 
                 tr.innerHTML = `
                     <td><span class="badge badge-reu">${p.folio}</span></td>
@@ -818,6 +827,7 @@ async function cargarPendientes() {
                     <td class="text-center">${p.vencimiento} - ${p.horaReunion} hrs</td>
                     <td class="text-center"><b>${totalNotas}</b></td>
                     <td>${asignadosStr}</td>
+                    <td class="text-center">${badgePendientes}</td>
                     <td>${p.observaciones || '-'}</td>
                     <td class="text-center"><input type="checkbox" checked onclick="toggleEstado('${p.folio}', this.checked)"></td>
                     <td class="text-center">
