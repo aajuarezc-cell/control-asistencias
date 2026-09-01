@@ -233,7 +233,7 @@
                 <span id="kpiReuniones">0</span>
             </div>
         </div>
-        <div class="kpi-card" onclick="clickKpiUrgentes()" title="Ver Actividades Urgentes">
+        <div class="kpi-card" onclick="clickKpiUrgentes()" title="Ver Actividades Urgentes (Alta)">
             <div class="kpi-icon" style="background: #fef2f2; color: #ef4444;">🚨</div>
             <div class="kpi-info">
                 <h4>Urgentes</h4>
@@ -598,8 +598,10 @@ const personalLista = [
 
 let folioNotaActual = null;
 let notasTemporalesModal = [];
+let filtroUrgentesActivo = false; // Variable para controlar el filtro de urgentes
 
 function irAlHome() {
+    filtroUrgentesActivo = false;
     cambiarModulo('moduloNuevoRegistro', document.querySelector('.nav-modulos button:first-child'));
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -620,24 +622,28 @@ function cambiarSubmodulo(idSubmodulo, btnElement) {
 
 /* ACCIONES DE LOS KPI'S INTERACTIVOS */
 function clickKpiPendientes() {
+    filtroUrgentesActivo = false;
     cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
     document.getElementById('filtroFechaPendientes').value = '';
     cargarPendientes();
 }
 
 function clickKpiReuniones() {
+    filtroUrgentesActivo = false;
     cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
     document.getElementById('filtroFechaAgenda').value = fechaHoy;
     cargarPendientes();
 }
 
 function clickKpiUrgentes() {
+    filtroUrgentesActivo = true; // Activa el filtro exclusivo de prioridad Alta
     cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
     document.getElementById('filtroFechaPendientes').value = '';
     cargarPendientes();
 }
 
 function clickKpiAsistencias() {
+    filtroUrgentesActivo = false;
     cambiarModulo('moduloAsistencias', document.querySelectorAll('.btn-modulo')[3]);
     cambiarSubmodulo('subAsistenciaDiaria', document.querySelector('.btn-submodulo'));
 }
@@ -755,6 +761,11 @@ async function cargarPendientes() {
 
         if (fechaAgenda) dataReuniones = dataReuniones.filter(p => p.vencimiento === fechaAgenda);
         if (fechaPendientes) dataPendientes = dataPendientes.filter(p => p.vencimiento === fechaPendientes);
+
+        // Si el filtro de urgentes está activo, filtramos sólo las de prioridad Alta
+        if (filtroUrgentesActivo) {
+            dataPendientes = dataPendientes.filter(p => p.prioridad === 'Alta');
+        }
         
         const tbodyReuniones = document.getElementById('tablaReuniones');
         const tbodyReunionesFinalizadas = document.getElementById('tablaReunionesFinalizadas');
@@ -844,7 +855,7 @@ async function cargarPendientes() {
         const actividadesFinalizadas = dataPendientes.filter(p => p.finalizado);
 
         if (actividadesActivas.length === 0) {
-            tbodyPendientes.innerHTML = `<tr><td colspan="9" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay actividades activas.</td></tr>`;
+            tbodyPendientes.innerHTML = `<tr><td colspan="9" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay actividades activas ${filtroUrgentesActivo ? 'con prioridad Alta (Urgentes)' : ''}.</td></tr>`;
         } else {
             actividadesActivas.forEach(p => {
                 const textoWs = encodeURIComponent(`Hola ${p.turnado}, actividad asignada (${p.folio}):\n\n"${p.incidente}"\nVencimiento: ${p.vencimiento}`);
@@ -1219,7 +1230,7 @@ function exportarPDF(seccionId) {
 }
 
 function limpiarFiltroAgenda() { document.getElementById('filtroFechaAgenda').value = ''; cargarPendientes(); }
-function limpiarFiltroPendientes() { document.getElementById('filtroFechaPendientes').value = ''; cargarPendientes(); }
+function limpiarFiltroPendientes() { filtroUrgentesActivo = false; document.getElementById('filtroFechaPendientes').value = ''; cargarPendientes(); }
 function limpiarFiltroSemana() { document.getElementById('filtroSemana').value = fechaHoy; document.getElementById('filtroPersonaReporte').value = 'TODOS'; cargarReporteSemanal(); }
 function limpiarFiltroMensual() { document.getElementById('filtroMes').value = mesHoy; document.getElementById('filtroPersonaMensual').value = 'TODOS'; cargarReporteMensual(); }
 
