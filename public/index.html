@@ -28,14 +28,15 @@
 
         .reloj-widget { background: #0f172a; color: #38bdf8; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 14px; font-family: monospace; letter-spacing: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
-        /* DASHBOARD DE KPI'S */
+        /* DASHBOARD DE KPI'S INTERACTIVO */
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
-        .kpi-card { background: #f8fafc; border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .kpi-card { background: #f8fafc; border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; transition: all 0.2s; }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px -2px rgba(0,0,0,0.08); border-color: var(--primary); background: #f1f5f9; }
         .kpi-icon { font-size: 24px; background: #e0e7ff; color: var(--primary); width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; }
         .kpi-info h4 { margin: 0; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
         .kpi-info span { font-size: 18px; font-weight: 700; color: var(--text-main); }
 
-        /* BARRA DE NAVEGACIÓN PRINCIPAL (Optimizada con scroll horizontal en móvil) */
+        /* BARRA DE NAVEGACIÓN PRINCIPAL */
         .nav-modulos { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 12px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
         .nav-modulos::-webkit-scrollbar { display: none; }
         .btn-modulo { background: #e2e8f0; color: var(--text-muted); border: none; padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; transition: all 0.2s; flex-shrink: 0; }
@@ -80,7 +81,6 @@
 
         .section-title { color: var(--text-main); font-size: 16px; border-bottom: 2px solid var(--primary); padding-bottom: 6px; margin-top: 15px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         
-        /* TABLAS ADAPTABLES A MÓVIL (VISTA DE TARJETAS TÁCTILES) */
         .table-container { width: 100%; overflow-x: auto; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 15px; background: white; }
         table { width: 100%; border-collapse: collapse; min-width: 100%; background: white; }
         th, td { padding: 10px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border-color); }
@@ -152,7 +152,7 @@
             background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;
         }
 
-        /* MODAL DE NOTAS A PANTALLA COMPLETA RESPONSIVO */
+        /* MODAL DE NOTAS */
         #modalNotas {
             display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100vw; height: 100vh;
             background-color: var(--bg-color); flex-direction: column; box-sizing: border-box; padding: 10px; overflow-y: auto;
@@ -173,7 +173,6 @@
         .btn-cerrar { background: #64748b; padding: 10px 20px; width: 100%; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
         .btn-cerrar:hover { background: #475569; }
 
-        /* ADAPTACIÓN MÓVIL ESPECÍFICA (PANTALLAS MENORES A 768px) */
         @media (min-width: 768px) {
             body { padding: 20px; }
             .container { padding: 30px; }
@@ -218,30 +217,30 @@
         <div id="relojWidget" class="reloj-widget">--:--:--</div>
     </div>
 
-    <!-- DASHBOARD DE INDICADORES (KPI'S RÁPIDOS) -->
+    <!-- DASHBOARD DE INDICADORES (KPI'S INTERACTIVOS) -->
     <div class="dashboard-grid">
-        <div class="kpi-card">
+        <div class="kpi-card" onclick="clickKpiPendientes()" title="Ver Actividades y Pendientes">
             <div class="kpi-icon">📋</div>
             <div class="kpi-info">
                 <h4>Pendientes</h4>
                 <span id="kpiPendientes">0</span>
             </div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card" onclick="clickKpiReuniones()" title="Ver Reuniones de Hoy">
             <div class="kpi-icon" style="background: #ede9fe; color: #7c3aed;">📅</div>
             <div class="kpi-info">
                 <h4>Reuniones Hoy</h4>
                 <span id="kpiReuniones">0</span>
             </div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card" onclick="clickKpiUrgentes()" title="Ver Actividades Urgentes">
             <div class="kpi-icon" style="background: #fef2f2; color: #ef4444;">🚨</div>
             <div class="kpi-info">
                 <h4>Urgentes</h4>
                 <span id="kpiUrgentes">0</span>
             </div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card" onclick="clickKpiAsistencias()" title="Ver Control de Asistencias">
             <div class="kpi-icon" style="background: #fefce8; color: #ca8a04;">⚠️</div>
             <div class="kpi-info">
                 <h4>Faltas / Retardos</h4>
@@ -515,7 +514,7 @@
     </div>
 </div>
 
-<!-- MODAL DE NOTAS PANTALLA COMPLETA -->
+<!-- MODAL DE NOTAS -->
 <div id="modalNotas">
     <div class="modal-pantalla-completa">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 12px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
@@ -581,8 +580,20 @@
 
 <script>
 const personalLista = [
-    "Israel", "Nohemi", "Joel", "Nelson", "Rafael", "Itzel", 
-    "Ricardo", "Javier", "Christian", "Rosa Angeles", "Martin", "Emanuel", "Roberto"
+    "Titular",
+    "Israel", 
+    "Nohemi", 
+    "Joel", 
+    "Nelson", 
+    "Rafael", 
+    "Itzel", 
+    "Ricardo", 
+    "Javier", 
+    "Christian", 
+    "Rosa Angeles", 
+    "Martin", 
+    "Emanuel", 
+    "Roberto"
 ];
 
 let folioNotaActual = null;
@@ -597,7 +608,7 @@ function cambiarModulo(idModulo, btnElement) {
     document.querySelectorAll('.modulo-vista').forEach(v => v.classList.remove('activo'));
     document.querySelectorAll('.btn-modulo').forEach(b => b.classList.remove('activo'));
     document.getElementById(idModulo).classList.add('activo');
-    btnElement.classList.add('activo');
+    if (btnElement) btnElement.classList.add('activo');
 }
 
 function cambiarSubmodulo(idSubmodulo, btnElement) {
@@ -605,6 +616,30 @@ function cambiarSubmodulo(idSubmodulo, btnElement) {
     document.querySelectorAll('.btn-submodulo').forEach(b => b.classList.remove('activo'));
     document.getElementById(idSubmodulo).classList.add('activo');
     btnElement.classList.add('activo');
+}
+
+/* ACCIONES DE LOS KPI'S INTERACTIVOS */
+function clickKpiPendientes() {
+    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
+    document.getElementById('filtroFechaPendientes').value = '';
+    cargarPendientes();
+}
+
+function clickKpiReuniones() {
+    cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
+    document.getElementById('filtroFechaAgenda').value = fechaHoy;
+    cargarPendientes();
+}
+
+function clickKpiUrgentes() {
+    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
+    document.getElementById('filtroFechaPendientes').value = '';
+    cargarPendientes();
+}
+
+function clickKpiAsistencias() {
+    cambiarModulo('moduloAsistencias', document.querySelectorAll('.btn-modulo')[3]);
+    cambiarSubmodulo('subAsistenciaDiaria', document.querySelector('.btn-submodulo'));
 }
 
 function actualizarReloj() {
@@ -1168,7 +1203,7 @@ async function cargarReporteMensual() {
             tr.innerHTML = `
                 <td><b>${persona}</b></td>
                 <td class="text-center ${stats.retardos > 0 ? 'alerta-retardo' : ''}">${stats.retardos}</td>
-                <td class="text-center ${stats.falta > 0 ? 'alerta-falta' : ''}">${stats.faltas}</td>
+                <td class="text-center ${stats.faltas > 0 ? 'alerta-falta' : ''}">${stats.faltas}</td>
             `;
             tbody.appendChild(tr);
         });
