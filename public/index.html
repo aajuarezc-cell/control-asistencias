@@ -22,6 +22,13 @@
         .header-box h2 { margin: 0; color: var(--text-main); font-weight: 700; font-size: 24px; }
         .reloj-widget { background: #0f172a; color: #38bdf8; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 16px; font-family: monospace; letter-spacing: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
+        /* DASHBOARD DE KPI'S */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .kpi-card { background: #f8fafc; border: 1px solid var(--border-color); border-radius: 10px; padding: 18px; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .kpi-icon { font-size: 28px; background: #e0e7ff; color: var(--primary); width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 10px; }
+        .kpi-info h4 { margin: 0; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi-info span { font-size: 22px; font-weight: 700; color: var(--text-main); }
+
         /* BARRA DE NAVEGACIÓN PRINCIPAL */
         .nav-modulos { display: flex; gap: 8px; margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; flex-wrap: wrap; }
         .btn-modulo { background: #e2e8f0; color: var(--text-muted); border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; transition: all 0.2s; }
@@ -67,6 +74,11 @@
         .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
         .badge-reu { background: #ede9fe; color: #7c3aed; }
         .badge-pen { background: #e0f2fe; color: #0284c7; }
+
+        /* ETIQUETAS DE PRIORIDAD */
+        .prioridad-alta { background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; display: inline-block; }
+        .prioridad-media { background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; display: inline-block; }
+        .prioridad-baja { background: #d1fae5; color: #065f46; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; display: inline-block; }
         
         .tabla-asistencia th, .tabla-asistencia td { text-align: center; vertical-align: middle; }
         .tabla-asistencia th:first-child, .tabla-asistencia td:first-child { text-align: left; font-weight: 600; width: 320px; }
@@ -162,15 +174,47 @@
         <div id="relojWidget" class="reloj-widget">--:--:--</div>
     </div>
 
+    <!-- DASHBOARD DE INDICADORES (KPI'S RÁPIDOS) -->
+    <div class="dashboard-grid">
+        <div class="kpi-card">
+            <div class="kpi-icon">📋</div>
+            <div class="kpi-info">
+                <h4>Pendientes Activos</h4>
+                <span id="kpiPendientes">0</span>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background: #ede9fe; color: #7c3aed;">📅</div>
+            <div class="kpi-info">
+                <h4>Reuniones Hoy</h4>
+                <span id="kpiReuniones">0</span>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background: #fef2f2; color: #ef4444;">🚨</div>
+            <div class="kpi-info">
+                <h4>Urgentes (Alta)</h4>
+                <span id="kpiUrgentes">0</span>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background: #fefce8; color: #ca8a04;">⚠️</div>
+            <div class="kpi-info">
+                <h4>Faltas / Retardos (Mes)</h4>
+                <span id="kpiIncidencias">0</span>
+            </div>
+        </div>
+    </div>
+
     <!-- BARRA DE NAVEGACIÓN PRINCIPAL -->
     <div class="nav-modulos">
         <button class="btn-modulo activo" onclick="cambiarModulo('moduloNuevoRegistro', this)">➕ Nuevo Registro</button>
-        <button class="btn-modulo" onclick="cambiarModulo('moduloAgenda', this)">📅 Agenda Personal</button>
-        <button class="btn-modulo" onclick="cambiarModulo('moduloPendientes', this)">📋 Actividades</button>
+        <button class="btn-modulo" onclick="cambiarModulo('moduloAgenda', this)">📅 Agenda de Reuniones</button>
+        <button class="btn-modulo" onclick="cambiarModulo('moduloPendientes', this)">📋 Actividades y Pendientes</button>
         <button class="btn-modulo" onclick="cambiarModulo('moduloAsistencias', this)">⏱️ Control de Asistencias</button>
     </div>
     
-    <!-- MÓDULO 1: NUEVO REGISTRO (FORMULARIO) -->
+    <!-- MÓDULO 1: NUEVO REGISTRO (FORMULARIO CON PRIORIDAD Y ACUERDOS) -->
     <div id="moduloNuevoRegistro" class="modulo-vista activo">
         <h3 class="section-title">✏️ Registrar Nueva Reunión o Actividad</h3>
         <form id="formPendiente">
@@ -191,6 +235,15 @@
             </div>
 
             <div class="form-group">
+                <label for="prioridad">Prioridad:</label>
+                <select id="prioridad" required>
+                    <option value="Media">🟡 Media (Normal)</option>
+                    <option value="Alta">🔴 Alta (Urgente)</option>
+                    <option value="Baja">🟢 Baja (Menor)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
                 <label for="incidente">Descripción:</label>
                 <textarea id="incidente" placeholder="Escribe el detalle..." required rows="3"></textarea>
             </div>
@@ -205,6 +258,11 @@
             <div class="form-group">
                 <label for="vencimiento">Fecha:</label>
                 <input type="date" id="vencimiento">
+            </div>
+
+            <div class="form-group oculto" id="grupoAcuerdos">
+                <label for="acuerdos">Acuerdos / Minuta:</label>
+                <textarea id="acuerdos" placeholder="Acuerdos o decisiones tomadas en la reunión..." rows="3"></textarea>
             </div>
             
             <div class="form-group">
@@ -224,15 +282,17 @@
             <button class="btn-limpiar-filtro" onclick="limpiarFiltroAgenda()">Ver Todas</button>
         </div>
 
-        <h3 class="section-title">📅 Agenda de Reuniones</h3>
+        <h3 class="section-title">📅 Agenda de Reuniones y Minutas</h3>
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
                         <th>Folio</th>
+                        <th class="text-center">Prioridad</th>
                         <th>Fecha Gen.</th>
                         <th>Descripción</th>
                         <th class="text-center">Fecha y Horario</th>
+                        <th>Acuerdos / Minuta</th>
                         <th>Observaciones</th>
                         <th class="text-center">Finalizado</th>
                         <th class="text-center">Acciones</th>
@@ -257,6 +317,7 @@
                 <thead>
                     <tr>
                         <th>Folio</th>
+                        <th class="text-center">Prioridad</th>
                         <th>Fecha Gen.</th>
                         <th>Descripción</th>
                         <th class="text-center">Turnado a</th>
@@ -271,16 +332,14 @@
         </div>
     </div>
 
-    <!-- MÓDULO 4: CONTROL DE ASISTENCIAS (UNIFICADO CON SUB-PESTAÑAS) -->
+    <!-- MÓDULO 4: CONTROL DE ASISTENCIAS -->
     <div id="moduloAsistencias" class="modulo-vista">
-        <!-- SUB-NAVEGACIÓN INTERNA -->
         <div class="nav-submodulos">
             <button class="btn-submodulo activo" onclick="cambiarSubmodulo('subAsistenciaDiaria', this)">⏱️ Asistencia Diaria</button>
             <button class="btn-submodulo" onclick="cambiarSubmodulo('subReporteSemanal', this)">📊 Reporte Semanal</button>
             <button class="btn-submodulo" onclick="cambiarSubmodulo('subReporteMensual', this)">📅 Reporte Mensual</button>
         </div>
 
-        <!-- 1. ASISTENCIA DIARIA -->
         <div id="subAsistenciaDiaria" class="submodulo-vista activo">
             <div class="filter-box" style="background: #fdf4ff; border-color: #f5d0fe;">
                 <label for="asistFechaCalendario" style="color: #7e22ce;">📅 Seleccionar Fecha de Asistencia:</label>
@@ -302,7 +361,6 @@
             <button type="button" class="btn-guardar" style="background: #9333ea; margin-bottom: 30px;" onclick="guardarCambiosAsistencias()">💾 Guardar Cambios de Asistencia</button>
         </div>
 
-        <!-- 2. REPORTE SEMANAL -->
         <div id="subReporteSemanal" class="submodulo-vista">
             <h3 class="section-title">
                 <span>📊 Reporte Dinámico de Faltas y Retardos por Semana</span>
@@ -340,7 +398,6 @@
             </div>
         </div>
 
-        <!-- 3. REPORTE MENSUAL -->
         <div id="subReporteMensual" class="submodulo-vista">
             <h3 class="section-title">
                 <span>📅 Reporte Consolidado Mensual</span>
@@ -470,6 +527,7 @@ function toggleCamposTipo() {
     const inputHora = document.getElementById('horaReunion');
     const grupoTurnado = document.getElementById('grupoTurnado');
     const selectTurnadoElem = document.getElementById('turnado');
+    const grupoAcuerdos = document.getElementById('grupoAcuerdos');
     
     if (tipo === 'Reunión') {
         grupoHora.classList.remove('oculto');
@@ -477,12 +535,38 @@ function toggleCamposTipo() {
         grupoTurnado.classList.add('oculto');
         selectTurnadoElem.required = false;
         selectTurnadoElem.value = '';
+        grupoAcuerdos.classList.remove('oculto');
     } else {
         grupoHora.classList.add('oculto');
         inputHora.required = false;
         inputHora.value = '';
         grupoTurnado.classList.remove('oculto');
         selectTurnadoElem.required = true;
+        grupoAcuerdos.classList.add('oculto');
+    }
+}
+
+async function actualizarDashboardKPIs(dataPendientes) {
+    try {
+        // 1. Pendientes activos
+        const activos = dataPendientes.filter(p => !p.finalizado).length;
+        document.getElementById('kpiPendientes').innerText = activos;
+
+        // 2. Reuniones hoy
+        const reunionesHoy = dataPendientes.filter(p => p.tipo === 'Reunión' && !p.finalizado && p.vencimiento === fechaHoy).length;
+        document.getElementById('kpiReuniones').innerText = reunionesHoy;
+
+        // 3. Urgentes (Alta)
+        const urgentes = dataPendientes.filter(p => !p.finalizado && p.prioridad === 'Alta').length;
+        document.getElementById('kpiUrgentes').innerText = urgentes;
+
+        // 4. Incidencias del mes (Asistencias)
+        const resAsist = await fetch('/api/asistencias');
+        const dataAsist = await resAsist.json();
+        const incidenciasMes = dataAsist.filter(a => a.fecha.startsWith(mesHoy) && (a.estatus === 'Falta' || a.estatus === 'Retardo')).length;
+        document.getElementById('kpiIncidencias').innerText = incidenciasMes;
+    } catch (e) {
+        console.error("Error al actualizar KPIs:", e);
     }
 }
 
@@ -490,6 +574,12 @@ async function cargarPendientes() {
     try {
         const res = await fetch('/api/pendientes');
         let data = await res.json();
+        
+        // Ordenar por prioridad (Alta primero, luego Media, luego Baja)
+        const pesoPrioridad = { 'Alta': 1, 'Media': 2, 'Baja': 3 };
+        data.sort((a, b) => (pesoPrioridad[a.prioridad || 'Media'] - pesoPrioridad[b.prioridad || 'Media']));
+
+        actualizarDashboardKPIs(data);
         
         const fechaAgenda = document.getElementById('filtroFechaAgenda').value;
         const fechaPendientes = document.getElementById('filtroFechaPendientes').value;
@@ -511,21 +601,28 @@ async function cargarPendientes() {
         tbodyPendientes.innerHTML = '';
         
         if (dataReuniones.length === 0) {
-            tbodyReuniones.innerHTML = `<tr><td colspan="7" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay reuniones registradas.</td></tr>`;
+            tbodyReuniones.innerHTML = `<tr><td colspan="9" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay reuniones registradas.</td></tr>`;
         } else {
             dataReuniones.forEach(p => {
                 const tr = document.createElement('tr');
                 if (p.finalizado) tr.classList.add('completado');
+                
+                let badgePri = '<span class="prioridad-media">MEDIA</span>';
+                if (p.prioridad === 'Alta') badgePri = '<span class="prioridad-alta">ALTA</span>';
+                if (p.prioridad === 'Baja') badgePri = '<span class="prioridad-baja">BAJA</span>';
+
                 tr.innerHTML = `
                     <td><span class="badge badge-reu">${p.folio}</span></td>
+                    <td class="text-center">${badgePri}</td>
                     <td>${p.fecha}</td>
                     <td>${p.incidente}</td>
                     <td class="text-center">${p.vencimiento} - ${p.horaReunion} hrs</td>
+                    <td><b>${p.acuerdos || '-'}</b></td>
                     <td>${p.observaciones || '-'}</td>
                     <td class="text-center"><input type="checkbox" ${p.finalizado ? 'checked' : ''} onclick="toggleEstado('${p.folio}', this.checked)"></td>
                     <td class="text-center">
                         <div class="acciones-container">
-                            <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}', 'Reunión', '${p.incidente.replace(/'/g, "\\'")}', '', '${p.vencimiento}', '${p.horaReunion || ''}', '${p.observaciones.replace(/'/g, "\\'")}')">Editar</button>
+                            <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}', 'Reunión', '${p.incidente.replace(/'/g, "\\'")}', '', '${p.vencimiento}', '${p.horaReunion || ''}', '${(p.acuerdos || '').replace(/'/g, "\\'")}', '${p.observaciones.replace(/'/g, "\\'")}', '${p.prioridad || 'Media'}')">Editar</button>
                             <button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${p.folio}')">Eliminar</button>
                         </div>
                     </td>
@@ -535,14 +632,20 @@ async function cargarPendientes() {
         }
 
         if (dataPendientes.length === 0) {
-            tbodyPendientes.innerHTML = `<tr><td colspan="8" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay actividades registradas.</td></tr>`;
+            tbodyPendientes.innerHTML = `<tr><td colspan="9" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay actividades registradas.</td></tr>`;
         } else {
             dataPendientes.forEach(p => {
                 const textoWs = encodeURIComponent(`Hola ${p.turnado}, se te ha asignado la siguiente actividad (${p.folio}):\n\n"${p.incidente}"\nVencimiento: ${p.vencimiento}\nObservaciones: ${p.observaciones || 'Ninguna'}`);
                 const tr = document.createElement('tr');
                 if (p.finalizado) tr.classList.add('completado');
+                
+                let badgePri = '<span class="prioridad-media">MEDIA</span>';
+                if (p.prioridad === 'Alta') badgePri = '<span class="prioridad-alta">ALTA</span>';
+                if (p.prioridad === 'Baja') badgePri = '<span class="prioridad-baja">BAJA</span>';
+
                 tr.innerHTML = `
                     <td><span class="badge badge-pen">${p.folio}</span></td>
+                    <td class="text-center">${badgePri}</td>
                     <td>${p.fecha}</td>
                     <td>${p.incidente}</td>
                     <td class="text-center"><b>${p.turnado}</b></td>
@@ -555,7 +658,7 @@ async function cargarPendientes() {
                                 <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
                                 WA
                             </a>
-                            <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}', 'Actividad', '${p.incidente.replace(/'/g, "\\'")}', '${p.turnado}', '${p.vencimiento}', '', '${p.observaciones.replace(/'/g, "\\'")}')">Editar</button>
+                            <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}', 'Actividad', '${p.incidente.replace(/'/g, "\\'")}', '${p.turnado}', '${p.vencimiento}', '', '', '${p.observaciones.replace(/'/g, "\\'")}', '${p.prioridad || 'Media'}')">Editar</button>
                             <button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${p.folio}')">Eliminar</button>
                         </div>
                     </td>
@@ -635,6 +738,7 @@ async function guardarCambiosAsistencias() {
     await Promise.all(promesas);
     cargarReporteSemanal();
     cargarReporteMensual();
+    cargarPendientes();
     mostrarModal("✨ Éxito", "<div class='mensaje-dia'>Asistencias guardadas correctamente</div>");
 }
 
@@ -810,16 +914,18 @@ document.getElementById('formPendiente').addEventListener('submit', async (e) =>
     const editFolio = document.getElementById('editFolio').value;
     const tipo = document.getElementById('tipo').value;
     const horaReunion = document.getElementById('horaReunion').value;
+    const prioridad = document.getElementById('prioridad').value;
     const incidente = document.getElementById('incidente').value;
     const turnado = document.getElementById('turnado').value;
     const vencimiento = document.getElementById('vencimiento').value;
+    const acuerdos = document.getElementById('acuerdos').value;
     const observaciones = document.getElementById('observaciones').value;
 
     if (editFolio) {
         await fetch(`/api/pendientes/${editFolio}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tipo, incidente, turnado, vencimiento, horaReunion, observaciones })
+            body: JSON.stringify({ tipo, incidente, turnado, vencimiento, horaReunion, acuerdos, observaciones, prioridad })
         });
         document.getElementById('editFolio').value = '';
         document.getElementById('btnSubmitText').innerText = 'Guardar Registro';
@@ -827,7 +933,7 @@ document.getElementById('formPendiente').addEventListener('submit', async (e) =>
         await fetch('/api/pendientes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tipo, incidente, turnado, vencimiento, horaReunion, observaciones })
+            body: JSON.stringify({ tipo, incidente, turnado, vencimiento, horaReunion, acuerdos, observaciones, prioridad })
         });
     }
 
@@ -836,14 +942,16 @@ document.getElementById('formPendiente').addEventListener('submit', async (e) =>
     cargarPendientes();
 });
 
-function prepararEdicion(folio, tipo, incidente, turnado, vencimiento, horaReunion, observaciones) {
+function prepararEdicion(folio, tipo, incidente, turnado, vencimiento, horaReunion, acuerdos, observaciones, prioridad) {
     document.getElementById('editFolio').value = folio;
     document.getElementById('tipo').value = tipo;
     toggleCamposTipo();
     document.getElementById('horaReunion').value = horaReunion;
+    document.getElementById('prioridad').value = prioridad || 'Media';
     document.getElementById('incidente').value = incidente;
     document.getElementById('turnado').value = turnado;
     document.getElementById('vencimiento').value = vencimiento !== 'N/A' ? vencimiento : '';
+    document.getElementById('acuerdos').value = acuerdos !== 'undefined' ? acuerdos : '';
     document.getElementById('observaciones').value = observaciones !== 'undefined' ? observaciones : '';
     document.getElementById('btnSubmitText').innerText = `Actualizar (${folio})`;
     

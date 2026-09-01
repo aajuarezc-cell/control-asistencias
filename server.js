@@ -16,10 +16,12 @@ mongoose.connect(MONGO_URI)
 const pendienteSchema = new mongoose.Schema({
     folio: { type: String, unique: true },
     tipo: String,
+    prioridad: { type: String, default: 'Media' },
     incidente: String,
     turnado: String,
     vencimiento: String,
     horaReunion: String,
+    acuerdos: String,
     observaciones: String,
     finalizado: { type: Boolean, default: false },
     fecha: String
