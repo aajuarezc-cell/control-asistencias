@@ -113,14 +113,18 @@ app.post('/api/pendientes', async (req, res) => {
     try {
         const { tipo, incidente, turnado, vencimiento, horaReunion, notasLista, observaciones, prioridad } = req.body;
         
-        const ultimo = await Pendiente.findOne().sort({ _id: -1 });
+        // Calcular folio automático independiente según el tipo (REU- o ACT-)
+        const prefijo = tipo === 'Reunión' ? 'REU-' : 'ACT-';
+        const ultimo = await Pendiente.findOne({ folio: new RegExp(`^${prefijo}`) }).sort({ _id: -1 });
+        
         let siguienteNumero = 1;
-        if (ultimo && ultimo.folio && ultimo.folio.startsWith('Folio-')) {
+        if (ultimo && ultimo.folio && ultimo.folio.startsWith(prefijo)) {
             const numeroStr = ultimo.folio.split('-')[1];
             const num = parseInt(numeroStr);
             if (!isNaN(num)) siguienteNumero = num + 1;
         }
-        const folioGenerado = `Folio-${String(siguienteNumero).padStart(3, '0')}`;
+        const folioGenerado = `${prefijo}${String(siguienteNumero).padStart(3, '0')}`;
+        
         const fechaActual = new Date().toISOString().split('T')[0];
 
         const nuevoPendiente = new Pendiente({
