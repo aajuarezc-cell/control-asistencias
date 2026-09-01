@@ -885,11 +885,13 @@ async function sincronizarNotasComoActividades(folioReunion, notas, fechaReunion
         const res = await fetch('/api/pendientes');
         let todas = await res.json();
 
-        let actividadesExistentes = todas.filter(item => item.observaciones && item.observaciones.includes(`[Origen: ${folioReunion}]`));
+        let actividadesExistentes = todas.filter(item => item.observaciones && item.observaciones.includes(`[Origen: ${folioReunion}-nota-`));
+        let indicesActuales = new Set();
 
         for (let i = 0; i < notas.length; i++) {
             let nota = notas[i];
             if (nota.responsable && nota.responsable !== 'Sin asignar (Opcional)' && nota.responsable !== 'General') {
+                indicesActuales.add(i);
                 let marcaOrigen = `[Origen: ${folioReunion}-nota-${i}]`;
                 let existente = actividadesExistentes.find(act => act.observaciones.includes(marcaOrigen));
 
@@ -911,13 +913,28 @@ async function sincronizarNotasComoActividades(folioReunion, notas, fechaReunion
                         })
                     });
                 } else if (existente) {
-                    if (existente.finalizado !== nota.completado) {
+                    if (existente.finalizado !== nota.completado || existente.incidente !== nota.texto || existente.turnado !== nota.responsable || existente.prioridad !== (nota.prioridad || 'Media')) {
                         await fetch(`/api/pendientes/${existente.folio}`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ finalizado: nota.completado })
+                            body: JSON.stringify({ 
+                                finalizado: nota.completado,
+                                incidente: nota.texto,
+                                turnado: nota.responsable,
+                                prioridad: nota.prioridad || 'Media'
+                            })
                         });
                     }
+                }
+            }
+        }
+
+        for (let act of actividadesExistentes) {
+            let matchNota = act.observaciones.match(/\[Origen:\s*Folio-\d+-nota-(\d+)\]/);
+            if (matchNota && matchNota.length >= 2) {
+                let idxNotaOriginal = parseInt(matchNota[1]);
+                if (!indicesActuales.has(idxNotaOriginal)) {
+                    await fetch(`/api/pendientes/${act.folio}`, { method: 'DELETE' });
                 }
             }
         }
