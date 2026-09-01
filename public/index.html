@@ -23,8 +23,8 @@
         .reloj-widget { background: #0f172a; color: #38bdf8; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 16px; font-family: monospace; letter-spacing: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
         /* BARRA DE NAVEGACIÓN DE MÓDULOS */
-        .nav-modulos { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; flex-wrap: wrap; }
-        .btn-modulo { background: #e2e8f0; color: var(--text-muted); border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+        .nav-modulos { display: flex; gap: 8px; margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; flex-wrap: wrap; }
+        .btn-modulo { background: #e2e8f0; color: var(--text-muted); border: none; padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; transition: all 0.2s; }
         .btn-modulo:hover { background: #cbd5e1; color: var(--text-main); }
         .btn-modulo.activo { background: var(--primary); color: white; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3); }
 
@@ -156,8 +156,9 @@
     <!-- BARRA DE NAVEGACIÓN POR MÓDULOS -->
     <div class="nav-modulos">
         <button class="btn-modulo activo" onclick="cambiarModulo('moduloNuevoRegistro', this)">➕ Nuevo Registro</button>
-        <button class="btn-modulo" onclick="cambiarModulo('moduloVisualizar', this)">👁️ Visualizar Agenda y Pendientes</button>
-        <button class="btn-modulo" onclick="cambiarModulo('moduloAsistencias', this)">⏱️ Control Diario Asistencias</button>
+        <button class="btn-modulo" onclick="cambiarModulo('moduloAgenda', this)">📅 Agenda de Reuniones</button>
+        <button class="btn-modulo" onclick="cambiarModulo('moduloPendientes', this)">📋 Actividades y Pendientes</button>
+        <button class="btn-modulo" onclick="cambiarModulo('moduloAsistencias', this)">⏱️ Control Asistencias</button>
         <button class="btn-modulo" onclick="cambiarModulo('moduloSemanal', this)">📊 Reporte Semanal</button>
         <button class="btn-modulo" onclick="cambiarModulo('moduloMensual', this)">📅 Reporte Mensual</button>
     </div>
@@ -208,12 +209,12 @@
         </form>
     </div>
 
-    <!-- MÓDULO 2: VISUALIZAR AGENDA Y PENDIENTES -->
-    <div id="moduloVisualizar" class="modulo-vista">
+    <!-- MÓDULO 2: AGENDA DE REUNIONES -->
+    <div id="moduloAgenda" class="modulo-vista">
         <div class="filter-box">
-            <label for="filtroFecha">📅 Filtrar por Día:</label>
-            <input type="date" id="filtroFecha" onchange="cargarPendientes();">
-            <button class="btn-limpiar-filtro" onclick="limpiarFiltroFecha()">Ver Todos</button>
+            <label for="filtroFechaAgenda">📅 Filtrar por Día:</label>
+            <input type="date" id="filtroFechaAgenda" onchange="cargarPendientes();">
+            <button class="btn-limpiar-filtro" onclick="limpiarFiltroAgenda()">Ver Todas</button>
         </div>
 
         <h3 class="section-title">📅 Agenda de Reuniones</h3>
@@ -232,6 +233,15 @@
                 </thead>
                 <tbody id="tablaReuniones"></tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- MÓDULO 3: ACTIVIDADES Y PENDIENTES -->
+    <div id="moduloPendientes" class="modulo-vista">
+        <div class="filter-box">
+            <label for="filtroFechaPendientes">📅 Filtrar por Día:</label>
+            <input type="date" id="filtroFechaPendientes" onchange="cargarPendientes();">
+            <button class="btn-limpiar-filtro" onclick="limpiarFiltroPendientes()">Ver Todos</button>
         </div>
 
         <h3 class="section-title">📋 Actividades y Pendientes</h3>
@@ -254,7 +264,7 @@
         </div>
     </div>
 
-    <!-- MÓDULO 3: CONTROL DIARIO DE ASISTENCIAS -->
+    <!-- MÓDULO 4: CONTROL DIARIO DE ASISTENCIAS -->
     <div id="moduloAsistencias" class="modulo-vista">
         <div class="filter-box" style="background: #fdf4ff; border-color: #f5d0fe;">
             <label for="asistFechaCalendario" style="color: #7e22ce;">📅 Seleccionar Fecha de Asistencia:</label>
@@ -276,7 +286,7 @@
         <button type="button" class="btn-guardar" style="background: #9333ea; margin-bottom: 30px;" onclick="guardarCambiosAsistencias()">💾 Guardar Cambios de Asistencia</button>
     </div>
 
-    <!-- MÓDULO 4: REPORTE SEMANAL -->
+    <!-- MÓDULO 5: REPORTE SEMANAL -->
     <div id="moduloSemanal" class="modulo-vista">
         <h3 class="section-title">
             <span>📊 Reporte Dinámico de Faltas y Retardos por Semana</span>
@@ -314,7 +324,7 @@
         </div>
     </div>
 
-    <!-- MÓDULO 5: REPORTE MENSUAL -->
+    <!-- MÓDULO 6: REPORTE MENSUAL -->
     <div id="moduloMensual" class="modulo-vista">
         <h3 class="section-title">
             <span>📅 Reporte Consolidado Mensual</span>
@@ -455,10 +465,18 @@ async function cargarPendientes() {
     try {
         const res = await fetch('/api/pendientes');
         let data = await res.json();
-        const fechaSeleccionada = document.getElementById('filtroFecha').value;
         
-        if (fechaSeleccionada) {
-            data = data.filter(p => p.vencimiento === fechaSeleccionada);
+        const fechaAgenda = document.getElementById('filtroFechaAgenda').value;
+        const fechaPendientes = document.getElementById('filtroFechaPendientes').value;
+        
+        let dataReuniones = data.filter(p => p.tipo === 'Reunión');
+        let dataPendientes = data.filter(p => p.tipo !== 'Reunión');
+
+        if (fechaAgenda) {
+            dataReuniones = dataReuniones.filter(p => p.vencimiento === fechaAgenda);
+        }
+        if (fechaPendientes) {
+            dataPendientes = dataPendientes.filter(p => p.vencimiento === fechaPendientes);
         }
         
         const tbodyReuniones = document.getElementById('tablaReuniones');
@@ -467,17 +485,12 @@ async function cargarPendientes() {
         tbodyReuniones.innerHTML = '';
         tbodyPendientes.innerHTML = '';
         
-        if (data.length === 0) {
-            tbodyReuniones.innerHTML = `<tr><td colspan="7" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay reuniones para esta fecha.</td></tr>`;
-            tbodyPendientes.innerHTML = `<tr><td colspan="8" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay actividades para esta fecha.</td></tr>`;
-            return;
-        }
-
-        data.forEach(p => {
-            const tr = document.createElement('tr');
-            if (p.finalizado) tr.classList.add('completado');
-
-            if (p.tipo === 'Reunión') {
+        if (dataReuniones.length === 0) {
+            tbodyReuniones.innerHTML = `<tr><td colspan="7" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay reuniones registradas.</td></tr>`;
+        } else {
+            dataReuniones.forEach(p => {
+                const tr = document.createElement('tr');
+                if (p.finalizado) tr.classList.add('completado');
                 tr.innerHTML = `
                     <td><span class="badge badge-reu">${p.folio}</span></td>
                     <td>${p.fecha}</td>
@@ -493,9 +506,16 @@ async function cargarPendientes() {
                     </td>
                 `;
                 tbodyReuniones.appendChild(tr);
-            } else {
+            });
+        }
+
+        if (dataPendientes.length === 0) {
+            tbodyPendientes.innerHTML = `<tr><td colspan="8" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay actividades registradas.</td></tr>`;
+        } else {
+            dataPendientes.forEach(p => {
                 const textoWs = encodeURIComponent(`Hola ${p.turnado}, se te ha asignado la siguiente actividad (${p.folio}):\n\n"${p.incidente}"\nVencimiento: ${p.vencimiento}\nObservaciones: ${p.observaciones || 'Ninguna'}`);
-                
+                const tr = document.createElement('tr');
+                if (p.finalizado) tr.classList.add('completado');
                 tr.innerHTML = `
                     <td><span class="badge badge-pen">${p.folio}</span></td>
                     <td>${p.fecha}</td>
@@ -516,8 +536,8 @@ async function cargarPendientes() {
                     </td>
                 `;
                 tbodyPendientes.appendChild(tr);
-            }
-        });
+            });
+        }
     } catch (e) {
         console.error("Error al cargar pendientes:", e);
     }
@@ -738,8 +758,13 @@ function exportarPDF(seccionId, nombreArchivo) {
     window.location.reload();
 }
 
-function limpiarFiltroFecha() {
-    document.getElementById('filtroFecha').value = '';
+function limpiarFiltroAgenda() {
+    document.getElementById('filtroFechaAgenda').value = '';
+    cargarPendientes();
+}
+
+function limpiarFiltroPendientes() {
+    document.getElementById('filtroFechaPendientes').value = '';
     cargarPendientes();
 }
 
