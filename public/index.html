@@ -851,12 +851,15 @@ async function sincronizarNotasComoActividades(folioReunion, notas, fechaReunion
                             observaciones: `Derivado de reunión ${folioReunion} ${marcaOrigen}`
                         })
                     });
-                } else if (existente && nota.completado && !existente.finalizado) {
-                    await fetch(`/api/pendientes/${existente.folio}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ finalizado: true })
-                    });
+                } else if (existente) {
+                    // Sincronizar estado finalizado si difiere
+                    if (existente.finalizado !== nota.completado) {
+                        await fetch(`/api/pendientes/${existente.folio}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ finalizado: nota.completado })
+                        });
+                    }
                 }
             }
         }
@@ -1235,12 +1238,63 @@ async function eliminarPendiente(folio) {
 }
 
 async function toggleEstado(folio, finalizado) {
-    await fetch(`/api/pendientes/${folio}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ finalizado })
-    });
-    cargarPendientes();
+    try {
+        // 1. Cambiar el estado del registro actual en la base de datos
+        const resReg = await fetch(`/api/pendientes/${folio}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ finalizado })
+        });
+        const registroActualizado = await resReg.json();
+
+        // 2. Si es una Actividad derivada de una nota de reunión, actualizar la nota dentro de la reunión padre
+        if (registroActualizado.tipo !== 'Reunión' && registroActualizado.observaciones && registroActualizado.observaciones.includes('[Origen:')) {
+            const matchOrigen = registroActualizado.observaciones.match(/\[Origen:\s*(Folio-\d+)-nota-(\d+)\]/);
+            if (matchOrigen && matchOrigen.length >= 3) {
+                const folioReunionPadre = matchOrigen[1];
+                const indexNota = parseInt(matchOrigen[2]);
+
+                const resPadre = await fetch('/api/pendientes');
+                const todas = await resPadre.json();
+                const reunionPadre = todas.find(item => item.folio === folioReunionPadre);
+
+                if (reunionPadre && reunionPadre.notasLista && reunionPadre.notasLista[indexNota]) {
+                    reunionPadre.notasLista[indexNota].completado = finalizado;
+
+                    await fetch(`/api/pendientes/${folioReunionPadre}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(reunionPadre)
+                    });
+                }
+            }
+        } 
+        
+        // 3. Si es una Reunión y tiene notas, verificar si alguna actividad pendiente está vinculada para actualizarla también
+        else if (registroActualizado.tipo === 'Reunión' && registroActualizado.notasLista) {
+            const resTodas = await fetch('/api/pendientes');
+            const todas = await resTodas.json();
+
+            for (let i = 0; i < registroActualizado.notasLista.length; i++) {
+                const nota = registroActualizado.notasLista[i];
+                const marcaOrigen = `[Origen: ${folio}-nota-${i}]`;
+                const actividadVinculada = todas.find(item => item.observaciones && item.observaciones.includes(marcaOrigen));
+
+                if (actividadVinculada && actividadVinculada.finalizado !== nota.completado) {
+                    await fetch(`/api/pendientes/${actividadVinculada.folio}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ finalizado: nota.completado })
+                    });
+                }
+            }
+        }
+
+        cargarPendientes();
+    } catch (e) {
+        console.error("Error al actualizar estado sincronizado:", e);
+        cargarPendientes();
+    }
 }
 
 function cerrarAlerta() {
