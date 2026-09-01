@@ -858,7 +858,7 @@ async function guardarNotasModal() {
         if (p) {
             p.notasLista = notasTemporalesModal;
 
-            sincronizarNotasComoActividades(p.folio, p.notasLista, p.vencimiento);
+            await sincronizarNotasComoActividades(p.folio, p.notasLista, p.vencimiento);
 
             await fetch(`/api/pendientes/${folioNotaActual}`, {
                 method: 'PUT',
@@ -894,16 +894,20 @@ async function sincronizarNotasComoActividades(folioReunion, notas, fechaReunion
                 let existente = actividadesExistentes.find(act => act.observaciones.includes(marcaOrigen));
 
                 if (!existente && !nota.completado) {
+                    const nuevoFolio = `ACT-${folioReunion.replace('Folio-', '')}-${i + 1}`;
+                    
                     await fetch('/api/pendientes', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
+                            folio: nuevoFolio,
                             tipo: 'Actividad',
                             prioridad: nota.prioridad || 'Media',
                             incidente: nota.texto,
                             turnado: nota.responsable,
                             vencimiento: fechaReunion || fechaHoy,
-                            observaciones: `Derivado de reunión ${folioReunion} ${marcaOrigen}`
+                            observaciones: `Derivado de reunión ${folioReunion} ${marcaOrigen}`,
+                            finalizado: false
                         })
                     });
                 } else if (existente) {
