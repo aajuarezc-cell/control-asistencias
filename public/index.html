@@ -345,7 +345,7 @@ const personalLista = [
     "Araujo Morales Nohemi",
     "Chable Narvaez Joel",
     "Garcia Salvador Nelson",
-    "Fomez Gonzalez Rafael Gabriel",
+    "Gomez Gonzalez Rafael Gabriel",
     "Hernandez Garcia Lorna Itzel",
     "Javier Hernandez Ricardo Daniel",
     "Lara Thomas Javier",
@@ -472,7 +472,7 @@ async function cargarPendientes() {
                 tbodyReuniones.appendChild(tr);
             } else {
                 // Mensaje optimizado para WhatsApp
-                const textoWs = encodeURIComponent(`Hola ${p.turnado}, se te ha asignado la siguiente actividad (${p.folio}):\n\n"${p.incidente}"\nVencimiento: ${p.vencimiento}\nObservaciones: ${p.observaciones || 'Ninguna'}`);
+                const textoWs = encodeURIComponent(`Hola ${p.turnado}, se ha generado la siguiente actividad (${p.folio}):\n\n"${p.incidente}"\nVencimiento: ${p.vencimiento}\nObservaciones: ${p.observaciones || 'Ninguna'}`);
                 
                 tr.innerHTML = `
                     <td><span class="badge badge-pen">${p.folio}</span></td>
