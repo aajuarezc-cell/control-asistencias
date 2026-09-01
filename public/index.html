@@ -55,6 +55,22 @@
         
         .oculto { display: none !important; }
 
+        /* ESTILOS PARA MINUTAS DINÁMICAS */
+        .minuta-builder { background: white; border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; margin-top: 5px; }
+        .minuta-input-row { display: flex; gap: 8px; margin-bottom: 10px; }
+        .minuta-input-row input { flex: 2; }
+        .minuta-input-row select { flex: 1.5; }
+        .btn-add-minuta { background: #10b981; color: white; border: none; padding: 0 16px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .btn-add-minuta:hover { background: #059669; }
+        
+        .lista-minutas-items { list-style: none; padding: 0; margin: 0; max-height: 180px; overflow-y: auto; }
+        .lista-minutas-items li { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; border: 1px solid var(--border-color); font-size: 13px; }
+        .btn-eliminar-item { background: #ef4444; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+
+        .minuta-tabla-container { font-size: 13px; }
+        .minuta-tabla-container ul { padding-left: 15px; margin: 0; }
+        .minuta-tabla-container li { margin-bottom: 4px; }
+
         .btn-guardar { background: var(--primary); color: white; padding: 12px 15px; border: none; cursor: pointer; border-radius: 6px; width: 100%; font-weight: 600; font-size: 15px; transition: background 0.2s; }
         .btn-guardar:hover { background: var(--primary-hover); }
         
@@ -214,7 +230,7 @@
         <button class="btn-modulo" onclick="cambiarModulo('moduloAsistencias', this)">⏱️ Control de Asistencias</button>
     </div>
     
-    <!-- MÓDULO 1: NUEVO REGISTRO (FORMULARIO CON PRIORIDAD Y ACUERDOS) -->
+    <!-- MÓDULO 1: NUEVO REGISTRO -->
     <div id="moduloNuevoRegistro" class="modulo-vista activo">
         <h3 class="section-title">✏️ Registrar Nueva Reunión o Actividad</h3>
         <form id="formPendiente">
@@ -260,9 +276,23 @@
                 <input type="date" id="vencimiento">
             </div>
 
-            <div class="form-group oculto" id="grupoAcuerdos">
-                <label for="acuerdos">Acuerdos / Minuta:</label>
-                <textarea id="acuerdos" placeholder="Acuerdos o decisiones tomadas en la reunión..." rows="3"></textarea>
+            <!-- SECCIÓN DINÁMICA DE MINUTAS / ACUERDOS -->
+            <div class="form-group oculto" id="grupoAcuerdosDinamicos">
+                <label>Minuta / Acuerdos:</label>
+                <div style="flex: 1;">
+                    <div class="minuta-input-row">
+                        <input type="text" id="inputAcuerdoTexto" placeholder="Escribe un acuerdo o punto clave...">
+                        <select id="inputAcuerdoResponsable">
+                            <option value="">Asignar responsable...</option>
+                        </select>
+                        <button type="button" class="btn-add-minuta" onclick="agregarAcuerdoLista()">➕ Agregar</button>
+                    </div>
+                    <div class="minuta-builder">
+                        <ul id="listaAcuerdosPreview" class="lista-minutas-items">
+                            <li style="color: var(--text-muted); text-align: center; justify-content: center;">No hay acuerdos agregados todavía.</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
             
             <div class="form-group">
@@ -282,7 +312,7 @@
             <button class="btn-limpiar-filtro" onclick="limpiarFiltroAgenda()">Ver Todas</button>
         </div>
 
-        <h3 class="section-title">📅 Agenda de Reuniones y Minutas</h3>
+        <h3 class="section-title">📅 Agenda de Reuniones y Minutas Dinámicas</h3>
         <div class="table-container">
             <table>
                 <thead>
@@ -292,7 +322,7 @@
                         <th>Fecha Gen.</th>
                         <th>Descripción</th>
                         <th class="text-center">Fecha y Horario</th>
-                        <th>Acuerdos / Minuta</th>
+                        <th>Bitácora de Acuerdos (Minuta)</th>
                         <th>Observaciones</th>
                         <th class="text-center">Finalizado</th>
                         <th class="text-center">Acciones</th>
@@ -461,6 +491,8 @@ const personalLista = [
     "Roberto",
 ];
 
+let acuerdosTemporales = [];
+
 function cambiarModulo(idModulo, btnElement) {
     document.querySelectorAll('.modulo-vista').forEach(v => v.classList.remove('activo'));
     document.querySelectorAll('.btn-modulo').forEach(b => b.classList.remove('activo'));
@@ -523,13 +555,63 @@ if (selectTurnado) {
     });
 }
 
+const selectAcuerdoResp = document.getElementById('inputAcuerdoResponsable');
+if (selectAcuerdoResp) {
+    selectAcuerdoResp.innerHTML = '<option value="">Asignar responsable...</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = p;
+        selectAcuerdoResp.appendChild(opt);
+    });
+}
+
+function agregarAcuerdoLista() {
+    const texto = document.getElementById('inputAcuerdoTexto').value.trim();
+    const responsable = document.getElementById('inputAcuerdoResponsable').value;
+
+    if (!texto) {
+        alert('Escribe el detalle del acuerdo.');
+        return;
+    }
+
+    acuerdosTemporales.push({ texto, responsable: responsable || 'General', completado: false });
+    document.getElementById('inputAcuerdoTexto').value = '';
+    document.getElementById('inputAcuerdoResponsable').value = '';
+    renderizarAcuerdosPreview();
+}
+
+function eliminarAcuerdoLista(index) {
+    acuerdosTemporales.splice(index, 1);
+    renderizarAcuerdosPreview();
+}
+
+function renderizarAcuerdosPreview() {
+    const ul = document.getElementById('listaAcuerdosPreview');
+    ul.innerHTML = '';
+
+    if (acuerdosTemporales.length === 0) {
+        ul.innerHTML = `<li style="color: var(--text-muted); text-align: center; justify-content: center;">No hay acuerdos agregados todavía.</li>`;
+        return;
+    }
+
+    acuerdosTemporales.forEach((acuerdo, idx) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <span><b>[${acuerdo.responsable}]</b> ${acuerdo.texto}</span>
+            <button type="button" class="btn-eliminar-item" onclick="eliminarAcuerdoLista(${idx})">❌</button>
+        `;
+        ul.appendChild(li);
+    });
+}
+
 function toggleCamposTipo() {
     const tipo = document.getElementById('tipo').value;
     const grupoHora = document.getElementById('grupoHoraReunion');
     const inputHora = document.getElementById('horaReunion');
     const grupoTurnado = document.getElementById('grupoTurnado');
     const selectTurnadoElem = document.getElementById('turnado');
-    const grupoAcuerdos = document.getElementById('grupoAcuerdos');
+    const grupoAcuerdosDinamicos = document.getElementById('grupoAcuerdosDinamicos');
     
     if (tipo === 'Reunión') {
         grupoHora.classList.remove('oculto');
@@ -537,32 +619,28 @@ function toggleCamposTipo() {
         grupoTurnado.classList.add('oculto');
         selectTurnadoElem.required = false;
         selectTurnadoElem.value = '';
-        grupoAcuerdos.classList.remove('oculto');
+        grupoAcuerdosDinamicos.classList.remove('oculto');
     } else {
         grupoHora.classList.add('oculto');
         inputHora.required = false;
         inputHora.value = '';
         grupoTurnado.classList.remove('oculto');
         selectTurnadoElem.required = true;
-        grupoAcuerdos.classList.add('oculto');
+        grupoAcuerdosDinamicos.classList.add('oculto');
     }
 }
 
 async function actualizarDashboardKPIs(dataPendientes) {
     try {
-        // 1. Pendientes activos
         const activos = dataPendientes.filter(p => !p.finalizado).length;
         document.getElementById('kpiPendientes').innerText = activos;
 
-        // 2. Reuniones hoy
         const reunionesHoy = dataPendientes.filter(p => p.tipo === 'Reunión' && !p.finalizado && p.vencimiento === fechaHoy).length;
         document.getElementById('kpiReuniones').innerText = reunionesHoy;
 
-        // 3. Urgentes (Alta)
         const urgentes = dataPendientes.filter(p => !p.finalizado && p.prioridad === 'Alta').length;
         document.getElementById('kpiUrgentes').innerText = urgentes;
 
-        // 4. Incidencias del mes (Asistencias)
         const resAsist = await fetch('/api/asistencias');
         const dataAsist = await resAsist.json();
         const incidenciasMes = dataAsist.filter(a => a.fecha.startsWith(mesHoy) && (a.estatus === 'Falta' || a.estatus === 'Retardo')).length;
@@ -577,7 +655,6 @@ async function cargarPendientes() {
         const res = await fetch('/api/pendientes');
         let data = await res.json();
         
-        // Ordenar por prioridad (Alta primero, luego Media, luego Baja)
         const pesoPrioridad = { 'Alta': 1, 'Media': 2, 'Baja': 3 };
         data.sort((a, b) => (pesoPrioridad[a.prioridad || 'Media'] - pesoPrioridad[b.prioridad || 'Media']));
 
@@ -613,18 +690,31 @@ async function cargarPendientes() {
                 if (p.prioridad === 'Alta') badgePri = '<span class="prioridad-alta">ALTA</span>';
                 if (p.prioridad === 'Baja') badgePri = '<span class="prioridad-baja">BAJA</span>';
 
+                let htmlAcuerdos = '-';
+                if (p.acuerdosLista && p.acuerdosLista.length > 0) {
+                    htmlAcuerdos = '<div class="minuta-tabla-container"><ul>';
+                    p.acuerdosLista.forEach((ac, idxA) => {
+                        let estiloCheck = ac.completado ? 'text-decoration: line-through; color: var(--text-muted);' : '';
+                        htmlAcuerdos += `<li style="${estiloCheck}">
+                            <input type="checkbox" ${ac.completado ? 'checked' : ''} onclick="toggleAcuerdoCumplido('${p.folio}', ${idxA}, this.checked)">
+                            <b>[${ac.responsable}]</b> ${ac.texto}
+                        </li>`;
+                    });
+                    htmlAcuerdos += '</ul></div>';
+                }
+
                 tr.innerHTML = `
                     <td><span class="badge badge-reu">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
                     <td>${p.fecha}</td>
                     <td>${p.incidente}</td>
                     <td class="text-center">${p.vencimiento} - ${p.horaReunion} hrs</td>
-                    <td><b>${p.acuerdos || '-'}</b></td>
+                    <td>${htmlAcuerdos}</td>
                     <td>${p.observaciones || '-'}</td>
                     <td class="text-center"><input type="checkbox" ${p.finalizado ? 'checked' : ''} onclick="toggleEstado('${p.folio}', this.checked)"></td>
                     <td class="text-center">
                         <div class="acciones-container">
-                            <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}', 'Reunión', '${p.incidente.replace(/'/g, "\\'")}', '', '${p.vencimiento}', '${p.horaReunion || ''}', '${(p.acuerdos || '').replace(/'/g, "\\'")}', '${p.observaciones.replace(/'/g, "\\'")}', '${p.prioridad || 'Media'}')">Editar</button>
+                            <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}')">Editar</button>
                             <button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${p.folio}')">Eliminar</button>
                         </div>
                     </td>
@@ -660,7 +750,7 @@ async function cargarPendientes() {
                                 <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
                                 WA
                             </a>
-                            <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}', 'Actividad', '${p.incidente.replace(/'/g, "\\'")}', '${p.turnado}', '${p.vencimiento}', '', '', '${p.observaciones.replace(/'/g, "\\'")}', '${p.prioridad || 'Media'}')">Editar</button>
+                            <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}')">Editar</button>
                             <button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${p.folio}')">Eliminar</button>
                         </div>
                     </td>
@@ -920,14 +1010,24 @@ document.getElementById('formPendiente').addEventListener('submit', async (e) =>
     const incidente = document.getElementById('incidente').value;
     const turnado = document.getElementById('turnado').value;
     const vencimiento = document.getElementById('vencimiento').value;
-    const acuerdos = document.getElementById('acuerdos').value;
     const observaciones = document.getElementById('observaciones').value;
+
+    const payload = {
+        tipo,
+        incidente,
+        turnado,
+        vencimiento,
+        horaReunion,
+        acuerdosLista: acuerdosTemporales,
+        observaciones,
+        prioridad
+    };
 
     if (editFolio) {
         await fetch(`/api/pendientes/${editFolio}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tipo, incidente, turnado, vencimiento, horaReunion, acuerdos, observaciones, prioridad })
+            body: JSON.stringify(payload)
         });
         document.getElementById('editFolio').value = '';
         document.getElementById('btnSubmitText').innerText = 'Guardar Registro';
@@ -935,30 +1035,64 @@ document.getElementById('formPendiente').addEventListener('submit', async (e) =>
         await fetch('/api/pendientes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tipo, incidente, turnado, vencimiento, horaReunion, acuerdos, observaciones, prioridad })
+            body: JSON.stringify(payload)
         });
     }
 
     document.getElementById('formPendiente').reset();
+    acuerdosTemporales = [];
+    renderizarAcuerdosPreview();
     toggleCamposTipo();
     cargarPendientes();
 });
 
-function prepararEdicion(folio, tipo, incidente, turnado, vencimiento, horaReunion, acuerdos, observaciones, prioridad) {
-    document.getElementById('editFolio').value = folio;
-    document.getElementById('tipo').value = tipo;
-    toggleCamposTipo();
-    document.getElementById('horaReunion').value = horaReunion;
-    document.getElementById('prioridad').value = prioridad || 'Media';
-    document.getElementById('incidente').value = incidente;
-    document.getElementById('turnado').value = turnado;
-    document.getElementById('vencimiento').value = vencimiento !== 'N/A' ? vencimiento : '';
-    document.getElementById('acuerdos').value = acuerdos !== 'undefined' ? acuerdos : '';
-    document.getElementById('observaciones').value = observaciones !== 'undefined' ? observaciones : '';
-    document.getElementById('btnSubmitText').innerText = `Actualizar (${folio})`;
-    
-    cambiarModulo('moduloNuevoRegistro', document.querySelector('.nav-modulos button:first-child'));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+async function prepararEdicion(folio) {
+    try {
+        const res = await fetch('/api/pendientes');
+        const data = await res.json();
+        const p = data.find(item => item.folio === folio);
+
+        if (!p) return;
+
+        document.getElementById('editFolio').value = p.folio;
+        document.getElementById('tipo').value = p.tipo;
+        toggleCamposTipo();
+        document.getElementById('horaReunion').value = p.horaReunion || '';
+        document.getElementById('prioridad').value = p.prioridad || 'Media';
+        document.getElementById('incidente').value = p.incidente || '';
+        document.getElementById('turnado').value = p.turnado || '';
+        document.getElementById('vencimiento').value = p.vencimiento || '';
+        document.getElementById('observaciones').value = p.observaciones || '';
+        
+        acuerdosTemporales = p.acuerdosLista ? [...p.acuerdosLista] : [];
+        renderizarAcuerdosPreview();
+
+        document.getElementById('btnSubmitText').innerText = `Actualizar (${p.folio})`;
+        cambiarModulo('moduloNuevoRegistro', document.querySelector('.nav-modulos button:first-child'));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+        console.error("Error al preparar edición:", e);
+    }
+}
+
+async function toggleAcuerdoCumplido(folio, indexAcuerdo, completado) {
+    try {
+        const res = await fetch('/api/pendientes');
+        const data = await res.json();
+        const p = data.find(item => item.folio === folio);
+
+        if (p && p.acuerdosLista && p.acuerdosLista[indexAcuerdo]) {
+            p.acuerdosLista[indexAcuerdo].completado = completado;
+            await fetch(`/api/pendientes/${folio}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(p)
+            });
+            cargarPendientes();
+        }
+    } catch (e) {
+        console.error("Error al actualizar acuerdo:", e);
+    }
 }
 
 async function eliminarPendiente(folio) {
