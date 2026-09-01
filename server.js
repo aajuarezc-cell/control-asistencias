@@ -13,12 +13,27 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // CONEXIÓN A MONGODB ATLAS (O LOCAL)
-// Reemplaza la URI con tu cadena de conexión si usas MongoDB Atlas
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/control_oficina';
 
 mongoose.connect(MONGO_URI)
     .then(() => console.log('🟢 Conectado exitosamente a MongoDB'))
     .catch(err => console.error('🔴 Error al conectar a MongoDB:', err));
+
+// CONFIGURACIÓN DE DISCORD WEBHOOK
+const DISCORD_WEBHOOK_URL = 'https://discordapp.com/api/webhooks/1544456950140633229/4iuLpEcABT_lMADH8OI0amIyAYDsV0VXfVXcW043sx8vQKIi5pZh9TNzuFwZLdZdnNwb';
+
+async function enviarNotificacionDiscord(mensaje) {
+    if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('AQUÍ_PEGA')) return;
+    try {
+        await fetch(DISCORD_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: mensaje })
+        });
+    } catch (error) {
+        console.error("Error al enviar notificación a Discord:", error);
+    }
+}
 
 // 1. ESQUEMA Y MODELO DE PENDIENTES Y REUNIONES
 const pendienteSchema = new mongoose.Schema({
@@ -90,6 +105,18 @@ app.post('/api/pendientes', async (req, res) => {
         });
 
         await nuevoPendiente.save();
+
+        // 🚨 ENVÍO DE ALTA A DISCORD SI LA PRIORIDAD ES ALTA
+        if (nuevoPendiente.prioridad === 'Alta') {
+            const textoAlerta = `🚨 **¡NUEVO REGISTRO URGENTE!** (${nuevoPendiente.folio})\n` +
+                                `• **Tipo:** ${nuevoPendiente.tipo}\n` +
+                                `• **Detalle:** ${nuevoPendiente.incidente}\n` +
+                                `• **Asignado a:** ${nuevoPendiente.turnado || 'General'}\n` +
+                                `• **Fecha:** ${nuevoPendiente.vencimiento}`;
+            
+            await enviarNotificacionDiscord(textoAlerta);
+        }
+
         res.status(201).json(nuevoPendiente);
     } catch (err) {
         res.status(500).json({ error: err.message });
