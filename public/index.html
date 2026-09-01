@@ -136,7 +136,6 @@
         .btn-accion:hover { opacity: 0.85; }
         .btn-editar { background: #f59e0b; }
         .btn-eliminar { background: #ef4444; }
-        .btn-notas { background: #8b5cf6; }
         .btn-whatsapp { background: #22c55e; }
         
         .btn-pdf { background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
@@ -856,6 +855,11 @@ async function cargarPendientes() {
                 if (p.prioridad === 'Alta') badgePri = '<span class="prioridad-alta">ALTA</span>';
                 if (p.prioridad === 'Baja') badgePri = '<span class="prioridad-baja">BAJA</span>';
 
+                const esDerivadaDeNota = p.observaciones && p.observaciones.includes('[Origen:');
+                const botonEliminarHtml = esDerivadaDeNota 
+                    ? `<button class="btn-accion btn-eliminar" style="opacity: 0.5; cursor: not-allowed;" title="Esta actividad deriva de una nota de reunión y solo puede eliminarse desde su origen." disabled>Eliminar</button>` 
+                    : `<button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${p.folio}')">Eliminar</button>`;
+
                 tr.innerHTML = `
                     <td><span class="badge badge-pen">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
@@ -872,7 +876,7 @@ async function cargarPendientes() {
                                 WA
                             </a>
                             <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}')">Editar</button>
-                            <button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${p.folio}')">Eliminar</button>
+                            ${botonEliminarHtml}
                         </div>
                     </td>
                 `;
