@@ -5,14 +5,22 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 1. Conexión a MongoDB Atlas
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://aajuarezc_db_user:mAotwq0PxUIxyDX0@cluster0.o1rvg4h.mongodb.net/?appName=Cluster0";
+// Middleware para leer JSON
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Servir archivos estáticos desde la carpeta 'public'
+app.use(express.static(path.join(__dirname, 'public')));
+
+// CONEXIÓN A MONGODB ATLAS (O LOCAL)
+// Reemplaza la URI con tu cadena de conexión si usas MongoDB Atlas
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/control_oficina';
 
 mongoose.connect(MONGO_URI)
-  .then(() => console.log("Conectado exitosamente a MongoDB Atlas"))
-  .catch(err => console.error("Error al conectar a MongoDB:", err));
+    .then(() => console.log('🟢 Conectado exitosamente a MongoDB'))
+    .catch(err => console.error('🔴 Error al conectar a MongoDB:', err));
 
-// 2. Definición de Esquemas y Modelos en la Base de Datos
+// 1. ESQUEMA Y MODELO DE PENDIENTES Y REUNIONES
 const pendienteSchema = new mongoose.Schema({
     folio: { type: String, unique: true },
     tipo: String,
@@ -21,117 +29,146 @@ const pendienteSchema = new mongoose.Schema({
     turnado: String,
     vencimiento: String,
     horaReunion: String,
-    acuerdos: String,
+    notasLista: { type: Array, default: [] },
     observaciones: String,
     finalizado: { type: Boolean, default: false },
     fecha: String
 });
 
+const Pendiente = mongoose.model('Pendiente', pendienteSchema);
+
+// 2. ESQUEMA Y MODELO DE ASISTENCIAS
 const asistenciaSchema = new mongoose.Schema({
     personal: String,
     fecha: String,
-    estatus: String
+    estatus: String // 'Asistencia', 'Retardo', 'Falta'
 });
 
-const Pendiente = mongoose.model('Pendiente', pendienteSchema);
 const Asistencia = mongoose.model('Asistencia', asistenciaSchema);
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+// --- RUTAS API PENDIENTES / REUNIONES ---
 
-// --- RUTAS DE PENDIENTES / REUNIONES ---
-
+// Obtener todos los pendientes
 app.get('/api/pendientes', async (req, res) => {
     try {
-        const data = await Pendiente.find();
-        res.json(data);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+        const pendientes = await Pendiente.find();
+        res.json(pendientes);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
+// Crear un nuevo pendiente o reunión con generación de folio automático (Folio-001)
 app.post('/api/pendientes', async (req, res) => {
     try {
-        const count = await Pendiente.countDocuments();
-        const folio = `FOL-${String(count + 1).padStart(3, '0')}`;
+        const { tipo, incidente, turnado, vencimiento, horaReunion, notasLista, observaciones, prioridad } = req.body;
+        
+        // Calcular folio automático
+        const ultimo = await Pendiente.findOne().sort({ _id: -1 });
+        let siguienteNumero = 1;
+        if (ultimo && ultimo.folio && ultimo.folio.startsWith('Folio-')) {
+            const numeroStr = ultimo.folio.split('-')[1];
+            const num = parseInt(numeroStr);
+            if (!isNaN(num)) siguienteNumero = num + 1;
+        }
+        const folioGenerado = `Folio-${String(siguienteNumero).padStart(3, '0')}`;
+        
         const fechaActual = new Date().toISOString().split('T')[0];
 
         const nuevoPendiente = new Pendiente({
-            folio,
-            fecha: fechaActual,
-            ...req.body
+            folio: folioGenerado,
+            tipo,
+            prioridad: prioridad || 'Media',
+            incidente,
+            turnado: turnado || 'N/A',
+            vencimiento: vencimiento || fechaActual,
+            horaReunion: horaReunion || '',
+            notasLista: notasLista || [],
+            observaciones: observaciones || '',
+            finalizado: false,
+            fecha: fechaActual
         });
 
         await nuevoPendiente.save();
-        res.json(nuevoPendiente);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+        res.status(201).json(nuevoPendiente);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
+// Actualizar un pendiente completo (incluyendo notas, prioridades, etc.)
 app.put('/api/pendientes/:folio', async (req, res) => {
     try {
-        const actualizado = await Pendiente.findOneAndUpdate(
+        const { tipo, incidente, turnado, vencimiento, horaReunion, notasLista, observaciones, prioridad } = req.body;
+        const pendienteActualizado = await Pendiente.findOneAndUpdate(
             { folio: req.params.folio },
-            req.body,
+            { tipo, incidente, turnado, vencimiento, horaReunion, notasLista, observaciones, prioridad },
             { new: true }
         );
-        res.json(actualizado);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+        res.json(pendienteActualizado);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
+// Cambiar estado finalizado (Completado)
 app.patch('/api/pendientes/:folio', async (req, res) => {
     try {
-        const actualizado = await Pendiente.findOneAndUpdate(
+        const { finalizado } = req.body;
+        const pendienteActualizado = await Pendiente.findOneAndUpdate(
             { folio: req.params.folio },
-            { finalizado: req.body.finalizado },
+            { finalizado },
             { new: true }
         );
-        res.json(actualizado);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+        res.json(pendienteActualizado);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
+// Eliminar un pendiente
 app.delete('/api/pendientes/:folio', async (req, res) => {
     try {
         await Pendiente.findOneAndDelete({ folio: req.params.folio });
-        res.json({ success: true });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+        res.json({ mensaje: 'Registro eliminado correctamente' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// --- RUTAS DE ASISTENCIAS (ESTAS ERAN LAS QUE FALTABAN) ---
+// --- RUTAS API ASISTENCIAS ---
 
+// Obtener registros de asistencias
 app.get('/api/asistencias', async (req, res) => {
     try {
-        const data = await Asistencia.find();
-        res.json(data);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+        const asistencias = await Asistencia.find();
+        res.json(asistencias);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
+// Guardar o actualizar la asistencia de un colaborador en una fecha específica
 app.post('/api/asistencias', async (req, res) => {
     try {
         const { personal, fecha, estatus } = req.body;
-        // Busca si ya existe registro para esa persona en esa fecha; si existe lo actualiza, si no lo crea
-        const resultado = await Asistencia.findOneAndUpdate(
-            { personal: personal.trim(), fecha },
-            { estatus },
-            { upsert: true, new: true }
-        );
-        res.json(resultado);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+
+        let asistencia = await Asistencia.findOne({ personal, fecha });
+        if (asistencia) {
+            asistencia.estatus = estatus;
+            await asistencia.save();
+        } else {
+            asistencia = new Asistencia({ personal, fecha, estatus });
+            await asistencia.save();
+        }
+
+        res.status(200).json(asistencia);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
 // Iniciar servidor
 app.listen(PORT, () => {
-    console.log(`Servidor corriendo en el puerto ${PORT}`);
+    console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
