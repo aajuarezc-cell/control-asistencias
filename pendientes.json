@@ -1,0 +1,22 @@
+[
+  {
+    "folio": "PEN-001",
+    "fecha": "2026-08-31",
+    "incidente": "Mandar mensaje a PABIC para solicitar información a mostrar en el sitio que se esta desarrollando.",
+    "turnado": "Itzel",
+    "vencimiento": "2026-09-01",
+    "observaciones": "",
+    "finalizado": false
+  },
+  {
+    "folio": "REU-001",
+    "fecha": "2026-09-01",
+    "tipo": "Reunión",
+    "incidente": "Reunión con proveedor que realizara mantenimiento de arcos repuve.",
+    "turnado": "N/A",
+    "vencimiento": "2026-09-02",
+    "horaReunion": "22:30",
+    "observaciones": "",
+    "finalizado": false
+  }
+]
