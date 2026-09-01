@@ -384,6 +384,9 @@
                         <th>Descripción</th>
                         <th class="text-center">Turnado a</th>
                         <th>Vencimiento</th>
+                        <th class="text-center">Cantidad de Notas</th>
+                        <th>Notas asignadas a:</th>
+                        <th class="text-center">Notas Pendientes</th>
                         <th>Observaciones</th>
                         <th class="text-center">Finalizado</th>
                         <th class="text-center">Acciones</th>
@@ -404,6 +407,9 @@
                         <th>Descripción</th>
                         <th class="text-center">Turnado a</th>
                         <th>Vencimiento</th>
+                        <th class="text-center">Cantidad de Notas</th>
+                        <th>Notas asignadas a:</th>
+                        <th class="text-center">Notas Pendientes</th>
                         <th>Observaciones</th>
                         <th class="text-center">Finalizado</th>
                         <th class="text-center">Acciones</th>
@@ -598,7 +604,7 @@ const personalLista = [
 
 let folioNotaActual = null;
 let notasTemporalesModal = [];
-let filtroUrgentesActivo = false; // Variable para controlar el filtro de urgentes
+let filtroUrgentesActivo = false;
 
 function irAlHome() {
     filtroUrgentesActivo = false;
@@ -620,7 +626,6 @@ function cambiarSubmodulo(idSubmodulo, btnElement) {
     btnElement.classList.add('activo');
 }
 
-/* ACCIONES DE LOS KPI'S INTERACTIVOS */
 function clickKpiPendientes() {
     filtroUrgentesActivo = false;
     cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
@@ -636,7 +641,7 @@ function clickKpiReuniones() {
 }
 
 function clickKpiUrgentes() {
-    filtroUrgentesActivo = true; // Activa el filtro exclusivo de prioridad Alta
+    filtroUrgentesActivo = true;
     cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
     document.getElementById('filtroFechaPendientes').value = '';
     cargarPendientes();
@@ -762,7 +767,6 @@ async function cargarPendientes() {
         if (fechaAgenda) dataReuniones = dataReuniones.filter(p => p.vencimiento === fechaAgenda);
         if (fechaPendientes) dataPendientes = dataPendientes.filter(p => p.vencimiento === fechaPendientes);
 
-        // Si el filtro de urgentes está activo, filtramos sólo las de prioridad Alta
         if (filtroUrgentesActivo) {
             dataPendientes = dataPendientes.filter(p => p.prioridad === 'Alta');
         }
@@ -855,12 +859,24 @@ async function cargarPendientes() {
         const actividadesFinalizadas = dataPendientes.filter(p => p.finalizado);
 
         if (actividadesActivas.length === 0) {
-            tbodyPendientes.innerHTML = `<tr><td colspan="9" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay actividades activas ${filtroUrgentesActivo ? 'con prioridad Alta (Urgentes)' : ''}.</td></tr>`;
+            tbodyPendientes.innerHTML = `<tr><td colspan="12" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay actividades activas.</td></tr>`;
         } else {
             actividadesActivas.forEach(p => {
                 const textoWs = encodeURIComponent(`Hola ${p.turnado}, actividad asignada (${p.folio}):\n\n"${p.incidente}"\nVencimiento: ${p.vencimiento}`);
                 const tr = document.createElement('tr');
                 let badgePri = p.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (p.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
+                
+                const totalNotas = p.notasLista ? p.notasLista.length : 0;
+                let notasPendientesCount = p.notasLista ? p.notasLista.filter(nt => !nt.completado).length : 0;
+                let asignadosSet = new Set();
+                if (p.notasLista) {
+                    p.notasLista.forEach(nt => {
+                        if (nt.responsable && nt.responsable !== 'Sin asignar' && nt.responsable !== 'General') asignadosSet.add(nt.responsable);
+                    });
+                }
+                const asignadosStr = asignadosSet.size > 0 ? Array.from(asignadosSet).join(', ') : '-';
+                const badgePendientes = notasPendientesCount > 0 ? `<span class="badge" style="background: #fef2f2; color: #b91c1c;">${notasPendientesCount} Pend.</span>` : `<span class="badge" style="background: #f0fdf4; color: #15803d;">Al día</span>`;
+
                 const esDerivadaDeNota = p.observaciones && p.observaciones.includes('[Origen:');
                 const botonEliminarHtml = esDerivadaDeNota 
                     ? `<button class="btn-accion btn-eliminar" style="opacity: 0.5; cursor: not-allowed;" title="Derivada de reunión" disabled>Eliminar</button>` 
@@ -873,11 +889,15 @@ async function cargarPendientes() {
                     <td>${p.incidente}</td>
                     <td class="text-center"><b>${p.turnado}</b></td>
                     <td>${p.vencimiento}</td>
+                    <td class="text-center"><b>${totalNotas}</b></td>
+                    <td>${asignadosStr}</td>
+                    <td class="text-center">${badgePendientes}</td>
                     <td>${p.observaciones || '-'}</td>
                     <td class="text-center"><input type="checkbox" onclick="toggleEstado('${p.folio}', this.checked)"></td>
                     <td class="text-center">
                         <div class="acciones-container">
                             <a href="https://wa.me/?text=${textoWs}" target="_blank" class="btn-accion btn-whatsapp" title="WhatsApp">WA</a>
+                            <button class="btn-accion btn-notas" onclick="abrirModalNotas('${p.folio}')">Notas</button>
                             <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}')">Editar</button>
                             ${botonEliminarHtml}
                         </div>
@@ -888,7 +908,7 @@ async function cargarPendientes() {
         }
 
         if (actividadesFinalizadas.length === 0) {
-            tbodyPendientesFinalizados.innerHTML = `<tr><td colspan="9" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay actividades finalizadas.</td></tr>`;
+            tbodyPendientesFinalizados.innerHTML = `<tr><td colspan="12" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay actividades finalizadas.</td></tr>`;
         } else {
             actividadesFinalizadas.forEach(p => {
                 const tr = document.createElement('tr');
@@ -901,10 +921,14 @@ async function cargarPendientes() {
                     <td>${p.incidente}</td>
                     <td class="text-center"><b>${p.turnado}</b></td>
                     <td>${p.vencimiento}</td>
+                    <td class="text-center"><b>${p.notasLista ? p.notasLista.length : 0}</b></td>
+                    <td>-</td>
+                    <td class="text-center">-</td>
                     <td>${p.observaciones || '-'}</td>
                     <td class="text-center"><input type="checkbox" checked onclick="toggleEstado('${p.folio}', this.checked)"></td>
                     <td class="text-center">
                         <div class="acciones-container">
+                            <button class="btn-accion btn-notas" onclick="abrirModalNotas('${p.folio}')">Notas</button>
                             <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}')">Editar</button>
                             <button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${p.folio}')">Eliminar</button>
                         </div>
