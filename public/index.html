@@ -313,7 +313,7 @@
             <button class="btn-limpiar-filtro" onclick="limpiarFiltroAgenda()">Ver Todas</button>
         </div>
 
-        <h3 class="section-title">📅 Agenda de Reuniones y Minutas</h3>
+        <h3 class="section-title">📅 Agenda de Reuniones (Activas)</h3>
         <div class="table-container">
             <table>
                 <thead>
@@ -331,6 +331,27 @@
                     </tr>
                 </thead>
                 <tbody id="tablaReuniones"></tbody>
+            </table>
+        </div>
+
+        <h3 class="section-title" style="margin-top: 35px; border-color: #10b981;">✅ Reuniones Finalizadas</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Folio</th>
+                        <th class="text-center">Prioridad</th>
+                        <th>Fecha Gen.</th>
+                        <th>Descripción</th>
+                        <th class="text-center">Fecha y Horario</th>
+                        <th class="text-center">Cantidad de Notas</th>
+                        <th>Notas asignadas a:</th>
+                        <th>Observaciones</th>
+                        <th class="text-center">Finalizado</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaReunionesFinalizadas"></tbody>
             </table>
         </div>
     </div>
@@ -712,19 +733,23 @@ async function cargarPendientes() {
         }
         
         const tbodyReuniones = document.getElementById('tablaReuniones');
+        const tbodyReunionesFinalizadas = document.getElementById('tablaReunionesFinalizadas');
         const tbodyPendientes = document.getElementById('tablaPendientes');
         const tbodyPendientesFinalizados = document.getElementById('tablaPendientesFinalizados');
         
         tbodyReuniones.innerHTML = '';
+        tbodyReunionesFinalizadas.innerHTML = '';
         tbodyPendientes.innerHTML = '';
         tbodyPendientesFinalizados.innerHTML = '';
         
-        if (dataReuniones.length === 0) {
-            tbodyReuniones.innerHTML = `<tr><td colspan="10" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay reuniones registradas.</td></tr>`;
+        const reunionesActivas = dataReuniones.filter(p => !p.finalizado);
+        const reunionesFinalizadas = dataReuniones.filter(p => p.finalizado);
+
+        if (reunionesActivas.length === 0) {
+            tbodyReuniones.innerHTML = `<tr><td colspan="10" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay reuniones activas registradas.</td></tr>`;
         } else {
-            dataReuniones.forEach(p => {
+            reunionesActivas.forEach(p => {
                 const tr = document.createElement('tr');
-                if (p.finalizado) tr.classList.add('completado');
                 
                 let badgePri = '<span class="prioridad-media">MEDIA</span>';
                 if (p.prioridad === 'Alta') badgePri = '<span class="prioridad-alta">ALTA</span>';
@@ -750,7 +775,7 @@ async function cargarPendientes() {
                     <td class="text-center"><b>${totalNotas}</b></td>
                     <td>${asignadosStr}</td>
                     <td>${p.observaciones || '-'}</td>
-                    <td class="text-center"><input type="checkbox" ${p.finalizado ? 'checked' : ''} onclick="toggleEstado('${p.folio}', this.checked)"></td>
+                    <td class="text-center"><input type="checkbox" onclick="toggleEstado('${p.folio}', this.checked)"></td>
                     <td class="text-center">
                         <div class="acciones-container">
                             <button class="btn-accion btn-notas" onclick="abrirModalNotas('${p.folio}')">Notas</button>
@@ -760,6 +785,50 @@ async function cargarPendientes() {
                     </td>
                 `;
                 tbodyReuniones.appendChild(tr);
+            });
+        }
+
+        if (reunionesFinalizadas.length === 0) {
+            tbodyReunionesFinalizadas.innerHTML = `<tr><td colspan="10" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay reuniones finalizadas todavía.</td></tr>`;
+        } else {
+            reunionesFinalizadas.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.classList.add('completado');
+                
+                let badgePri = '<span class="prioridad-media">MEDIA</span>';
+                if (p.prioridad === 'Alta') badgePri = '<span class="prioridad-alta">ALTA</span>';
+                if (p.prioridad === 'Baja') badgePri = '<span class="prioridad-baja">BAJA</span>';
+
+                const totalNotas = p.notasLista ? p.notasLista.length : 0;
+                let asignadosSet = new Set();
+                if (p.notasLista) {
+                    p.notasLista.forEach(nt => {
+                        if (nt.responsable && nt.responsable !== 'Sin asignar (Opcional)' && nt.responsable !== 'General') {
+                            asignadosSet.add(nt.responsable);
+                        }
+                    });
+                }
+                const asignadosStr = asignadosSet.size > 0 ? Array.from(asignadosSet).join(', ') : '-';
+
+                tr.innerHTML = `
+                    <td><span class="badge badge-reu">${p.folio}</span></td>
+                    <td class="text-center">${badgePri}</td>
+                    <td>${p.fecha}</td>
+                    <td>${p.incidente}</td>
+                    <td class="text-center">${p.vencimiento} - ${p.horaReunion} hrs</td>
+                    <td class="text-center"><b>${totalNotas}</b></td>
+                    <td>${asignadosStr}</td>
+                    <td>${p.observaciones || '-'}</td>
+                    <td class="text-center"><input type="checkbox" checked onclick="toggleEstado('${p.folio}', this.checked)"></td>
+                    <td class="text-center">
+                        <div class="acciones-container">
+                            <button class="btn-accion btn-notas" onclick="abrirModalNotas('${p.folio}')">Notas</button>
+                            <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}')">Editar</button>
+                            <button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${p.folio}')">Eliminar</button>
+                        </div>
+                    </td>
+                `;
+                tbodyReunionesFinalizadas.appendChild(tr);
             });
         }
 
