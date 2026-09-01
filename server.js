@@ -6,15 +6,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 1. Conexión a MongoDB Atlas
-// Si estás probando local, puedes usar tu connection string directo; 
-// para Render, usará la variable de entorno process.env.MONGO_URI
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://aajuarezc_db_user:mAotwq0PxUIxyDX0@cluster0.o1rvg4h.mongodb.net/?appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log("Conectado exitosamente a MongoDB Atlas"))
   .catch(err => console.error("Error al conectar a MongoDB:", err));
 
-// 2. Definición de Esquemas y Modelos
+// 2. Definición de Esquemas y Modelos en la Base de Datos
 const pendienteSchema = new mongoose.Schema({
     folio: { type: String, unique: true },
     tipo: String,
@@ -105,7 +103,7 @@ app.delete('/api/pendientes/:folio', async (req, res) => {
     }
 });
 
-// --- RUTAS DE ASISTENCIAS ---
+// --- RUTAS DE ASISTENCIAS (ESTAS ERAN LAS QUE FALTABAN) ---
 
 app.get('/api/asistencias', async (req, res) => {
     try {
@@ -119,7 +117,7 @@ app.get('/api/asistencias', async (req, res) => {
 app.post('/api/asistencias', async (req, res) => {
     try {
         const { personal, fecha, estatus } = req.body;
-        // Buscar si ya existe registro para esa persona en esa fecha y actualizarlo, o crearlo si no existe
+        // Busca si ya existe registro para esa persona en esa fecha; si existe lo actualiza, si no lo crea
         const resultado = await Asistencia.findOneAndUpdate(
             { personal: personal.trim(), fecha },
             { estatus },
