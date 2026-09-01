@@ -57,15 +57,11 @@
 
         .minuta-input-row { display: flex; gap: 10px; margin-bottom: 15px; }
         .minuta-input-row input { flex: 2; padding: 12px; }
-        .minuta-input-row select { flex: 1.5; padding: 12px; }
+        .minuta-input-row select { flex: 1.2; padding: 12px; }
         .btn-add-minuta { background: #10b981; color: white; border: none; padding: 0 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
         .btn-add-minuta:hover { background: #059669; }
         
         .btn-eliminar-item { background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-
-        .minuta-tabla-container { font-size: 13px; }
-        .minuta-tabla-container ul { padding-left: 15px; margin: 0; }
-        .minuta-tabla-container li { margin-bottom: 4px; }
 
         .btn-guardar { background: var(--primary); color: white; padding: 12px 15px; border: none; cursor: pointer; border-radius: 6px; width: 100%; font-weight: 600; font-size: 15px; transition: background 0.2s; }
         .btn-guardar:hover { background: var(--primary-hover); }
@@ -139,6 +135,9 @@
         
         .btn-pdf { background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
         .btn-pdf:hover { background: #0369a1; }
+
+        .btn-guardar-accion { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+        .btn-guardar-accion:hover { background: #059669; }
         
         .completado td { text-decoration: line-through; color: var(--text-muted); background: #f8fafc; }
         
@@ -171,7 +170,7 @@
         @media print {
             body { background: white; padding: 0; color: black; }
             .container { box-shadow: none; padding: 0; max-width: 100%; }
-            .nav-modulos, .nav-submodulos, form, .filter-box, .header-box, .btn-guardar, .btn-pdf, .btn-whatsapp, .btn-accion, .minuta-input-row, .btn-eliminar-item,
+            .nav-modulos, .nav-submodulos, form, .filter-box, .header-box, .btn-guardar, .btn-pdf, .btn-whatsapp, .btn-accion, .minuta-input-row, .btn-eliminar-item, .btn-guardar-accion,
             .container > *:not(.modulo-vista.activo) { display: none !important; }
             .submodulo-vista { display: block !important; }
             .table-container { border: none !important; overflow: visible !important; }
@@ -315,7 +314,8 @@
                         <th>Fecha Gen.</th>
                         <th>Descripción</th>
                         <th class="text-center">Fecha y Horario</th>
-                        <th>Bitácora de Notas</th>
+                        <th class="text-center">Cantidad de Notas</th>
+                        <th>Notas asignadas a:</th>
                         <th>Observaciones</th>
                         <th class="text-center">Finalizado</th>
                         <th class="text-center">Acciones</th>
@@ -463,13 +463,21 @@
                 <h3 style="margin: 0; font-size: 22px;">📝 Toma de Notas en Tiempo Real - <span id="modalNotasFolio"></span></h3>
                 <p id="modalNotasDesc" style="color: var(--text-muted); font-size: 14px; margin: 5px 0 0 0;"></p>
             </div>
-            <button class="btn-cerrar" onclick="cerrarModalNotas()">💾 Guardar y Cerrar</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-guardar-accion" onclick="guardarNotasModal()">💾 Guardar Notas</button>
+                <button class="btn-cerrar" onclick="cerrarModalNotasYPasarAgenda()">✖️ Cerrar y Ver Agenda</button>
+            </div>
         </div>
         
         <div class="minuta-input-row">
             <input type="text" id="inputNotaTexto" placeholder="Escribe una nota o punto tratado en la reunión...">
             <select id="inputNotaResponsable">
                 <option value="">Sin asignar (Opcional)</option>
+            </select>
+            <select id="inputNotaPrioridad" style="flex: 0.8; padding: 12px; border-radius: 6px; border: 1px solid var(--border-color);">
+                <option value="Media">🟡 Media</option>
+                <option value="Alta">🔴 Alta</option>
+                <option value="Baja">🟢 Baja</option>
             </select>
             <button type="button" class="btn-add-minuta" onclick="agregarNotaModal()">➕ Agregar Nota</button>
         </div>
@@ -481,6 +489,7 @@
                         <th class="text-center" style="width: 80px;">Realizado</th>
                         <th>Nota / Acuerdo</th>
                         <th>Asignado a</th>
+                        <th class="text-center">Prioridad</th>
                         <th class="text-center" style="width: 100px;">Acción</th>
                     </tr>
                 </thead>
@@ -490,7 +499,10 @@
 
         <div style="display: flex; justify-content: space-between; align-items: center; border-top: 2px solid var(--border-color); padding-top: 15px;">
             <button class="btn-pdf" onclick="window.print()">📄 Exportar a PDF</button>
-            <button class="btn-cerrar" onclick="cerrarModalNotas()">💾 Guardar y Cerrar</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-guardar-accion" onclick="guardarNotasModal()">💾 Guardar Notas</button>
+                <button class="btn-cerrar" onclick="cerrarModalNotasYPasarAgenda()">✖️ Cerrar y Ver Agenda</button>
+            </div>
         </div>
     </div>
 </div>
@@ -525,6 +537,7 @@ const personalLista = [
 ];
 
 let folioNotaActual = null;
+let notasTemporalesModal = [];
 
 function cambiarModulo(idModulo, btnElement) {
     document.querySelectorAll('.modulo-vista').forEach(v => v.classList.remove('activo'));
@@ -671,7 +684,7 @@ async function cargarPendientes() {
         tbodyPendientes.innerHTML = '';
         
         if (dataReuniones.length === 0) {
-            tbodyReuniones.innerHTML = `<tr><td colspan="9" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay reuniones registradas.</td></tr>`;
+            tbodyReuniones.innerHTML = `<tr><td colspan="10" class="text-center" style="color: var(--text-muted); padding: 20px;">No hay reuniones registradas.</td></tr>`;
         } else {
             dataReuniones.forEach(p => {
                 const tr = document.createElement('tr');
@@ -681,16 +694,16 @@ async function cargarPendientes() {
                 if (p.prioridad === 'Alta') badgePri = '<span class="prioridad-alta">ALTA</span>';
                 if (p.prioridad === 'Baja') badgePri = '<span class="prioridad-baja">BAJA</span>';
 
-                let htmlNotas = '-';
-                if (p.notasLista && p.notasLista.length > 0) {
-                    htmlNotas = '<div class="minuta-tabla-container"><ul>';
-                    p.notasLista.forEach((nt) => {
-                        let estiloCheck = nt.completado ? 'text-decoration: line-through; color: var(--text-muted);' : '';
-                        let respTxt = nt.responsable && nt.responsable !== 'General' && nt.responsable !== 'Sin asignar (Opcional)' ? `<b>[${nt.responsable}]</b> ` : '';
-                        htmlNotas += `<li style="${estiloCheck}">${nt.completado ? '✅ ' : '⏳ '}${respTxt}${nt.texto}</li>`;
+                const totalNotas = p.notasLista ? p.notasLista.length : 0;
+                let asignadosSet = new Set();
+                if (p.notasLista) {
+                    p.notasLista.forEach(nt => {
+                        if (nt.responsable && nt.responsable !== 'Sin asignar (Opcional)' && nt.responsable !== 'General') {
+                            asignadosSet.add(nt.responsable);
+                        }
                     });
-                    htmlNotas += '</ul></div>';
                 }
+                const asignadosStr = asignadosSet.size > 0 ? Array.from(asignadosSet).join(', ') : '-';
 
                 tr.innerHTML = `
                     <td><span class="badge badge-reu">${p.folio}</span></td>
@@ -698,7 +711,8 @@ async function cargarPendientes() {
                     <td>${p.fecha}</td>
                     <td>${p.incidente}</td>
                     <td class="text-center">${p.vencimiento} - ${p.horaReunion} hrs</td>
-                    <td>${htmlNotas}</td>
+                    <td class="text-center"><b>${totalNotas}</b></td>
+                    <td>${asignadosStr}</td>
                     <td>${p.observaciones || '-'}</td>
                     <td class="text-center"><input type="checkbox" ${p.finalizado ? 'checked' : ''} onclick="toggleEstado('${p.folio}', this.checked)"></td>
                     <td class="text-center">
@@ -768,37 +782,28 @@ async function abrirModalNotas(folio) {
         document.getElementById('modalNotasDesc').innerText = `[${p.tipo}] ${p.incidente} (${p.vencimiento})`;
         document.getElementById('inputNotaTexto').value = '';
         document.getElementById('inputNotaResponsable').value = '';
+        document.getElementById('inputNotaPrioridad').value = 'Media';
 
-        renderizarTablaNotasModal(p.notasLista || []);
+        notasTemporalesModal = p.notasLista ? JSON.parse(JSON.stringify(p.notasLista)) : [];
+        renderizarTablaNotasModal();
         document.getElementById('modalNotas').style.display = 'flex';
     } catch (e) {
         console.error("Error al abrir notas:", e);
     }
 }
 
-function cerrarModalNotas() {
-    document.getElementById('modalNotas').style.display = 'none';
-    folioNotaActual = null;
-    cargarPendientes();
-}
-
-async function agregarNotaModal() {
-    const texto = document.getElementById('inputNotaTexto').value.trim();
-    const responsable = document.getElementById('inputNotaResponsable').value;
-
-    if (!texto) {
-        alert('Escribe el contenido de la nota.');
-        return;
-    }
-
+async function guardarNotasModal() {
+    if (!folioNotaActual) return;
     try {
         const res = await fetch('/api/pendientes');
         const data = await res.json();
         const p = data.find(item => item.folio === folioNotaActual);
 
         if (p) {
-            if (!p.notasLista) p.notasLista = [];
-            p.notasLista.push({ texto, responsable: responsable || 'General', completado: false });
+            p.notasLista = notasTemporalesModal;
+
+            // Sincronizar notas asignadas con la vista de Actividades y Pendientes
+            sincronizarNotasComoActividades(p.folio, p.notasLista, p.vencimiento);
 
             await fetch(`/api/pendientes/${folioNotaActual}`, {
                 method: 'PUT',
@@ -806,73 +811,115 @@ async function agregarNotaModal() {
                 body: JSON.stringify(p)
             });
 
-            document.getElementById('inputNotaTexto').value = '';
-            document.getElementById('inputNotaResponsable').value = '';
-            renderizarTablaNotasModal(p.notasLista);
+            alert("Notas guardadas exitosamente.");
+            cargarPendientes();
         }
     } catch (e) {
-        console.error("Error al agregar nota:", e);
+        console.error("Error al guardar notas:", e);
     }
 }
 
-async function toggleNotaRealizadaModal(indexNota, completado) {
+async function cerrarModalNotasYPasarAgenda() {
+    await guardarNotasModal();
+    document.getElementById('modalNotas').style.display = 'none';
+    folioNotaActual = null;
+    cargarPendientes();
+    cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
+}
+
+async function sincronizarNotasComoActividades(folioReunion, notas, fechaReunion) {
     try {
         const res = await fetch('/api/pendientes');
-        const data = await res.json();
-        const p = data.find(item => item.folio === folioNotaActual);
+        let todas = await res.json();
 
-        if (p && p.notasLista && p.notasLista[indexNota]) {
-            p.notasLista[indexNota].completado = completado;
+        // Identificar actividades existentes generadas por esta reunión (marcador en observaciones)
+        let actividadesExistentes = todas.filter(item => item.observaciones && item.observaciones.includes(`[Origen: ${folioReunion}]`));
 
-            await fetch(`/api/pendientes/${folioNotaActual}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(p)
-            });
-            renderizarTablaNotasModal(p.notasLista);
+        for (let i = 0; i < notas.length; i++) {
+            let nota = notas[i];
+            if (nota.responsable && nota.responsable !== 'Sin asignar (Opcional)' && nota.responsable !== 'General') {
+                let marcaOrigen = `[Origen: ${folioReunion}-nota-${i}]`;
+                let existente = actividadesExistentes.find(act => act.observaciones.includes(marcaOrigen));
+
+                if (!existente && !nota.completado) {
+                    // Crear nueva actividad
+                    await fetch('/api/pendientes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            tipo: 'Actividad',
+                            prioridad: nota.prioridad || 'Media',
+                            incidente: nota.texto,
+                            turnado: nota.responsable,
+                            vencimiento: fechaReunion || fechaHoy,
+                            observaciones: `Derivado de reunión ${folioReunion} ${marcaOrigen}`
+                        })
+                    });
+                } else if (existente && nota.completado && !existente.finalizado) {
+                    // Si se marcó como realizado en la nota, marcar completada la actividad
+                    await fetch(`/api/pendientes/${existente.folio}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ finalizado: true })
+                    });
+                }
+            }
         }
     } catch (e) {
-        console.error("Error al cambiar estado de nota:", e);
+        console.error("Error al sincronizar notas con actividades:", e);
     }
 }
 
-async function eliminarNotaModal(indexNota) {
-    try {
-        const res = await fetch('/api/pendientes');
-        const data = await res.json();
-        const p = data.find(item => item.folio === folioNotaActual);
+function agregarNotaModal() {
+    const texto = document.getElementById('inputNotaTexto').value.trim();
+    const responsable = document.getElementById('inputNotaResponsable').value;
+    const prioridad = document.getElementById('inputNotaPrioridad').value;
 
-        if (p && p.notasLista) {
-            p.notasLista.splice(indexNota, 1);
-
-            await fetch(`/api/pendientes/${folioNotaActual}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(p)
-            });
-            renderizarTablaNotasModal(p.notasLista);
-        }
-    } catch (e) {
-        console.error("Error al eliminar nota:", e);
-    }
-}
-
-function renderizarTablaNotasModal(notas) {
-    const tbody = document.getElementById('tablaNotasModal');
-    tbody.innerHTML = '';
-
-    if (!notas || notas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center" style="color: var(--text-muted); padding: 25px;">No hay notas registradas en esta reunión. Comienza a agregarlas arriba.</td></tr>`;
+    if (!texto) {
+        alert('Escribe el contenido de la nota.');
         return;
     }
 
-    notas.forEach((nota, idx) => {
+    notasTemporalesModal.push({ texto, responsable: responsable || 'General', prioridad, completado: false });
+    document.getElementById('inputNotaTexto').value = '';
+    document.getElementById('inputNotaResponsable').value = '';
+    document.getElementById('inputNotaPrioridad').value = 'Media';
+    renderizarTablaNotasModal();
+}
+
+function toggleNotaRealizadaModal(indexNota, completado) {
+    if (notasTemporalesModal[indexNota]) {
+        notasTemporalesModal[indexNota].completado = completado;
+        renderizarTablaNotasModal();
+    }
+}
+
+function eliminarNotaModal(indexNota) {
+    notasTemporalesModal.splice(indexNota, 1);
+    renderizarTablaNotasModal();
+}
+
+function renderizarTablaNotasModal() {
+    const tbody = document.getElementById('tablaNotasModal');
+    tbody.innerHTML = '';
+
+    if (!notasTemporalesModal || notasTemporalesModal.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 25px;">No hay notas registradas en esta reunión. Comienza a agregarlas arriba.</td></tr>`;
+        return;
+    }
+
+    notasTemporalesModal.forEach((nota, idx) => {
+        let badgePri = '<span class="prioridad-media">MEDIA</span>';
+        if (nota.prioridad === 'Alta') badgePri = '<span class="prioridad-alta">ALTA</span>';
+        if (nota.prioridad === 'Baja') badgePri = '<span class="prioridad-baja">BAJA</span>';
+
         const tr = document.createElement('tr');
         if (nota.completado) tr.classList.add('completado');
         tr.innerHTML = `
             <td class="text-center"><input type="checkbox" style="width: 20px; height: 20px; cursor: pointer;" ${nota.completado ? 'checked' : ''} onclick="toggleNotaRealizadaModal(${idx}, this.checked)"></td>
             <td style="font-size: 15px;">${nota.texto}</td>
             <td><b>${nota.responsable}</b></td>
+            <td class="text-center">${badgePri}</td>
             <td class="text-center"><button class="btn-eliminar-item" onclick="eliminarNotaModal(${idx})">Eliminar</button></td>
         `;
         tbody.appendChild(tr);
