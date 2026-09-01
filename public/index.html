@@ -22,14 +22,23 @@
         .header-box h2 { margin: 0; color: var(--text-main); font-weight: 700; font-size: 24px; }
         .reloj-widget { background: #0f172a; color: #38bdf8; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 16px; font-family: monospace; letter-spacing: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
-        /* BARRA DE NAVEGACIÓN DE MÓDULOS */
+        /* BARRA DE NAVEGACIÓN PRINCIPAL */
         .nav-modulos { display: flex; gap: 8px; margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; flex-wrap: wrap; }
-        .btn-modulo { background: #e2e8f0; color: var(--text-muted); border: none; padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+        .btn-modulo { background: #e2e8f0; color: var(--text-muted); border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; transition: all 0.2s; }
         .btn-modulo:hover { background: #cbd5e1; color: var(--text-main); }
         .btn-modulo.activo { background: var(--primary); color: white; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3); }
 
+        /* SUB-NAVEGACIÓN INTERNA PARA ASISTENCIAS */
+        .nav-submodulos { display: flex; gap: 6px; margin-bottom: 20px; background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .btn-submodulo { background: #e2e8f0; color: var(--text-muted); border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+        .btn-submodulo:hover { background: #cbd5e1; color: var(--text-main); }
+        .btn-submodulo.activo { background: #9333ea; color: white; }
+
         .modulo-vista { display: none; }
         .modulo-vista.activo { display: block; }
+
+        .submodulo-vista { display: none; }
+        .submodulo-vista.activo { display: block; }
 
         form { background: #f1f5f9; padding: 20px; border-radius: 8px; margin-bottom: 30px; border: 1px solid var(--border-color); }
         .form-group { display: flex; align-items: center; margin-bottom: 15px; }
@@ -76,7 +85,6 @@
 
         .text-center { text-align: center; }
 
-        /* CONTENEDOR DE ACCIONES ALINEADO */
         .acciones-container {
             display: inline-flex;
             align-items: center;
@@ -128,8 +136,9 @@
         @media print {
             body { background: white; padding: 0; color: black; }
             .container { box-shadow: none; padding: 0; max-width: 100%; }
-            .nav-modulos, form, .filter-box, .header-box, .btn-guardar, .btn-pdf, .btn-whatsapp, 
+            .nav-modulos, .nav-submodulos, form, .filter-box, .header-box, .btn-guardar, .btn-pdf, .btn-whatsapp, 
             .container > *:not(.modulo-vista.activo) { display: none !important; }
+            .submodulo-vista { display: block !important; }
             .table-container { border: none !important; overflow: visible !important; }
             table { min-width: 100% !important; border: 1px solid #cbd5e1; }
             th, td { border: 1px solid #cbd5e1 !important; color: black !important; }
@@ -153,14 +162,12 @@
         <div id="relojWidget" class="reloj-widget">--:--:--</div>
     </div>
 
-    <!-- BARRA DE NAVEGACIÓN POR MÓDULOS -->
+    <!-- BARRA DE NAVEGACIÓN PRINCIPAL -->
     <div class="nav-modulos">
         <button class="btn-modulo activo" onclick="cambiarModulo('moduloNuevoRegistro', this)">➕ Nuevo Registro</button>
-        <button class="btn-modulo" onclick="cambiarModulo('moduloAgenda', this)">📅 Agenda Personal</button>
-        <button class="btn-modulo" onclick="cambiarModulo('moduloPendientes', this)">📋 Actividades</button>
-        <button class="btn-modulo" onclick="cambiarModulo('moduloAsistencias', this)">⏱️ Control Asistencias</button>
-        <button class="btn-modulo" onclick="cambiarModulo('moduloSemanal', this)">📊 Reporte Semanal</button>
-        <button class="btn-modulo" onclick="cambiarModulo('moduloMensual', this)">📅 Reporte Mensual</button>
+        <button class="btn-modulo" onclick="cambiarModulo('moduloAgenda', this)">📅 Agenda de Reuniones</button>
+        <button class="btn-modulo" onclick="cambiarModulo('moduloPendientes', this)">📋 Actividades y Pendientes</button>
+        <button class="btn-modulo" onclick="cambiarModulo('moduloAsistencias', this)">⏱️ Control de Asistencias</button>
     </div>
     
     <!-- MÓDULO 1: NUEVO REGISTRO (FORMULARIO) -->
@@ -264,96 +271,106 @@
         </div>
     </div>
 
-    <!-- MÓDULO 4: CONTROL DIARIO DE ASISTENCIAS -->
+    <!-- MÓDULO 4: CONTROL DE ASISTENCIAS (UNIFICADO CON SUB-PESTAÑAS) -->
     <div id="moduloAsistencias" class="modulo-vista">
-        <div class="filter-box" style="background: #fdf4ff; border-color: #f5d0fe;">
-            <label for="asistFechaCalendario" style="color: #7e22ce;">📅 Seleccionar Fecha de Asistencia:</label>
-            <input type="date" id="asistFechaCalendario" onchange="cargarMatrizAsistencias()">
+        <!-- SUB-NAVEGACIÓN INTERNA -->
+        <div class="nav-submodulos">
+            <button class="btn-submodulo activo" onclick="cambiarSubmodulo('subAsistenciaDiaria', this)">⏱️ Asistencia Diaria</button>
+            <button class="btn-submodulo" onclick="cambiarSubmodulo('subReporteSemanal', this)">📊 Reporte Semanal</button>
+            <button class="btn-submodulo" onclick="cambiarSubmodulo('subReporteMensual', this)">📅 Reporte Mensual</button>
         </div>
 
-        <div class="table-container">
-            <table class="tabla-asistencia">
-                <thead>
-                    <tr>
-                        <th>Colaborador / Personal</th>
-                        <th class="text-center">Estatus Diario</th>
-                    </tr>
-                </thead>
-                <tbody id="tablaMatrizAsistencias"></tbody>
-            </table>
+        <!-- 1. ASISTENCIA DIARIA -->
+        <div id="subAsistenciaDiaria" class="submodulo-vista activo">
+            <div class="filter-box" style="background: #fdf4ff; border-color: #f5d0fe;">
+                <label for="asistFechaCalendario" style="color: #7e22ce;">📅 Seleccionar Fecha de Asistencia:</label>
+                <input type="date" id="asistFechaCalendario" onchange="cargarMatrizAsistencias()">
+            </div>
+
+            <div class="table-container">
+                <table class="tabla-asistencia">
+                    <thead>
+                        <tr>
+                            <th>Colaborador / Personal</th>
+                            <th class="text-center">Estatus Diario</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaMatrizAsistencias"></tbody>
+                </table>
+            </div>
+
+            <button type="button" class="btn-guardar" style="background: #9333ea; margin-bottom: 30px;" onclick="guardarCambiosAsistencias()">💾 Guardar Cambios de Asistencia</button>
         </div>
 
-        <button type="button" class="btn-guardar" style="background: #9333ea; margin-bottom: 30px;" onclick="guardarCambiosAsistencias()">💾 Guardar Cambios de Asistencia</button>
-    </div>
+        <!-- 2. REPORTE SEMANAL -->
+        <div id="subReporteSemanal" class="submodulo-vista">
+            <h3 class="section-title">
+                <span>📊 Reporte Dinámico de Faltas y Retardos por Semana</span>
+                <button class="btn-pdf" onclick="exportarPDF('subReporteSemanal', 'Reporte_Semanal')">📄 Exportar a PDF</button>
+            </h3>
+            <div class="filter-box" style="background: #f0fdf4; border-color: #bbf7d0;">
+                <label for="filtroSemana" style="color: #166534;">📆 Seleccionar Semana:</label>
+                <input type="date" id="filtroSemana">
+                
+                <label for="filtroPersonaReporte" style="color: #166534; margin-left: 15px;">👤 Personal:</label>
+                <select id="filtroPersonaReporte" onchange="cargarReporteSemanal()">
+                    <option value="TODOS">-- Todos (General) --</option>
+                </select>
+                
+                <button class="btn-limpiar-filtro" style="background: #0284c7;" onclick="cargarReporteSemanal()">🔍 Buscar</button>
+                <button class="btn-limpiar-filtro" style="background: #16a34a;" onclick="limpiarFiltroSemana()">Semana Actual</button>
+            </div>
 
-    <!-- MÓDULO 5: REPORTE SEMANAL -->
-    <div id="moduloSemanal" class="modulo-vista">
-        <h3 class="section-title">
-            <span>📊 Reporte Dinámico de Faltas y Retardos por Semana</span>
-            <button class="btn-pdf" onclick="exportarPDF('moduloSemanal', 'Reporte_Semanal')">📄 Exportar a PDF</button>
-        </h3>
-        <div class="filter-box" style="background: #f0fdf4; border-color: #bbf7d0;">
-            <label for="filtroSemana" style="color: #166534;">📆 Seleccionar Semana:</label>
-            <input type="date" id="filtroSemana">
-            
-            <label for="filtroPersonaReporte" style="color: #166534; margin-left: 15px;">👤 Personal:</label>
-            <select id="filtroPersonaReporte" onchange="cargarReporteSemanal()">
-                <option value="TODOS">-- Todos (General) --</option>
-            </select>
-            
-            <button class="btn-limpiar-filtro" style="background: #0284c7;" onclick="cargarReporteSemanal()">🔍 Buscar</button>
-            <button class="btn-limpiar-filtro" style="background: #16a34a;" onclick="limpiarFiltroSemana()">Semana Actual</button>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Colaborador / Personal</th>
+                            <th class="text-center" id="thLunes">Lunes</th>
+                            <th class="text-center" id="thMartes">Martes</th>
+                            <th class="text-center" id="thMiercoles">Miércoles</th>
+                            <th class="text-center" id="thJueves">Jueves</th>
+                            <th class="text-center" id="thViernes">Viernes</th>
+                            <th class="text-center">Total Retardos</th>
+                            <th class="text-center">Total Faltas</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaReporteSemanal"></tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Colaborador / Personal</th>
-                        <th class="text-center" id="thLunes">Lunes</th>
-                        <th class="text-center" id="thMartes">Martes</th>
-                        <th class="text-center" id="thMiercoles">Miércoles</th>
-                        <th class="text-center" id="thJueves">Jueves</th>
-                        <th class="text-center" id="thViernes">Viernes</th>
-                        <th class="text-center">Total Retardos</th>
-                        <th class="text-center">Total Faltas</th>
-                    </tr>
-                </thead>
-                <tbody id="tablaReporteSemanal"></tbody>
-            </table>
-        </div>
-    </div>
+        <!-- 3. REPORTE MENSUAL -->
+        <div id="subReporteMensual" class="submodulo-vista">
+            <h3 class="section-title">
+                <span>📅 Reporte Consolidado Mensual</span>
+                <button class="btn-pdf" onclick="exportarPDF('subReporteMensual', 'Reporte_Mensual')">📄 Exportar a PDF</button>
+            </h3>
+            <div class="filter-box" style="background: #fffbeb; border-color: #fde68a;">
+                <label for="filtroMes" style="color: #92400e;">🗓️ Seleccionar Mes:</label>
+                <input type="month" id="filtroMes">
+                
+                <label for="filtroPersonaMensual" style="color: #92400e; margin-left: 15px;">👤 Personal:</label>
+                <select id="filtroPersonaMensual" onchange="cargarReporteMensual()">
+                    <option value="TODOS">-- Todos (General) --</option>
+                </select>
+                
+                <button class="btn-limpiar-filtro" style="background: #d97706;" onclick="cargarReporteMensual()">🔍 Consultar Mes</button>
+                <button class="btn-limpiar-filtro" style="background: #b45309;" onclick="limpiarFiltroMensual()">Mes Actual</button>
+            </div>
 
-    <!-- MÓDULO 6: REPORTE MENSUAL -->
-    <div id="moduloMensual" class="modulo-vista">
-        <h3 class="section-title">
-            <span>📅 Reporte Consolidado Mensual</span>
-            <button class="btn-pdf" onclick="exportarPDF('moduloMensual', 'Reporte_Mensual')">📄 Exportar a PDF</button>
-        </h3>
-        <div class="filter-box" style="background: #fffbeb; border-color: #fde68a;">
-            <label for="filtroMes" style="color: #92400e;">🗓️ Seleccionar Mes:</label>
-            <input type="month" id="filtroMes">
-            
-            <label for="filtroPersonaMensual" style="color: #92400e; margin-left: 15px;">👤 Personal:</label>
-            <select id="filtroPersonaMensual" onchange="cargarReporteMensual()">
-                <option value="TODOS">-- Todos (General) --</option>
-            </select>
-            
-            <button class="btn-limpiar-filtro" style="background: #d97706;" onclick="cargarReporteMensual()">🔍 Consultar Mes</button>
-            <button class="btn-limpiar-filtro" style="background: #b45309;" onclick="limpiarFiltroMensual()">Mes Actual</button>
-        </div>
-
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Colaborador / Personal</th>
-                        <th class="text-center">Total Retardos (Mes)</th>
-                        <th class="text-center">Total Faltas (Mes)</th>
-                    </tr>
-                </thead>
-                <tbody id="tablaReporteMensual"></tbody>
-            </table>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Colaborador / Personal</th>
+                            <th class="text-center">Total Retardos (Mes)</th>
+                            <th class="text-center">Total Faltas (Mes)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaReporteMensual"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -390,6 +407,14 @@ function cambiarModulo(idModulo, btnElement) {
     document.querySelectorAll('.btn-modulo').forEach(b => b.classList.remove('activo'));
     
     document.getElementById(idModulo).classList.add('activo');
+    btnElement.classList.add('activo');
+}
+
+function cambiarSubmodulo(idSubmodulo, btnElement) {
+    document.querySelectorAll('.submodulo-vista').forEach(v => v.classList.remove('activo'));
+    document.querySelectorAll('.btn-submodulo').forEach(b => b.classList.remove('activo'));
+    
+    document.getElementById(idSubmodulo).classList.add('activo');
     btnElement.classList.add('activo');
 }
 
