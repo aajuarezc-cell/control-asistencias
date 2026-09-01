@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
+const cron = require('node-cron');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -63,7 +64,6 @@ const Asistencia = mongoose.model('Asistencia', asistenciaSchema);
 
 // --- RUTAS API PENDIENTES / REUNIONES ---
 
-// Obtener todos los pendientes
 app.get('/api/pendientes', async (req, res) => {
     try {
         const pendientes = await Pendiente.find();
@@ -73,12 +73,10 @@ app.get('/api/pendientes', async (req, res) => {
     }
 });
 
-// Crear un nuevo pendiente o reunión con generación de folio automático (Folio-001)
 app.post('/api/pendientes', async (req, res) => {
     try {
         const { tipo, incidente, turnado, vencimiento, horaReunion, notasLista, observaciones, prioridad } = req.body;
         
-        // Calcular folio automático
         const ultimo = await Pendiente.findOne().sort({ _id: -1 });
         let siguienteNumero = 1;
         if (ultimo && ultimo.folio && ultimo.folio.startsWith('Folio-')) {
@@ -87,7 +85,6 @@ app.post('/api/pendientes', async (req, res) => {
             if (!isNaN(num)) siguienteNumero = num + 1;
         }
         const folioGenerado = `Folio-${String(siguienteNumero).padStart(3, '0')}`;
-        
         const fechaActual = new Date().toISOString().split('T')[0];
 
         const nuevoPendiente = new Pendiente({
@@ -106,14 +103,12 @@ app.post('/api/pendientes', async (req, res) => {
 
         await nuevoPendiente.save();
 
-        // 🚨 ENVÍO DE ALTA A DISCORD SI LA PRIORIDAD ES ALTA
         if (nuevoPendiente.prioridad === 'Alta') {
             const textoAlerta = `🚨 **¡NUEVO REGISTRO URGENTE!** (${nuevoPendiente.folio})\n` +
                                 `• **Tipo:** ${nuevoPendiente.tipo}\n` +
                                 `• **Detalle:** ${nuevoPendiente.incidente}\n` +
                                 `• **Asignado a:** ${nuevoPendiente.turnado || 'General'}\n` +
                                 `• **Fecha:** ${nuevoPendiente.vencimiento}`;
-            
             await enviarNotificacionDiscord(textoAlerta);
         }
 
@@ -123,7 +118,6 @@ app.post('/api/pendientes', async (req, res) => {
     }
 });
 
-// Actualizar un pendiente completo (incluyendo notas, prioridades, etc.)
 app.put('/api/pendientes/:folio', async (req, res) => {
     try {
         const { tipo, incidente, turnado, vencimiento, horaReunion, notasLista, observaciones, prioridad } = req.body;
@@ -138,7 +132,6 @@ app.put('/api/pendientes/:folio', async (req, res) => {
     }
 });
 
-// Cambiar estado finalizado (Completado)
 app.patch('/api/pendientes/:folio', async (req, res) => {
     try {
         const { finalizado } = req.body;
@@ -153,7 +146,6 @@ app.patch('/api/pendientes/:folio', async (req, res) => {
     }
 });
 
-// Eliminar un pendiente
 app.delete('/api/pendientes/:folio', async (req, res) => {
     try {
         await Pendiente.findOneAndDelete({ folio: req.params.folio });
@@ -165,7 +157,6 @@ app.delete('/api/pendientes/:folio', async (req, res) => {
 
 // --- RUTAS API ASISTENCIAS ---
 
-// Obtener registros de asistencias
 app.get('/api/asistencias', async (req, res) => {
     try {
         const asistencias = await Asistencia.find();
@@ -175,11 +166,9 @@ app.get('/api/asistencias', async (req, res) => {
     }
 });
 
-// Guardar o actualizar la asistencia de un colaborador en una fecha específica
 app.post('/api/asistencias', async (req, res) => {
     try {
         const { personal, fecha, estatus } = req.body;
-
         let asistencia = await Asistencia.findOne({ personal, fecha });
         if (asistencia) {
             asistencia.estatus = estatus;
@@ -188,10 +177,53 @@ app.post('/api/asistencias', async (req, res) => {
             asistencia = new Asistencia({ personal, fecha, estatus });
             await asistencia.save();
         }
-
         res.status(200).json(asistencia);
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+// --- ⏱️ PROGRAMADOR DE TAREAS (CRON JOB HORARIO DIVIDIDO) ---
+// Se ejecuta cada hora en punto, desde las 08:00 (8 AM) hasta las 21:00 (9 PM)
+cron.schedule('0 8-21 * * *', async () => {
+    try {
+        const pendientesActivos = await Pendiente.find({ finalizado: false });
+        
+        // Dividimos en Agenda (Reuniones) y Actividades (Pendientes)
+        const reuniones = pendientesActivos.filter(p => p.tipo === 'Reunión');
+        const actividades = pendientesActivos.filter(p => p.tipo !== 'Reunión');
+
+        const horaActual = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+        let mensaje = `📋 **REPORTE HORARIO - ${horaActual}**\n\n`;
+
+        // SECCIÓN 1: AGENDA DE REUNIONES
+        mensaje += `📅 **AGENDA DE REUNIONES (${reuniones.length})**\n`;
+        if (reuniones.length === 0) {
+            mensaje += `_No hay reuniones activas._\n\n`;
+        } else {
+            reuniones.forEach(r => {
+                let iconoPri = r.prioridad === 'Alta' ? '🔴' : (r.prioridad === 'Baja' ? '🟢' : '🟡');
+                mensaje += `• ${iconoPri} **[${r.folio}]** ${r.incidente} _(${r.vencimiento} ${r.horaReunion ? 'a las ' + r.horaReunion + 'h' : ''})_\n`;
+            });
+            mensaje += `\n`;
+        }
+
+        // SECCIÓN 2: ACTIVIDADES Y PENDIENTES
+        mensaje += `⚡ **ACTIVIDADES Y PENDIENTES (${actividades.length})**\n`;
+        if (actividades.length === 0) {
+            mensaje += `_No hay actividades activas._\n`;
+        } else {
+            actividades.forEach(a => {
+                let iconoPri = a.prioridad === 'Alta' ? '🔴' : (a.prioridad === 'Baja' ? '🟢' : '🟡');
+                mensaje += `• ${iconoPri} **[${a.folio}]** ${a.incidente} -> *Asignado a: ${a.turnado}* _(Vence: ${a.vencimiento})_\n`;
+            });
+        }
+
+        await enviarNotificacionDiscord(mensaje);
+        console.log(`[CRON] Reporte horario dividido enviado a Discord a las ${horaActual}`);
+    } catch (error) {
+        console.error("Error al enviar el reporte horario programado:", error);
     }
 });
 
