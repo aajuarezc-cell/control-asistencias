@@ -63,9 +63,13 @@
         
         .oculto { display: none !important; }
 
-        .minuta-input-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
-        .minuta-input-row input, .minuta-input-row select { width: 100%; padding: 10px; box-sizing: border-box; }
-        .btn-add-minuta { background: #10b981; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: 600; cursor: pointer; width: 100%; }
+        /* MODIFICACIÓN: DISEÑO AMPLIO Y CÓMODO PARA LA CAPTURA DE NOTAS */
+        .minuta-input-container { background: #f8fafc; border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .minuta-input-container textarea { width: 100%; min-height: 90px; padding: 10px; box-sizing: border-box; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; font-family: inherit; resize: vertical; background: white; }
+        .minuta-controls-row { display: flex; flex-direction: column; gap: 8px; }
+        .minuta-controls-row select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; background: white; }
+        
+        .btn-add-minuta { background: #10b981; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: 600; cursor: pointer; width: 100%; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .btn-add-minuta:hover { background: #059669; }
         
         .btn-eliminar-item { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
@@ -83,7 +87,7 @@
         
         .table-container { width: 100%; overflow-x: auto; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 15px; background: white; }
         table { width: 100%; border-collapse: collapse; min-width: 100%; background: white; }
-        th, td { padding: 10px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border-color); }
+        th, td { padding: 10px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border-color); vertical-align: top; }
         th { background: #f8fafc; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
         tr:hover { background: #f8fafc; }
         
@@ -183,10 +187,9 @@
             .filter-box { flex-direction: row; align-items: center; gap: 15px; }
             .filter-box input, .filter-box select { width: auto; }
             .btn-limpiar-filtro { width: auto; }
-            .minuta-input-row { flex-direction: row; }
-            .minuta-input-row input { flex: 2; }
-            .minuta-input-row select { flex: 1.2; }
-            .btn-add-minuta { width: auto; padding: 0 20px; }
+            .minuta-controls-row { flex-direction: row; }
+            .minuta-controls-row select { flex: 1; }
+            .btn-add-minuta { width: auto; padding: 0 25px; }
             .btn-pdf, .btn-guardar-accion, .btn-cerrar { width: auto; }
             .modal-pantalla-completa { padding: 30px; }
         }
@@ -194,7 +197,7 @@
         @media print {
             body { background: white; padding: 0; color: black; }
             .container { box-shadow: none; padding: 0; max-width: 100%; }
-            .nav-modulos, .nav-submodulos, form, .filter-box, .header-box, .btn-guardar, .btn-pdf, .btn-whatsapp, .btn-accion, .minuta-input-row, .btn-eliminar-item, .btn-guardar-accion,
+            .nav-modulos, .nav-submodulos, form, .filter-box, .header-box, .btn-guardar, .btn-pdf, .btn-whatsapp, .btn-accion, .minuta-input-container, .btn-eliminar-item, .btn-guardar-accion,
             .container > *:not(.modulo-vista.activo) { display: none !important; }
             .submodulo-vista { display: block !important; }
             .table-container { border: none !important; overflow: visible !important; }
@@ -520,7 +523,7 @@
     </div>
 </div>
 
-<!-- MODAL DE NOTAS -->
+<!-- MODAL DE NOTAS CON CAMPO AMPLIO -->
 <div id="modalNotas">
     <div class="modal-pantalla-completa">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 12px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
@@ -534,17 +537,20 @@
             </div>
         </div>
         
-        <div class="minuta-input-row">
-            <input type="text" id="inputNotaTexto" placeholder="Escribe un punto tratado...">
-            <select id="inputNotaResponsable">
-                <option value="">Sin asignar</option>
-            </select>
-            <select id="inputNotaPrioridad">
-                <option value="Media">🟡 Media</option>
-                <option value="Alta">🔴 Alta</option>
-                <option value="Baja">🟢 Baja</option>
-            </select>
-            <button type="button" class="btn-add-minuta" onclick="agregarNotaModal()">➕ Agregar Nota</button>
+        <!-- ZONA DE CAPTURA AMPLIA -->
+        <div class="minuta-input-container">
+            <textarea id="inputNotaTexto" placeholder="Escribe tu nota, acuerdo o punto tratado con espacio y saltos de línea..." onkeydown="handleTextAreaKeyDown(event)"></textarea>
+            <div class="minuta-controls-row">
+                <select id="inputNotaResponsable">
+                    <option value="">Sin asignar</option>
+                </select>
+                <select id="inputNotaPrioridad">
+                    <option value="Media">🟡 Media</option>
+                    <option value="Alta">🔴 Alta</option>
+                    <option value="Baja">🟢 Baja</option>
+                </select>
+                <button type="button" class="btn-add-minuta" onclick="agregarNotaModal()">➕ Agregar Nota</button>
+            </div>
         </div>
 
         <div class="table-container" style="flex: 1; overflow-y: auto; margin: 10px 0;">
@@ -1060,6 +1066,14 @@ function agregarNotaModal() {
     renderizarTablaNotasModal();
 }
 
+function handleTextAreaKeyDown(event) {
+    // Permite agregar rápido presionando Ctrl + Enter
+    if (event.ctrlKey && event.key === 'Enter') {
+        event.preventDefault();
+        agregarNotaModal();
+    }
+}
+
 function toggleNotaRealizadaModal(indexNota, completado) {
     if (notasTemporalesModal[indexNota]) {
         notasTemporalesModal[indexNota].completado = completado;
@@ -1084,9 +1098,13 @@ function renderizarTablaNotasModal() {
         let badgePri = nota.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (nota.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
         const tr = document.createElement('tr');
         if (nota.completado) tr.classList.add('completado');
+        
+        // Reemplaza saltos de línea por <br> para conservar el espaciado en la tabla
+        const textoHtml = nota.texto.replace(/\n/g, '<br>');
+
         tr.innerHTML = `
             <td class="text-center"><input type="checkbox" style="width: 18px; height: 18px;" ${nota.completado ? 'checked' : ''} onclick="toggleNotaRealizadaModal(${idx}, this.checked)"></td>
-            <td>${nota.texto}</td>
+            <td style="white-space: pre-line;">${textoHtml}</td>
             <td><b>${nota.responsable}</b></td>
             <td class="text-center">${badgePri}</td>
             <td class="text-center"><button class="btn-eliminar-item" onclick="eliminarNotaModal(${idx})">Eliminar</button></td>
