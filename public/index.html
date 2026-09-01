@@ -63,7 +63,6 @@
         
         .oculto { display: none !important; }
 
-        /* MODIFICACIÓN: DISEÑO AMPLIO Y CÓMODO PARA LA CAPTURA DE NOTAS */
         .minuta-input-container { background: #f8fafc; border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
         .minuta-input-container textarea { width: 100%; min-height: 90px; padding: 10px; box-sizing: border-box; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; font-family: inherit; resize: vertical; background: white; }
         .minuta-controls-row { display: flex; flex-direction: column; gap: 8px; }
@@ -523,7 +522,7 @@
     </div>
 </div>
 
-<!-- MODAL DE NOTAS CON CAMPO AMPLIO -->
+<!-- MODAL DE NOTAS -->
 <div id="modalNotas">
     <div class="modal-pantalla-completa">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 12px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
@@ -537,7 +536,6 @@
             </div>
         </div>
         
-        <!-- ZONA DE CAPTURA AMPLIA -->
         <div class="minuta-input-container">
             <textarea id="inputNotaTexto" placeholder="Escribe tu nota, acuerdo o punto tratado con espacio y saltos de línea..." onkeydown="handleTextAreaKeyDown(event)"></textarea>
             <div class="minuta-controls-row">
@@ -609,6 +607,7 @@ const personalLista = [
 ];
 
 let folioNotaActual = null;
+let tipoItemActual = null; // Para diferenciar si es Reunión o Actividad
 let notasTemporalesModal = [];
 let filtroUrgentesActivo = false;
 
@@ -956,6 +955,8 @@ async function abrirModalNotas(folio) {
         const p = data.find(item => item.folio === folio);
         if (!p) return;
 
+        tipoItemActual = p.tipo; // Guardamos si es Reunión o Actividad
+
         document.getElementById('modalNotasFolio').innerText = p.folio;
         document.getElementById('modalNotasDesc').innerText = `[${p.tipo}] ${p.incidente}`;
         document.getElementById('inputNotaTexto').value = '';
@@ -978,7 +979,12 @@ async function guardarNotasModal() {
         const p = data.find(item => item.folio === folioNotaActual);
         if (p) {
             p.notasLista = notasTemporalesModal;
-            await sincronizarNotasComoActividades(p.folio, p.notasLista, p.vencimiento);
+            
+            // SÓLO sincroniza y crea subactividades si el elemento origen es una Reunión
+            if (p.tipo === 'Reunión') {
+                await sincronizarNotasComoActividades(p.folio, p.notasLista, p.vencimiento);
+            }
+
             await fetch(`/api/pendientes/${folioNotaActual}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -995,6 +1001,7 @@ async function guardarNotasModal() {
 function cerrarModalSimple() {
     document.getElementById('modalNotas').style.display = 'none';
     folioNotaActual = null;
+    tipoItemActual = null;
     cargarPendientes();
 }
 
@@ -1067,7 +1074,6 @@ function agregarNotaModal() {
 }
 
 function handleTextAreaKeyDown(event) {
-    // Permite agregar rápido presionando Ctrl + Enter
     if (event.ctrlKey && event.key === 'Enter') {
         event.preventDefault();
         agregarNotaModal();
@@ -1099,7 +1105,6 @@ function renderizarTablaNotasModal() {
         const tr = document.createElement('tr');
         if (nota.completado) tr.classList.add('completado');
         
-        // Reemplaza saltos de línea por <br> para conservar el espaciado en la tabla
         const textoHtml = nota.texto.replace(/\n/g, '<br>');
 
         tr.innerHTML = `
