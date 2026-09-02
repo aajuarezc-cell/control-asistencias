@@ -116,7 +116,6 @@
 
         .text-center { text-align: center; }
 
-        /* ADAPTABILIDAD DE BOTONES DE ACCIÓN (PC vs CELULAR/TABLETA) */
         .acciones-container {
             display: flex;
             flex-direction: row;
@@ -140,7 +139,7 @@
             gap: 2px; 
             text-decoration: none;
             line-height: 1.1;
-            flex: 1 1 calc(50% - 4px); /* En PC se acomodan en un bloque ordenado de 2x2 */
+            flex: 1 1 calc(50% - 4px);
             min-width: 50px;
         }
         .btn-editar { background: #f59e0b; }
@@ -179,7 +178,6 @@
         .btn-cerrar { background: #64748b; padding: 10px 20px; width: 100%; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
         .btn-cerrar:hover { background: #475569; }
 
-        /* Media queries para móviles y tabletas */
         @media (max-width: 768px) {
             .acciones-container {
                 flex-direction: column;
@@ -275,6 +273,7 @@
         <button class="btn-modulo" onclick="cambiarModulo('moduloAgenda', this)">📅 Agenda</button>
         <button class="btn-modulo" onclick="cambiarModulo('moduloPendientes', this)">📋 Actividades</button>
         <button class="btn-modulo" onclick="cambiarModulo('moduloAsistencias', this)">⏱️ Asistencias</button>
+        <button class="btn-modulo" onclick="cambiarModulo('moduloVacaciones', this)">🏖️ Vacaciones</button>
     </div>
     
     <!-- MÓDULO 1: NUEVO REGISTRO -->
@@ -538,6 +537,61 @@
             </div>
         </div>
     </div>
+
+    <!-- MÓDULO 5: VACACIONES -->
+    <div id="moduloVacaciones" class="modulo-vista">
+        <h3 class="section-title">🏖️ Control y Registro de Vacaciones (2 Periodos de 10 días, Lunes a Viernes)</h3>
+        
+        <form id="formVacaciones" onsubmit="guardarVacaciones(event)">
+            <div class="form-group">
+                <label for="vacPersonal">Personal:</label>
+                <select id="vacPersonal" required>
+                    <option value="">Seleccionar personal...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="vacAnio">Año:</label>
+                <input type="number" id="vacAnio" value="2026" required>
+            </div>
+
+            <div class="form-group">
+                <label for="vacPeriodo">Periodo:</label>
+                <select id="vacPeriodo" required>
+                    <option value="1">Periodo 1 (Máx. 10 días)</option>
+                    <option value="2">Periodo 2 (Máx. 10 días)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="vacDiasCount">Días a tomar:</label>
+                <input type="number" id="vacDiasCount" min="1" max="10" value="1" required>
+            </div>
+
+            <div class="form-group">
+                <label for="vacFecha">Fecha de Solicitud / Inicio:</label>
+                <input type="date" id="vacFecha" required>
+            </div>
+
+            <button type="submit" class="btn-guardar" style="background: #0284c7;">Registrar Días de Vacaciones</button>
+        </form>
+
+        <h3 class="section-title" style="margin-top: 30px;">📊 Resumen de Vacaciones por Colaborador</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Colaborador</th>
+                        <th>Año</th>
+                        <th class="text-center">Periodo 1 (Máx. 10)</th>
+                        <th class="text-center">Periodo 2 (Máx. 10)</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaResumenVacaciones"></tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <!-- MODAL DE NOTAS -->
@@ -708,6 +762,7 @@ const mesHoy = fechaHoy.substring(0, 7);
 document.getElementById('asistFechaCalendario').value = fechaHoy;
 document.getElementById('filtroSemana').value = fechaHoy;
 document.getElementById('filtroMes').value = mesHoy;
+document.getElementById('vacFecha').value = fechaHoy;
 
 const selectPersonaRep = document.getElementById('filtroPersonaReporte');
 selectPersonaRep.innerHTML = '<option value="TODOS">-- Todos --</option>';
@@ -724,6 +779,16 @@ personalLista.forEach(p => {
     opt.value = p; opt.textContent = p;
     selectPersonaMensual.appendChild(opt);
 });
+
+const selectVacPersonal = document.getElementById('vacPersonal');
+if (selectVacPersonal) {
+    selectVacPersonal.innerHTML = '<option value="">Seleccionar personal...</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        selectVacPersonal.appendChild(opt);
+    });
+}
 
 const selectTurnado = document.getElementById('turnado');
 if (selectTurnado) {
@@ -1298,6 +1363,94 @@ async function cargarReporteMensual() {
     } catch (e) { console.error("Error mensual:", e); }
 }
 
+async function guardarVacaciones(e) {
+    e.preventDefault();
+    const payload = {
+        personal: document.getElementById('vacPersonal').value,
+        periodoAnual: parseInt(document.getElementById('vacAnio').value),
+        tipoPeriodo: parseInt(document.getElementById('vacPeriodo').value),
+        diasSolicitados: parseInt(document.getElementById('vacDiasCount').value),
+        fechaSolicitud: document.getElementById('vacFecha').value
+    };
+
+    try {
+        const res = await fetch('/api/vacaciones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            alert("⚠️ " + data.error);
+        } else {
+            alert("¡Vacaciones registradas con éxito!");
+            document.getElementById('formVacaciones').reset();
+            document.getElementById('vacFecha').value = fechaHoy;
+            document.getElementById('vacAnio').value = "2026";
+            cargarResumenVacaciones();
+        }
+    } catch (err) {
+        console.error("Error al registrar vacaciones:", err);
+    }
+}
+
+async function cargarResumenVacaciones() {
+    try {
+        const res = await fetch('/api/vacaciones');
+        const data = await res.json();
+        const tbody = document.getElementById('tablaResumenVacaciones');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        const anioActual = 2026;
+        let resumen = {};
+        personalLista.forEach(p => {
+            resumen[p] = { p1: 0, p2: 0, ids: { p1: null, p2: null } };
+        });
+
+        data.filter(v => v.periodoAnual === anioActual).forEach(v => {
+            if (resumen[v.personal]) {
+                if (v.tipoPeriodo === 1) {
+                    resumen[v.personal].p1 = v.diasTomados;
+                    resumen[v.personal].ids.p1 = v._id;
+                }
+                if (v.tipoPeriodo === 2) {
+                    resumen[v.personal].p2 = v.diasTomados;
+                    resumen[v.personal].ids.p2 = v._id;
+                }
+            }
+        });
+
+        Object.keys(resumen).forEach(persona => {
+            const item = resumen[persona];
+            const badgeP1 = item.p1 >= 10 ? `<span class="badge" style="background:#fee2e2; color:#991b1b;">10 / 10 (Completado)</span>` : `${item.p1} / 10 días`;
+            const badgeP2 = item.p2 >= 10 ? `<span class="badge" style="background:#fee2e2; color:#991b1b;">10 / 10 (Completado)</span>` : `${item.p2} / 10 días`;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${persona}</b></td>
+                <td>${anioActual}</td>
+                <td class="text-center">${badgeP1}</td>
+                <td class="text-center">${badgeP2}</td>
+                <td class="text-center">
+                    ${item.ids.p1 ? `<button class="btn-eliminar-item" onclick="eliminarRegistroVacacion('${item.ids.p1}')">Borrar P1</button>` : ''}
+                    ${item.ids.p2 ? `<button class="btn-eliminar-item" onclick="eliminarRegistroVacacion('${item.ids.p2}')" style="background:#d97706; margin-left:4px;">Borrar P2</button>` : ''}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error("Error al cargar resumen de vacaciones:", e);
+    }
+}
+
+async function eliminarRegistroVacacion(id) {
+    if (confirm("¿Estás seguro de restablecer este registro de periodo?")) {
+        await fetch(`/api/vacaciones/${id}`, { method: 'DELETE' });
+        cargarResumenVacaciones();
+    }
+}
+
 function exportarPDF(seccionId) {
     const contenidoOriginal = document.body.innerHTML;
     document.body.innerHTML = document.getElementById(seccionId).innerHTML;
@@ -1326,7 +1479,6 @@ document.getElementById('formPendiente').addEventListener('submit', async (e) =>
 
     if (editFolio) {
         await fetch(`/api/pendientes/${editFolio}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        document.getElementById('editFolio').value = `-`;
         document.getElementById('editFolio').value = '';
         document.getElementById('btnSubmitText').innerText = 'Guardar Registro';
     } else {
@@ -1406,6 +1558,7 @@ window.onload = () => {
     cargarMatrizAsistencias();
     cargarReporteSemanal();
     cargarReporteMensual();
+    cargarResumenVacaciones();
 };
 </script>
 </body>
