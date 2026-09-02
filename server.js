@@ -315,8 +315,24 @@ app.post('/api/vacaciones', async (req, res) => {
 
 app.delete('/api/vacaciones/:id', async (req, res) => {
     try {
-        await Vacacion.findByIdAndDelete(req.params.id);
-        res.json({ mensaje: 'Registro de vacaciones eliminado' });
+        const vacacion = await Vacacion.findById(req.params.id);
+        if (vacacion) {
+            if (vacacion.fechasSolicitadas && vacacion.fechasSolicitadas.length > 0) {
+                for (let sol of vacacion.fechasSolicitadas) {
+                    if (sol.fechas && sol.fechas.length > 0) {
+                        for (let fechaStr of sol.fechas) {
+                            await Asistencia.findOneAndDelete({
+                                personal: vacacion.personal,
+                                fecha: fechaStr,
+                                estatus: 'Vacaciones'
+                            });
+                        }
+                    }
+                }
+            }
+            await Vacacion.findByIdAndDelete(req.params.id);
+        }
+        res.json({ mensaje: 'Registro de vacaciones eliminado y asistencias restablecidas' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
