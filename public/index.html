@@ -593,6 +593,30 @@
                 <tbody id="tablaResumenVacaciones"></tbody>
             </table>
         </div>
+
+        <!-- TABLA CALENDARIO DE DÍAS TOMADOS POR EMPLEADO -->
+        <h3 class="section-title" style="margin-top: 30px; border-color: #0284c7;">📅 Calendario de Días de Vacaciones Tomados</h3>
+        <div class="filter-box" style="background: #e0f2fe; border-color: #bae6fd;">
+            <label for="filtroCalendarioVacaciones" style="color: #0369a1;">👤 Seleccionar Empleado:</label>
+            <select id="filtroCalendarioVacaciones" onchange="renderizarCalendarioVacaciones()">
+                <option value="">-- Seleccionar personal --</option>
+            </select>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="text-center">Periodo</th>
+                        <th>Fecha de Inicio</th>
+                        <th class="text-center">Días Tomados</th>
+                        <th>Fechas Específicas Asignadas (Calendario)</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaCalendarioVacaciones">
+                    <tr><td colspan="4" class="text-center" style="color: var(--text-muted); padding: 15px;">Selecciona un empleado para ver su calendario de vacaciones.</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -684,6 +708,7 @@ let folioNotaActual = null;
 let tipoItemActual = null;
 let notasTemporalesModal = [];
 let filtroUrgentesActivo = false;
+let globalVacacionesData = [];
 
 async function forzarEnvioDiscord() {
     if (!confirm("¿Deseas enviar el reporte actual de Agenda y Actividades a Discord ahora mismo?")) return;
@@ -789,6 +814,16 @@ if (selectVacPersonal) {
         const opt = document.createElement('option');
         opt.value = p; opt.textContent = p;
         selectVacPersonal.appendChild(opt);
+    });
+}
+
+const selectFiltroCalVac = document.getElementById('filtroCalendarioVacaciones');
+if (selectFiltroCalVac) {
+    selectFiltroCalVac.innerHTML = '<option value="">-- Seleccionar personal --</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        selectFiltroCalVac.appendChild(opt);
     });
 }
 
@@ -1394,6 +1429,9 @@ async function guardarVacaciones(e) {
             document.getElementById('vacAnio').value = "2026";
             cargarResumenVacaciones();
             cargarMatrizAsistencias();
+            cargarReporteSemanal();
+            cargarReporteMensual();
+            renderizarCalendarioVacaciones();
         }
     } catch (err) {
         console.error("Error al registrar vacaciones:", err);
@@ -1404,6 +1442,7 @@ async function cargarResumenVacaciones() {
     try {
         const res = await fetch('/api/vacaciones');
         const data = await res.json();
+        globalVacacionesData = data;
         const tbody = document.getElementById('tablaResumenVacaciones');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -1445,9 +1484,45 @@ async function cargarResumenVacaciones() {
             `;
             tbody.appendChild(tr);
         });
+        renderizarCalendarioVacaciones();
     } catch (e) {
         console.error("Error al cargar resumen de vacaciones:", e);
     }
+}
+
+async function renderizarCalendarioVacaciones() {
+    const personaSel = document.getElementById('filtroCalendarioVacaciones').value;
+    const tbody = document.getElementById('tablaCalendarioVacaciones');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!personaSel) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center" style="color: var(--text-muted); padding: 15px;">Selecciona un empleado para ver su calendario de vacaciones.</td></tr>`;
+        return;
+    }
+
+    const registrosPersona = globalVacacionesData.filter(v => v.personal === personaSel && v.periodoAnual === 2026);
+    if (registrosPersona.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay registros de vacaciones para ${personaSel} en este año.</td></tr>`;
+        return;
+    }
+
+    registrosPersona.forEach(reg => {
+        let fechasListadoHtml = '';
+        if (reg.fechasSolicitadas && reg.fechasSolicitadas.length > 0) {
+            reg.fechasSolicitadas.forEach(sol => {
+                let fechasSpan = sol.fechas ? sol.fechas.map(f => `<span class="badge" style="background:#e0f2fe; color:#0369a1; margin:2px;">${f}</span>`).join(' ') : (sol.inicio || '-');
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="text-center"><b>Periodo ${reg.tipoPeriodo}</b></td>
+                    <td>${sol.inicio || 'N/A'}</td>
+                    <td class="text-center"><b>${sol.dias} días</b></td>
+                    <td>${fechasSpan}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    });
 }
 
 async function eliminarRegistroVacacion(id) {
@@ -1455,6 +1530,8 @@ async function eliminarRegistroVacacion(id) {
         await fetch(`/api/vacaciones/${id}`, { method: 'DELETE' });
         cargarResumenVacaciones();
         cargarMatrizAsistencias();
+        cargarReporteSemanal();
+        cargarReporteMensual();
     }
 }
 
