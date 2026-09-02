@@ -36,13 +36,19 @@ async function enviarNotificacionDiscord(mensaje) {
     }
 }
 
-// FUNCIÓN AUXILIAR PARA ARMAR EL REPORTE DIVIDIDO
-async function generarYEnviarReporteDiscord(esManual = false) {
+// FUNCIÓN AUXILIAR PARA ARMAR EL REPORTE DIVIDIDO (O "SIN NOVEDADES")
+async function generarYEnviarReporteDiscord(esManual = false, soloSiHayNovedades = false) {
     const pendientesActivos = await Pendiente.find({ finalizado: false });
     const reuniones = pendientesActivos.filter(p => p.tipo === 'Reunión');
     const actividades = pendientesActivos.filter(p => p.tipo !== 'Reunión');
 
     const horaActual = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+    // Si el filtro de cada 14 minutos está activo y no hay nada activo, manda "Sin novedades"
+    if (soloSiHayNovedades && pendientesActivos.length === 0) {
+        await enviarNotificacionDiscord(`🟢 **[${horaActual}]** Sin novedades.`);
+        return;
+    }
 
     let mensaje = esManual ? `🕹️ **REPORTE MANUAL (FORZADO) - ${horaActual}**\n\n` : `📋 **REPORTE HORARIO - ${horaActual}**\n\n`;
 
@@ -113,7 +119,6 @@ app.post('/api/pendientes', async (req, res) => {
     try {
         const { tipo, incidente, turnado, vencimiento, horaReunion, notasLista, observaciones, prioridad } = req.body;
         
-        // Calcular folio automático independiente según el tipo (REU- o ACT-)
         const prefijo = tipo === 'Reunión' ? 'REU-' : 'ACT-';
         const ultimo = await Pendiente.findOne({ folio: new RegExp(`^${prefijo}`) }).sort({ _id: -1 });
         
@@ -198,7 +203,7 @@ app.delete('/api/pendientes/:folio', async (req, res) => {
 // --- RUTA API PARA FORZAR DISCORD DESDE EL BOTÓN ---
 app.post('/api/forzar-discord', async (req, res) => {
     try {
-        await generarYEnviarReporteDiscord(true);
+        await generarYEnviarReporteDiscord(true, false);
         res.json({ exito: true });
     } catch (error) {
         console.error("Error al forzar envío a Discord:", error);
@@ -234,12 +239,23 @@ app.post('/api/asistencias', async (req, res) => {
     }
 });
 
-// --- ⏱️ PROGRAMADOR DE TAREAS (CRON JOB HORARIO DIVIDIDO) ---
+// --- ⏱️ PROGRAMADOR DE TAREAS (CRON JOBS) ---
+
+// 1. REPORTE CADA 14 MINUTOS (Manda "Sin novedades" o los pendientes si los hay)
+cron.schedule('*/14 * * * *', async () => {
+    try {
+        await generarYEnviarReporteDiscord(false, true);
+    } catch (error) {
+        console.error("Error en tarea de 14 minutos:", error);
+    }
+});
+
+// 2. REPORTE FORMAL CADA HORA EN PUNTO (De 8 AM a 9 PM) con todo
 cron.schedule('0 8-21 * * *', async () => {
     try {
-        await generarYEnviarReporteDiscord(false);
+        await generarYEnviarReporteDiscord(false, false);
         const horaActual = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-        console.log(`[CRON] Reporte horario dividido enviado a Discord a las ${horaActual}`);
+        console.log(`[CRON] Reporte horario completo enviado a Discord a las ${horaActual}`);
     } catch (error) {
         console.error("Error al enviar el reporte horario programado:", error);
     }
