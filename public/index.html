@@ -594,28 +594,33 @@
             </table>
         </div>
 
-        <!-- TABLA CALENDARIO DE DÍAS TOMADOS POR EMPLEADO -->
-        <h3 class="section-title" style="margin-top: 30px; border-color: #0284c7;">📅 Calendario de Días de Vacaciones Tomados</h3>
-        <div class="filter-box" style="background: #e0f2fe; border-color: #bae6fd;">
-            <label for="filtroCalendarioVacaciones" style="color: #0369a1;">👤 Seleccionar Empleado:</label>
-            <select id="filtroCalendarioVacaciones" onchange="renderizarCalendarioVacaciones()">
-                <option value="">-- Seleccionar personal --</option>
-            </select>
-        </div>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th class="text-center">Periodo</th>
-                        <th>Fecha de Inicio</th>
-                        <th class="text-center">Días Tomados</th>
-                        <th>Fechas Específicas Asignadas (Calendario)</th>
-                    </tr>
-                </thead>
-                <tbody id="tablaCalendarioVacaciones">
-                    <tr><td colspan="4" class="text-center" style="color: var(--text-muted); padding: 15px;">Selecciona un empleado para ver su calendario de vacaciones.</td></tr>
-                </tbody>
-            </table>
+        <!-- TABLA CALENDARIO DINÁMICO DE VACACIONES CON PDF EXCLUSIVO -->
+        <div id="seccionCalendarioVacacionesExportable">
+            <h3 class="section-title" style="margin-top: 30px; border-color: #0284c7;">
+                <span>📅 Calendario Detallado de Vacaciones</span>
+                <button class="btn-pdf" onclick="exportarPDF('seccionCalendarioVacacionesExportable', 'Calendario_Vacaciones')">📄 Exportar PDF</button>
+            </h3>
+            <div class="filter-box" style="background: #e0f2fe; border-color: #bae6fd;">
+                <label for="filtroCalendarioVacaciones" style="color: #0369a1;">👤 Seleccionar Empleado:</label>
+                <select id="filtroCalendarioVacaciones" onchange="renderizarCalendarioVacaciones()">
+                    <option value="">-- Seleccionar personal --</option>
+                </select>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="text-center">Periodo</th>
+                            <th>Fecha de Inicio</th>
+                            <th class="text-center">Total Días</th>
+                            <th>Fechas Asignadas con Día de la Semana</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaCalendarioVacaciones">
+                        <tr><td colspan="4" class="text-center" style="color: var(--text-muted); padding: 15px;">Selecciona un empleado para ver su calendario de vacaciones.</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -1507,11 +1512,22 @@ async function renderizarCalendarioVacaciones() {
         return;
     }
 
+    const nombresDias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
     registrosPersona.forEach(reg => {
-        let fechasListadoHtml = '';
         if (reg.fechasSolicitadas && reg.fechasSolicitadas.length > 0) {
             reg.fechasSolicitadas.forEach(sol => {
-                let fechasSpan = sol.fechas ? sol.fechas.map(f => `<span class="badge" style="background:#e0f2fe; color:#0369a1; margin:2px;">${f}</span>`).join(' ') : (sol.inicio || '-');
+                let fechasSpan = '';
+                if (sol.fechas && sol.fechas.length > 0) {
+                    fechasSpan = sol.fechas.map(f => {
+                        const fechaObj = new Date(f + 'T00:00:00');
+                        const nombreDia = nombresDias[fechaObj.getDay()];
+                        return `<span class="badge" style="background:#e0f2fe; color:#0369a1; margin:2px; font-weight:600;">${nombreDia} ${f}</span>`;
+                    }).join(' ');
+                } else {
+                    fechasSpan = sol.inicio || '-';
+                }
+
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td class="text-center"><b>Periodo ${reg.tipoPeriodo}</b></td>
