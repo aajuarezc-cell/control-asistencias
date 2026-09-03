@@ -74,7 +74,7 @@ const vacacionSchema = new mongoose.Schema({
 
 const Vacacion = mongoose.model('Vacacion', vacacionSchema);
 
-// FUNCIÓN AUXILIAR PARA ARMAR EL REPORTE EN FORMATO DISCORD EMBED (LIMPIO Y ORDENADO)
+// FUNCIÓN AUXILIAR PARA ARMAR EL REPORTE CON LA NUEVA ESTRUCTURA SOLICITADA
 async function generarYEnviarReporteDiscord(esManual = false) {
     const pendientesActivos = await Pendiente.find({ finalizado: false });
     const reuniones = pendientesActivos.filter(p => p.tipo === 'Reunión');
@@ -95,23 +95,55 @@ async function generarYEnviarReporteDiscord(esManual = false) {
         return;
     }
 
-    let textoReuniones = "";
+    // --- SECCIÓN AGENDA ---
+    let textoAgenda = "";
     if (reuniones.length === 0) {
-        textoReuniones = "_No hay reuniones activas._";
+        textoAgenda = "_No hay reuniones activas._\n";
     } else {
-        reuniones.forEach(r => {
-            let iconoPri = r.prioridad === 'Alta' ? '🔴' : (r.prioridad === 'Baja' ? '🟢' : '🟡');
-            textoReuniones += `${iconoPri} **[${r.folio}]** ${r.incidente}\n🕒 _${r.vencimiento} ${r.horaReunion ? 'a las ' + r.horaReunion + 'h' : ''}_\n\n`;
+        reuniones.forEach((r, index) => {
+            const totalNotas = r.notasLista ? r.notasLista.length : 0;
+            const fechaHora = `${r.vencimiento}${r.horaReunion ? ' a las ' + r.horaReunion + 'h' : ''}`;
+            textoAgenda += `${index + 1}. **[${r.folio}]** ${fechaHora}, ${r.incidente}, cantidad de notas: **${totalNotas}**\n`;
         });
     }
 
+    // --- SECCIÓN ACTIVIDADES AGRUPADAS POR PRIORIDAD ---
+    const actAltas = actividades.filter(a => a.prioridad === 'Alta');
+    const actMedias = actividades.filter(a => a.prioridad === 'Media');
+    const actBajas = actividades.filter(a => a.prioridad === 'Baja');
+
     let textoActividades = "";
-    if (actividades.length === 0) {
-        textoActividades = "_No hay actividades activas._";
+
+    // Prioridad Alta
+    textoActividades += `**Prioridad ALTA:**\n`;
+    if (actAltas.length === 0) {
+        textoActividades += `_Sin actividades de alta prioridad._\n\n`;
     } else {
-        actividades.forEach(a => {
-            let iconoPri = a.prioridad === 'Alta' ? '🔴' : (a.prioridad === 'Baja' ? '🟢' : '🟡');
-            textoActividades += `${iconoPri} **[${a.folio}]** ${a.incidente}\n👤 Asignado: **${a.turnado}** | 📅 Vence: _${a.vencimiento}_\n\n`;
+        actAltas.forEach((a, index) => {
+            const totalNotas = a.notasLista ? a.notasLista.length : 0;
+            textoActividades += `${index + 1}. **[${a.folio}]** ${a.incidente}, turnado a: **${a.turnado}**, cantidad de notas: **${totalNotas}**\n`;
+        });
+        textoActividades += `\n`;
+    }
+
+    // Prioridad Media
+    textoActividades += `**Prioridad MEDIA:**\n`;
+    if (actMedias.length === 0) {
+        textoActividades += `_Sin actividades de prioridad media._\n\n`;
+    } else {
+        actMedias.forEach((a, index) => {
+            const totalNotas = a.notasLista ? a.notasLista.length : 0;
+            textoActividades += `${index + 1}. **[${a.folio}]** ${a.incidente}, turnado a: **${a.turnado}**, cantidad de notas: **${totalNotas}**\n`;
+        });
+        textoActividades += `\n`;
+    }
+
+    // Prioridad Baja (por si existen registros con baja prioridad)
+    if (actBajas.length > 0) {
+        textoActividades += `**Prioridad BAJA:**\n`;
+        actBajas.forEach((a, index) => {
+            const totalNotas = a.notasLista ? a.notasLista.length : 0;
+            textoActividades += `${index + 1}. **[${a.folio}]** ${a.incidente}, turnado a: **${a.turnado}**, cantidad de notas: **${totalNotas}**\n`;
         });
     }
 
@@ -122,12 +154,12 @@ async function generarYEnviarReporteDiscord(esManual = false) {
             color: 3447003, // Azul moderno
             fields: [
                 {
-                    name: `📅 Agenda de Reuniones (${reuniones.length})`,
-                    value: textoReuniones,
+                    name: `📅 AGENDA`,
+                    value: textoAgenda,
                     inline: false
                 },
                 {
-                    name: `⚡ Actividades y Pendientes (${actividades.length})`,
+                    name: `⚡ ACTIVIDADES`,
                     value: textoActividades,
                     inline: false
                 }
