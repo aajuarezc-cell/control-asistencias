@@ -23,13 +23,13 @@ mongoose.connect(MONGO_URI)
 // CONFIGURACIÓN DE DISCORD WEBHOOK
 const DISCORD_WEBHOOK_URL = 'https://discordapp.com/api/webhooks/1544456950140633229/4iuLpEcABT_lMADH8OI0amIyAYDsV0VXfVXcW043sx8vQKIi5pZh9TNzuFwZLdZdnNwb';
 
-async function enviarNotificacionDiscord(mensaje) {
+async function enviarNotificacionDiscord(payload) {
     if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('AQUÍ_PEGA')) return;
     try {
         await fetch(DISCORD_WEBHOOK_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content: mensaje })
+            body: JSON.stringify(payload)
         });
     } catch (error) {
         console.error("Error al enviar notificación a Discord:", error);
@@ -74,43 +74,71 @@ const vacacionSchema = new mongoose.Schema({
 
 const Vacacion = mongoose.model('Vacacion', vacacionSchema);
 
-// FUNCIÓN AUXILIAR PARA ARMAR EL REPORTE DIVIDIDO (O "SIN NOVEDADES")
-async function generarYEnviarReporteDiscord(esManual = false, soloSiHayNovedades = false) {
+// FUNCIÓN AUXILIAR PARA ARMAR EL REPORTE EN FORMATO DISCORD EMBED (LIMPIO Y ORDENADO)
+async function generarYEnviarReporteDiscord(esManual = false) {
     const pendientesActivos = await Pendiente.find({ finalizado: false });
     const reuniones = pendientesActivos.filter(p => p.tipo === 'Reunión');
     const actividades = pendientesActivos.filter(p => p.tipo !== 'Reunión');
 
     const horaActual = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    const fechaActual = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    if (soloSiHayNovedades && pendientesActivos.length === 0) {
-        await enviarNotificacionDiscord(`🟢 **[${horaActual}]** Sin novedades.`);
+    if (pendientesActivos.length === 0) {
+        const payloadSinNovedades = {
+            embeds: [{
+                title: "🟢 Estado del Sistema: Al Día",
+                description: `No hay reuniones ni actividades pendientes en este momento.\n_Actualizado a las ${horaActual} (${fechaActual})_`,
+                color: 3066993 // Verde esmeralda
+            }]
+        };
+        await enviarNotificacionDiscord(payloadSinNovedades);
         return;
     }
 
-    let mensaje = esManual ? `🕹️ **REPORTE MANUAL (FORZADO) - ${horaActual}**\n\n` : `📋 **REPORTE HORARIO - ${horaActual}**\n\n`;
-
-    mensaje += `📅 **AGENDA DE REUNIONES (${reuniones.length})**\n`;
+    let textoReuniones = "";
     if (reuniones.length === 0) {
-        mensaje += `_No hay reuniones activas._\n\n`;
+        textoReuniones = "_No hay reuniones activas._";
     } else {
         reuniones.forEach(r => {
             let iconoPri = r.prioridad === 'Alta' ? '🔴' : (r.prioridad === 'Baja' ? '🟢' : '🟡');
-            mensaje += `• ${iconoPri} **[${r.folio}]** ${r.incidente} _(${r.vencimiento} ${r.horaReunion ? 'a las ' + r.horaReunion + 'h' : ''})_\n`;
+            textoReuniones += `${iconoPri} **[${r.folio}]** ${r.incidente}\n🕒 _${r.vencimiento} ${r.horaReunion ? 'a las ' + r.horaReunion + 'h' : ''}_\n\n`;
         });
-        mensaje += `\n`;
     }
 
-    mensaje += `⚡ **ACTIVIDADES Y PENDIENTES (${actividades.length})**\n`;
+    let textoActividades = "";
     if (actividades.length === 0) {
-        mensaje += `_No hay actividades activas._\n`;
+        textoActividades = "_No hay actividades activas._";
     } else {
         actividades.forEach(a => {
             let iconoPri = a.prioridad === 'Alta' ? '🔴' : (a.prioridad === 'Baja' ? '🟢' : '🟡');
-            mensaje += `• ${iconoPri} **[${a.folio}]** ${a.incidente} -> *Asignado a: ${a.turnado}* _(Vence: ${a.vencimiento})_\n`;
+            textoActividades += `${iconoPri} **[${a.folio}]** ${a.incidente}\n👤 Asignado: **${a.turnado}** | 📅 Vence: _${a.vencimiento}_\n\n`;
         });
     }
 
-    await enviarNotificacionDiscord(mensaje);
+    const payloadEmbed = {
+        content: esManual ? `🕹️ **REPORTE MANUAL SOLICITADO**` : `📋 **REPORTE PROGRAMADO DE ACTIVIDADES**`,
+        embeds: [{
+            title: `📊 Resumen Operativo — ${horaActual}`,
+            color: 3447003, // Azul moderno
+            fields: [
+                {
+                    name: `📅 Agenda de Reuniones (${reuniones.length})`,
+                    value: textoReuniones,
+                    inline: false
+                },
+                {
+                    name: `⚡ Actividades y Pendientes (${actividades.length})`,
+                    value: textoActividades,
+                    inline: false
+                }
+            ],
+            footer: {
+                text: `Control de Oficina • ${fechaActual}`
+            }
+        }]
+    };
+
+    await enviarNotificacionDiscord(payloadEmbed);
 }
 
 // --- RUTAS API PENDIENTES / REUNIONES ---
@@ -157,13 +185,21 @@ app.post('/api/pendientes', async (req, res) => {
 
         await nuevoPendiente.save();
 
+        // Alerta inmediata solo para Prioridad Alta
         if (nuevoPendiente.prioridad === 'Alta') {
-            const textoAlerta = `🚨 **¡NUEVO REGISTRO URGENTE!** (${nuevoPendiente.folio})\n` +
-                                `• **Tipo:** ${nuevoPendiente.tipo}\n` +
-                                `• **Detalle:** ${nuevoPendiente.incidente}\n` +
-                                `• **Asignado a:** ${nuevoPendiente.turnado || 'General'}\n` +
-                                `• **Fecha:** ${nuevoPendiente.vencimiento}`;
-            await enviarNotificacionDiscord(textoAlerta);
+            const payloadAlertaAlta = {
+                embeds: [{
+                    title: `🚨 ¡NUEVO REGISTRO URGENTE (${nuevoPendiente.folio})!`,
+                    color: 15158332, // Rojo alerta
+                    fields: [
+                        { name: "Tipo", value: nuevoPendiente.tipo, inline: true },
+                        { name: "Asignado a", value: nuevoPendiente.turnado || 'General', inline: true },
+                        { name: "Fecha", value: nuevoPendiente.vencimiento, inline: true },
+                        { name: "Detalle", value: nuevoPendiente.incidente, inline: false }
+                    ]
+                }]
+            };
+            await enviarNotificacionDiscord(payloadAlertaAlta);
         }
 
         res.status(201).json(nuevoPendiente);
@@ -212,7 +248,7 @@ app.delete('/api/pendientes/:folio', async (req, res) => {
 // --- RUTA API PARA FORZAR DISCORD DESDE EL BOTÓN ---
 app.post('/api/forzar-discord', async (req, res) => {
     try {
-        await generarYEnviarReporteDiscord(true, false);
+        await generarYEnviarReporteDiscord(true);
         res.json({ exito: true });
     } catch (error) {
         console.error("Error al forzar envío a Discord:", error);
@@ -338,23 +374,25 @@ app.delete('/api/vacaciones/:id', async (req, res) => {
     }
 });
 
-// --- ⏱️ PROGRAMADOR DE TAREAS (CRON JOBS) ---
+// --- ⏱️ PROGRAMADOR DE TAREAS (CRON JOBS OPTIMIZADOS - SIN SPAM DE CADA 15 MIN) ---
 
-cron.schedule('*/14 * * * *', async () => {
+// Reporte matutino (8:00 AM)
+cron.schedule('0 8 * * *', async () => {
     try {
-        await generarYEnviarReporteDiscord(false, true);
+        await generarYEnviarReporteDiscord(false);
+        console.log(`[CRON] Reporte matutino enviado a Discord.`);
     } catch (error) {
-        console.error("Error en tarea de 14 minutos:", error);
+        console.error("Error en cron matutino:", error);
     }
 });
 
-cron.schedule('0 8-21 * * *', async () => {
+// Reporte de cierre (7:00 PM / 19:00 hrs)
+cron.schedule('0 19 * * *', async () => {
     try {
-        await generarYEnviarReporteDiscord(false, false);
-        const horaActual = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-        console.log(`[CRON] Reporte horario completo enviado a Discord a las ${horaActual}`);
+        await generarYEnviarReporteDiscord(false);
+        console.log(`[CRON] Reporte nocturno enviado a Discord.`);
     } catch (error) {
-        console.error("Error al enviar el reporte horario programado:", error);
+        console.error("Error en cron nocturno:", error);
     }
 });
 
