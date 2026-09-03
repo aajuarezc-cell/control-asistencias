@@ -32,12 +32,13 @@
         .btn-discord-header { background: #5865F2; color: white; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s; }
         .btn-discord-header:hover { background: #4752C4; }
 
-        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
         .kpi-card { background: #f8fafc; border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; transition: all 0.2s; }
         .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px -2px rgba(0,0,0,0.08); border-color: var(--primary); background: #f1f5f9; }
         .kpi-icon { font-size: 24px; background: #e0e7ff; color: var(--primary); width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; }
         .kpi-info h4 { margin: 0; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
         .kpi-info span { font-size: 18px; font-weight: 700; color: var(--text-main); }
+        .kpi-subtext { font-size: 11px; color: #0284c7; font-weight: 600; margin-top: 2px; display: block; }
 
         .nav-modulos { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 12px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
         .nav-modulos::-webkit-scrollbar { display: none; }
@@ -195,7 +196,7 @@
             body { padding: 20px; }
             .container { padding: 30px; }
             .header-box h2 { font-size: 24px; }
-            .dashboard-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+            .dashboard-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
             .form-group { flex-direction: row; align-items: center; }
             .form-group label { width: 140px; margin-bottom: 0; }
             .filter-box { flex-direction: row; align-items: center; gap: 15px; }
@@ -237,7 +238,7 @@
         </div>
     </div>
 
-    <!-- DASHBOARD DE INDICADORES (KPI'S INTERACTIVOS ACTUALIZADOS) -->
+    <!-- DASHBOARD DE INDICADORES (KPI'S INTERACTIVOS COMPLETOS) -->
     <div class="dashboard-grid">
         <div class="kpi-card" onclick="clickKpiActividadesAlta()" title="Ver Actividades con Prioridad Alta">
             <div class="kpi-icon" style="background: #fef2f2; color: #ef4444;">🔴</div>
@@ -253,11 +254,19 @@
                 <span id="kpiActividadesMedia">0</span>
             </div>
         </div>
+        <div class="kpi-card" onclick="clickKpiActividadesBaja()" title="Ver Actividades con Prioridad Baja">
+            <div class="kpi-icon" style="background: #d1fae5; color: #065f46;">🟢</div>
+            <div class="kpi-info">
+                <h4>Actividades Baja</h4>
+                <span id="kpiActividadesBaja">0</span>
+            </div>
+        </div>
         <div class="kpi-card" onclick="clickKpiVacacionesActivas()" title="Ver Vacaciones Activas Hoy">
             <div class="kpi-icon" style="background: #e0f2fe; color: #0284c7;">🏖️</div>
             <div class="kpi-info">
                 <h4>Vacaciones Activas</h4>
                 <span id="kpiVacacionesActivas">0</span>
+                <span id="kpiVacacionesNombres" class="kpi-subtext">Ninguno</span>
             </div>
         </div>
         <div class="kpi-card" onclick="clickKpiReunionesActivas()" title="Ver Reuniones Activas de la Agenda">
@@ -712,7 +721,7 @@ const personalLista = [
 let folioNotaActual = null;
 let tipoItemActual = null;
 let notasTemporalesModal = [];
-let filtroPrioridadActiva = null; // Filtro dinámico para Actividades (Alta o Media)
+let filtroPrioridadActiva = null; // Filtro dinámico para Actividades (Alta, Media o Baja)
 let globalVacacionesData = [];
 
 async function forzarEnvioDiscord() {
@@ -751,7 +760,7 @@ function cambiarSubmodulo(idSubmodulo, btnElement) {
     btnElement.classList.add('activo');
 }
 
-// NUEVAS ACCIONES DE LOS 4 KPI'S SUPERIORES
+// ACCIONES DE LOS 5 KPI'S SUPERIORES
 function clickKpiActividadesAlta() {
     filtroPrioridadActiva = 'Alta';
     cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
@@ -761,6 +770,13 @@ function clickKpiActividadesAlta() {
 
 function clickKpiActividadesMedia() {
     filtroPrioridadActiva = 'Media';
+    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
+    document.getElementById('filtroFechaPendientes').value = '';
+    cargarPendientes();
+}
+
+function clickKpiActividadesBaja() {
+    filtroPrioridadActiva = 'Baja';
     cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
     document.getElementById('filtroFechaPendientes').value = '';
     cargarPendientes();
@@ -883,13 +899,25 @@ async function actualizarDashboardKPIs(dataPendientes) {
         const actMedia = dataPendientes.filter(p => p.tipo !== 'Reunión' && !p.finalizado && p.prioridad === 'Media').length;
         document.getElementById('kpiActividadesMedia').innerText = actMedia;
 
-        // 3. Vacaciones activas (conteo de personal en vacaciones hoy)
+        // 3. Actividades con prioridad BAJA (solo actividades)
+        const actBaja = dataPendientes.filter(p => p.tipo !== 'Reunión' && !p.finalizado && p.prioridad === 'Baja').length;
+        document.getElementById('kpiActividadesBaja').innerText = actBaja;
+
+        // 4. Vacaciones activas hoy (Conteo y nombres)
         const resAsist = await fetch('/api/asistencias');
         const dataAsist = await resAsist.json();
-        const vacActivasHoy = dataAsist.filter(a => a.fecha === fechaHoy && a.estatus === 'Vacaciones').length;
-        document.getElementById('kpiVacacionesActivas').innerText = vacActivasHoy;
+        const enVacacionesHoy = dataAsist.filter(a => a.fecha === fechaHoy && a.estatus === 'Vacaciones');
+        
+        document.getElementById('kpiVacacionesActivas').innerText = enVacacionesHoy.length;
+        
+        const spanNombres = document.getElementById('kpiVacacionesNombres');
+        if (enVacacionesHoy.length > 0) {
+            spanNombres.innerText = enVacacionesHoy.map(v => v.personal).join(', ');
+        } else {
+            spanNombres.innerText = 'Ninguno';
+        }
 
-        // 4. Reuniones activas de la agenda
+        // 5. Reuniones activas de la agenda
         const reunionesActivas = dataPendientes.filter(p => p.tipo === 'Reunión' && !p.finalizado).length;
         document.getElementById('kpiReunionesActivas').innerText = reunionesActivas;
     } catch (e) {
