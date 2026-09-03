@@ -237,34 +237,34 @@
         </div>
     </div>
 
-    <!-- DASHBOARD DE INDICADORES (KPI'S INTERACTIVOS) -->
+    <!-- DASHBOARD DE INDICADORES (KPI'S INTERACTIVOS ACTUALIZADOS) -->
     <div class="dashboard-grid">
-        <div class="kpi-card" onclick="clickKpiPendientes()" title="Ver Actividades y Pendientes">
-            <div class="kpi-icon">📋</div>
+        <div class="kpi-card" onclick="clickKpiActividadesAlta()" title="Ver Actividades con Prioridad Alta">
+            <div class="kpi-icon" style="background: #fef2f2; color: #ef4444;">🔴</div>
             <div class="kpi-info">
-                <h4>Pendientes</h4>
-                <span id="kpiPendientes">0</span>
+                <h4>Actividades Alta</h4>
+                <span id="kpiActividadesAlta">0</span>
             </div>
         </div>
-        <div class="kpi-card" onclick="clickKpiReuniones()" title="Ver Reuniones de Hoy">
+        <div class="kpi-card" onclick="clickKpiActividadesMedia()" title="Ver Actividades con Prioridad Media">
+            <div class="kpi-icon" style="background: #fef3c7; color: #d97706;">🟡</div>
+            <div class="kpi-info">
+                <h4>Actividades Media</h4>
+                <span id="kpiActividadesMedia">0</span>
+            </div>
+        </div>
+        <div class="kpi-card" onclick="clickKpiVacacionesActivas()" title="Ver Vacaciones Activas Hoy">
+            <div class="kpi-icon" style="background: #e0f2fe; color: #0284c7;">🏖️</div>
+            <div class="kpi-info">
+                <h4>Vacaciones Activas</h4>
+                <span id="kpiVacacionesActivas">0</span>
+            </div>
+        </div>
+        <div class="kpi-card" onclick="clickKpiReunionesActivas()" title="Ver Reuniones Activas de la Agenda">
             <div class="kpi-icon" style="background: #ede9fe; color: #7c3aed;">📅</div>
             <div class="kpi-info">
-                <h4>Reuniones Hoy</h4>
-                <span id="kpiReuniones">0</span>
-            </div>
-        </div>
-        <div class="kpi-card" onclick="clickKpiUrgentes()" title="Ver Actividades Urgentes (Alta)">
-            <div class="kpi-icon" style="background: #fef2f2; color: #ef4444;">🚨</div>
-            <div class="kpi-info">
-                <h4>Urgentes</h4>
-                <span id="kpiUrgentes">0</span>
-            </div>
-        </div>
-        <div class="kpi-card" onclick="clickKpiAsistencias()" title="Ver Control de Asistencias">
-            <div class="kpi-icon" style="background: #fefce8; color: #ca8a04;">⚠️</div>
-            <div class="kpi-info">
-                <h4>Faltas / Retardos</h4>
-                <span id="kpiIncidencias">0</span>
+                <h4>Reuniones Activas</h4>
+                <span id="kpiReunionesActivas">0</span>
             </div>
         </div>
     </div>
@@ -712,7 +712,7 @@ const personalLista = [
 let folioNotaActual = null;
 let tipoItemActual = null;
 let notasTemporalesModal = [];
-let filtroUrgentesActivo = false;
+let filtroPrioridadActiva = null; // Filtro dinámico para Actividades (Alta o Media)
 let globalVacacionesData = [];
 
 async function forzarEnvioDiscord() {
@@ -732,7 +732,7 @@ async function forzarEnvioDiscord() {
 }
 
 function irAlHome() {
-    filtroUrgentesActivo = false;
+    filtroPrioridadActiva = null;
     cambiarModulo('moduloNuevoRegistro', document.querySelector('.nav-modulos button:first-child'));
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -751,31 +751,30 @@ function cambiarSubmodulo(idSubmodulo, btnElement) {
     btnElement.classList.add('activo');
 }
 
-function clickKpiPendientes() {
-    filtroUrgentesActivo = false;
+// NUEVAS ACCIONES DE LOS 4 KPI'S SUPERIORES
+function clickKpiActividadesAlta() {
+    filtroPrioridadActiva = 'Alta';
     cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
     document.getElementById('filtroFechaPendientes').value = '';
     cargarPendientes();
 }
 
-function clickKpiReuniones() {
-    filtroUrgentesActivo = false;
+function clickKpiActividadesMedia() {
+    filtroPrioridadActiva = 'Media';
+    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
+    document.getElementById('filtroFechaPendientes').value = '';
+    cargarPendientes();
+}
+
+function clickKpiVacacionesActivas() {
+    cambiarModulo('moduloVacaciones', document.querySelectorAll('.btn-modulo')[4]);
+}
+
+function clickKpiReunionesActivas() {
+    filtroPrioridadActiva = null;
     cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
-    document.getElementById('filtroFechaAgenda').value = fechaHoy;
+    document.getElementById('filtroFechaAgenda').value = '';
     cargarPendientes();
-}
-
-function clickKpiUrgentes() {
-    filtroUrgentesActivo = true;
-    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
-    document.getElementById('filtroFechaPendientes').value = '';
-    cargarPendientes();
-}
-
-function clickKpiAsistencias() {
-    filtroUrgentesActivo = false;
-    cambiarModulo('moduloAsistencias', document.querySelectorAll('.btn-modulo')[3]);
-    cambiarSubmodulo('subAsistenciaDiaria', document.querySelector('.btn-submodulo'));
 }
 
 function actualizarReloj() {
@@ -876,19 +875,23 @@ function toggleCamposTipo() {
 
 async function actualizarDashboardKPIs(dataPendientes) {
     try {
-        const activos = dataPendientes.filter(p => !p.finalizado).length;
-        document.getElementById('kpiPendientes').innerText = activos;
+        // 1. Actividades con prioridad ALTA (solo actividades)
+        const actAlta = dataPendientes.filter(p => p.tipo !== 'Reunión' && !p.finalizado && p.prioridad === 'Alta').length;
+        document.getElementById('kpiActividadesAlta').innerText = actAlta;
 
-        const reunionesHoy = dataPendientes.filter(p => p.tipo === 'Reunión' && !p.finalizado && p.vencimiento === fechaHoy).length;
-        document.getElementById('kpiReuniones').innerText = reunionesHoy;
+        // 2. Actividades con prioridad MEDIA (solo actividades)
+        const actMedia = dataPendientes.filter(p => p.tipo !== 'Reunión' && !p.finalizado && p.prioridad === 'Media').length;
+        document.getElementById('kpiActividadesMedia').innerText = actMedia;
 
-        const urgentes = dataPendientes.filter(p => !p.finalizado && p.prioridad === 'Alta').length;
-        document.getElementById('kpiUrgentes').innerText = urgentes;
-
+        // 3. Vacaciones activas (conteo de personal en vacaciones hoy)
         const resAsist = await fetch('/api/asistencias');
         const dataAsist = await resAsist.json();
-        const incidenciasMes = dataAsist.filter(a => a.fecha.startsWith(mesHoy) && (a.estatus === 'Falta' || a.estatus === 'Retardo')).length;
-        document.getElementById('kpiIncidencias').innerText = incidenciasMes;
+        const vacActivasHoy = dataAsist.filter(a => a.fecha === fechaHoy && a.estatus === 'Vacaciones').length;
+        document.getElementById('kpiVacacionesActivas').innerText = vacActivasHoy;
+
+        // 4. Reuniones activas de la agenda
+        const reunionesActivas = dataPendientes.filter(p => p.tipo === 'Reunión' && !p.finalizado).length;
+        document.getElementById('kpiReunionesActivas').innerText = reunionesActivas;
     } catch (e) {
         console.error("Error al actualizar KPIs:", e);
     }
@@ -913,8 +916,8 @@ async function cargarPendientes() {
         if (fechaAgenda) dataReuniones = dataReuniones.filter(p => p.vencimiento === fechaAgenda);
         if (fechaPendientes) dataPendientes = dataPendientes.filter(p => p.vencimiento === fechaPendientes);
 
-        if (filtroUrgentesActivo) {
-            dataPendientes = dataPendientes.filter(p => p.prioridad === 'Alta');
+        if (filtroPrioridadActiva) {
+            dataPendientes = dataPendientes.filter(p => p.prioridad === filtroPrioridadActiva);
         }
         
         const tbodyReuniones = document.getElementById('tablaReuniones');
@@ -1437,6 +1440,7 @@ async function guardarVacaciones(e) {
             cargarReporteSemanal();
             cargarReporteMensual();
             renderizarCalendarioVacaciones();
+            cargarPendientes();
         }
     } catch (err) {
         console.error("Error al registrar vacaciones:", err);
@@ -1490,6 +1494,7 @@ async function cargarResumenVacaciones() {
             tbody.appendChild(tr);
         });
         renderizarCalendarioVacaciones();
+        cargarPendientes();
     } catch (e) {
         console.error("Error al cargar resumen de vacaciones:", e);
     }
@@ -1560,7 +1565,7 @@ function exportarPDF(seccionId) {
 }
 
 function limpiarFiltroAgenda() { document.getElementById('filtroFechaAgenda').value = ''; cargarPendientes(); }
-function limpiarFiltroPendientes() { filtroUrgentesActivo = false; document.getElementById('filtroFechaPendientes').value = ''; cargarPendientes(); }
+function limpiarFiltroPendientes() { filtroPrioridadActiva = null; document.getElementById('filtroFechaPendientes').value = ''; cargarPendientes(); }
 function limpiarFiltroSemana() { document.getElementById('filtroSemana').value = fechaHoy; document.getElementById('filtroPersonaReporte').value = 'TODOS'; cargarReporteSemanal(); }
 function limpiarFiltroMensual() { document.getElementById('filtroMes').value = mesHoy; document.getElementById('filtroPersonaMensual').value = 'TODOS'; cargarReporteMensual(); }
 
