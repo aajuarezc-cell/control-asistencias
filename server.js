@@ -82,7 +82,7 @@ const vacacionSchema = new mongoose.Schema({
 
 const Vacacion = mongoose.model('Vacacion', vacacionSchema);
 
-// FUNCIÓN AUXILIAR PARA ARMAR EL REPORTE CON LA ESTRUCTURA EXACTA EN TELEGRAM
+// FUNCIÓN AUXILIAR PARA ARMAR EL REPORTE CON EL NUEVO DISEÑO EN TELEGRAM
 async function generarYEnviarReporteTelegram(esManual = false) {
     const pendientesActivos = await Pendiente.find({ finalizado: false });
     const reuniones = pendientesActivos.filter(p => p.tipo === 'Reunión');
@@ -104,7 +104,7 @@ async function generarYEnviarReporteTelegram(esManual = false) {
         reuniones.forEach((r, index) => {
             const totalNotas = r.notasLista ? r.notasLista.length : 0;
             const fechaHora = `${r.vencimiento}${r.horaReunion ? ' a las ' + r.horaReunion + 'h' : ''}`;
-            textoAgenda += `${index + 1}. <b>[${r.folio}]</b> ${fechaHora}, <i>${r.incidente}</i>, cantidad de notas: <b>${totalNotas}</b>\n`;
+            textoAgenda += `${index + 1}. <b>[${r.folio}]</b> ${fechaHora}\n<i>${r.incidente}</i>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
         });
     }
 
@@ -116,40 +116,38 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     let textoActividades = "";
 
     // Prioridad Alta
-    textoActividades += `<b>Prioridad ALTA:</b>\n`;
+    textoActividades += `<b>Prioridad ALTA:</b>\n\n`;
     if (actAltas.length === 0) {
         textoActividades += `<i>Sin actividades de alta prioridad.</i>\n\n`;
     } else {
         actAltas.forEach((a, index) => {
             const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. <b>[${a.folio}]</b> <i>${a.incidente}</i>, turnado a: <b>${a.turnado}</b>, cantidad de notas: <b>${totalNotas}</b>\n`;
+            textoActividades += `${index + 1}. <b>[${a.folio}]</b>\n<i>${a.incidente}</i>\nTurnado a: <b>${a.turnado}</b>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
         });
-        textoActividades += `\n`;
     }
 
     // Prioridad Media
-    textoActividades += `<b>Prioridad MEDIA:</b>\n`;
+    textoActividades += `<b>Prioridad MEDIA:</b>\n\n`;
     if (actMedias.length === 0) {
         textoActividades += `<i>Sin actividades de prioridad media.</i>\n\n`;
     } else {
         actMedias.forEach((a, index) => {
             const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. <b>[${a.folio}]</b> <i>${a.incidente}</i>, turnado a: <b>${a.turnado}</b>, cantidad de notas: <b>${totalNotas}</b>\n`;
+            textoActividades += `${index + 1}. <b>[${a.folio}]</b>\n<i>${a.incidente}</i>\nTurnado a: <b>${a.turnado}</b>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
         });
-        textoActividades += `\n`;
     }
 
     // Prioridad Baja
     if (actBajas.length > 0) {
-        textoActividades += `<b>Prioridad BAJA:</b>\n`;
+        textoActividades += `<b>Prioridad BAJA:</b>\n\n`;
         actBajas.forEach((a, index) => {
             const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. <b>[${a.folio}]</b> <i>${a.incidente}</i>, turnado a: <b>${a.turnado}</b>, cantidad de notas: <b>${totalNotas}</b>\n`;
+            textoActividades += `${index + 1}. <b>[${a.folio}]</b>\n<i>${a.incidente}</i>\nTurnado a: <b>${a.turnado}</b>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
         });
     }
 
     const tituloReporte = esManual ? `🕹️ <b>REPORTE MANUAL SOLICITADO</b>` : `📋 <b>REPORTE PROGRAMADO DE ACTIVIDADES</b>`;
-    const mensajeFinal = `${tituloReporte}\n📊 <b>Resumen Operativo — ${horaActual}</b>\n\n📅 <b>AGENDA</b>\n${textoAgenda}\n⚡ <b>ACTIVIDADES</b>\n${textoActividades}\n<i>Control de Oficina • ${fechaActual}</i>`;
+    const mensajeFinal = `${tituloReporte}\n📊 <b>Resumen Operativo — ${horaActual} (${fechaActual})</b>\n\n📅 <b>AGENDA</b>\n\n${textoAgenda}⚡ <b>ACTIVIDADES</b>\n\n${textoActividades}<i>Control de Oficina • ${fechaActual}</i>`;
 
     await enviarNotificacionTelegram(mensajeFinal);
 }
@@ -198,7 +196,6 @@ app.post('/api/pendientes', async (req, res) => {
 
         await nuevoPendiente.save();
 
-        // Alerta inmediata vía Telegram para Prioridad Alta
         if (nuevoPendiente.prioridad === 'Alta') {
             const alertaAlta = `🚨 <b>¡NUEVO REGISTRO URGENTE (${nuevoPendiente.folio})!</b>\n\n` +
                                `• <b>Tipo:</b> ${nuevoPendiente.tipo}\n` +
