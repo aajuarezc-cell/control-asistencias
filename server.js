@@ -392,6 +392,25 @@ cron.schedule('0 8,10,12,14,18,19,20,21 * * *', async () => {
     }
 });
 
+// Limpieza automática: Elimina actividades finalizadas con más de 15 días de antigüedad (Se ejecuta todos los días a las 3:00 AM)
+cron.schedule('0 3 * * *', async () => {
+    try {
+        const fechaLimite = new Date();
+        fechaLimite.setDate(fechaLimite.getDate() - 15);
+        const fechaStr = fechaLimite.toISOString().split('T')[0];
+
+        const resultado = await Pendiente.deleteMany({
+            finalizado: true,
+            tipo: { $ne: 'Reunión' },
+            vencimiento: { $lte: fechaStr }
+        });
+
+        console.log(`[CRON LIMPIEZA] Se eliminaron ${resultado.deletedCount} actividades finalizadas con más de 15 días.`);
+    } catch (error) {
+        console.error("Error en cron de limpieza de actividades:", error);
+    }
+});
+
 // Iniciar servidor
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
