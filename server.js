@@ -107,7 +107,7 @@ async function generarYEnviarReporteTelegram(esManual = false) {
             const totalNotas = r.notasLista ? r.notasLista.length : 0;
             const fechaDMA = formatearFechaDMA(r.vencimiento);
             const fechaHora = `${fechaDMA}${r.horaReunion ? ' a las ' + r.horaReunion + 'h' : ''}`;
-            textoAgenda += `${index + 1}. <b>[${r.folio}]</b> ${fechaHora}\n<i>${r.incidente}</i>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
+            textoAgenda += `${index + 1}. <b>[${r.folio}]</b> — ${fechaHora}\n<i>${r.incidente}</i>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
         });
     }
 
@@ -125,7 +125,7 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     } else {
         actAltas.forEach((a, index) => {
             const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. <b>[${a.folio}]</b>\n<i>${a.incidente}</i>\nTurnado a: <b>${a.turnado}</b>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
+            textoActividades += `${index + 1}. <b>[${a.folio}]</b> — Turnado a: <b>${a.turnado}</b>\n<i>${a.incidente}</i>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
         });
     }
 
@@ -136,7 +136,7 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     } else {
         actMedias.forEach((a, index) => {
             const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. <b>[${a.folio}]</b>\n<i>${a.incidente}</i>\nTurnado a: <b>${a.turnado}</b>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
+            textoActividades += `${index + 1}. <b>[${a.folio}]</b> — Turnado a: <b>${a.turnado}</b>\n<i>${a.incidente}</i>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
         });
     }
 
@@ -145,7 +145,7 @@ async function generarYEnviarReporteTelegram(esManual = false) {
         textoActividades += `<b>Prioridad BAJA:</b>\n\n`;
         actBajas.forEach((a, index) => {
             const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. <b>[${a.folio}]</b>\n<i>${a.incidente}</i>\nTurnado a: <b>${a.turnado}</b>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
+            textoActividades += `${index + 1}. <b>[${a.folio}]</b> — Turnado a: <b>${a.turnado}</b>\n<i>${a.incidente}</i>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
         });
     }
 
