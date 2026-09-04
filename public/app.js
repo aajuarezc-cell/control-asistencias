@@ -9,6 +9,16 @@ let notasTemporalesModal = [];
 let filtroPrioridadActiva = null;
 let globalVacacionesData = [];
 
+// Función auxiliar para formatear fechas de YYYY-MM-DD a DD/MM/YYYY en la interfaz
+function formatearFechaVista(fechaStr) {
+    if (!fechaStr) return '';
+    const partes = fechaStr.split('-');
+    if (partes.length === 3) {
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+    return fechaStr;
+}
+
 async function forzarEnvioDiscord() {
     if (!confirm("¿Deseas enviar el reporte actual de Agenda y Actividades a Telegram ahora mismo?")) return;
     try {
@@ -264,9 +274,9 @@ async function cargarPendientes() {
                 tr.innerHTML = `
                     <td><span class="badge badge-reu">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
-                    <td>${p.fecha}</td>
+                    <td>${formatearFechaVista(p.fecha)}</td>
                     <td>${p.incidente}</td>
-                    <td class="text-center">${p.vencimiento} - ${p.horaReunion}h</td>
+                    <td class="text-center">${formatearFechaVista(p.vencimiento)} - ${p.horaReunion}h</td>
                     <td class="text-center"><b>${totalNotas}</b></td>
                     <td>${asignadosStr}</td>
                     <td class="text-center">${badgePendientes}</td>
@@ -294,9 +304,9 @@ async function cargarPendientes() {
                 tr.innerHTML = `
                     <td><span class="badge badge-reu">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
-                    <td>${p.fecha}</td>
+                    <td>${formatearFechaVista(p.fecha)}</td>
                     <td>${p.incidente}</td>
-                    <td class="text-center">${p.vencimiento} - ${p.horaReunion}h</td>
+                    <td class="text-center">${formatearFechaVista(p.vencimiento)} - ${p.horaReunion}h</td>
                     <td class="text-center"><b>${p.notasLista ? p.notasLista.length : 0}</b></td>
                     <td>-</td>
                     <td class="text-center">-</td>
@@ -321,7 +331,7 @@ async function cargarPendientes() {
             tbodyPendientes.innerHTML = `<tr><td colspan="12" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay actividades activas.</td></tr>`;
         } else {
             actividadesActivas.forEach(p => {
-                const textoWs = encodeURIComponent(`Hola ${p.turnado}, actividad asignada (${p.folio}):\n\n"${p.incidente}"\nVencimiento: ${p.vencimiento}`);
+                const textoWs = encodeURIComponent(`Hola ${p.turnado}, actividad asignada (${p.folio}):\n\n"${p.incidente}"\nVencimiento: ${formatearFechaVista(p.vencimiento)}`);
                 const tr = document.createElement('tr');
                 let badgePri = p.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (p.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
                 
@@ -344,10 +354,10 @@ async function cargarPendientes() {
                 tr.innerHTML = `
                     <td><span class="badge badge-pen">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
-                    <td>${p.fecha}</td>
+                    <td>${formatearFechaVista(p.fecha)}</td>
                     <td>${p.incidente}</td>
                     <td class="text-center"><b>${p.turnado}</b></td>
-                    <td>${p.vencimiento}</td>
+                    <td>${formatearFechaVista(p.vencimiento)}</td>
                     <td class="text-center"><b>${totalNotas}</b></td>
                     <td>${asignadosStr}</td>
                     <td class="text-center">${badgePendientes}</td>
@@ -376,10 +386,10 @@ async function cargarPendientes() {
                 tr.innerHTML = `
                     <td><span class="badge badge-pen">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
-                    <td>${p.fecha}</td>
+                    <td>${formatearFechaVista(p.fecha)}</td>
                     <td>${p.incidente}</td>
                     <td class="text-center"><b>${p.turnado}</b></td>
-                    <td>${p.vencimiento}</td>
+                    <td>${formatearFechaVista(p.vencimiento)}</td>
                     <td class="text-center"><b>${p.notasLista ? p.notasLista.length : 0}</b></td>
                     <td>-</td>
                     <td class="text-center">-</td>
@@ -651,7 +661,7 @@ async function cargarReporteSemanal() {
         const nombresDias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
 
         for (let i = 0; i < 5; i++) {
-            document.getElementById(`th${['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'][i]}`).innerText = `${nombresDias[i]} (${diasSemana[i].split('-').slice(1).reverse().join('/')})`;
+            document.getElementById(`th${['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'][i]}`).innerText = `${nombresDias[i]} (${formatearFechaVista(diasSemana[i]).substring(0, 5)})`;
         }
 
         const res = await fetch('/api/asistencias');
@@ -837,16 +847,16 @@ async function renderizarCalendarioVacaciones() {
                     fechasSpan = sol.fechas.map(f => {
                         const fechaObj = new Date(f + 'T00:00:00');
                         const nombreDia = nombresDias[fechaObj.getDay()];
-                        return `<span class="badge" style="background:#e0f2fe; color:#0369a1; margin:2px; font-weight:600;">${nombreDia} ${f}</span>`;
+                        return `<span class="badge" style="background:#e0f2fe; color:#0369a1; margin:2px; font-weight:600;">${nombreDia} ${formatearFechaVista(f)}</span>`;
                     }).join(' ');
                 } else {
-                    fechasSpan = sol.inicio || '-';
+                    fechasSpan = formatearFechaVista(sol.inicio) || '-';
                 }
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td class="text-center"><b>Periodo ${reg.tipoPeriodo}</b></td>
-                    <td>${sol.inicio || 'N/A'}</td>
+                    <td>${formatearFechaVista(sol.inicio) || 'N/A'}</td>
                     <td class="text-center"><b>${sol.dias} días</b></td>
                     <td>${fechasSpan}</td>
                 `;
