@@ -20,7 +20,7 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log('🟢 Conectado exitosamente a MongoDB'))
     .catch(err => console.error('🔴 Error al conectar a MongoDB:', err));
 
-// CONFIGURACIÓN DE TELEGRAM (Toma los datos de las variables de entorno de Render)
+// CONFIGURACIÓN DE TELEGRAM
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
@@ -104,7 +104,7 @@ async function generarYEnviarReporteTelegram(esManual = false) {
         reuniones.forEach((r, index) => {
             const totalNotas = r.notasLista ? r.notasLista.length : 0;
             const fechaHora = `${r.vencimiento}${r.horaReunion ? ' a las ' + r.horaReunion + 'h' : ''}`;
-            textoAgenda += `${index + 1}. <b>[${r.folio}]</b> ${fechaHora}, ${r.incidente}, cantidad de notas: <b>${totalNotas}</b>\n`;
+            textoAgenda += `${index + 1}. <b>[${r.folio}]</b> ${fechaHora}, <i>${r.incidente}</i>, cantidad de notas: <b>${totalNotas}</b>\n`;
         });
     }
 
@@ -122,7 +122,7 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     } else {
         actAltas.forEach((a, index) => {
             const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. <b>[${a.folio}]</b> ${a.incidente}, turnado a: <b>${a.turnado}</b>, cantidad de notas: <b>${totalNotas}</b>\n`;
+            textoActividades += `${index + 1}. <b>[${a.folio}]</b> <i>${a.incidente}</i>, turnado a: <b>${a.turnado}</b>, cantidad de notas: <b>${totalNotas}</b>\n`;
         });
         textoActividades += `\n`;
     }
@@ -134,7 +134,7 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     } else {
         actMedias.forEach((a, index) => {
             const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. <b>[${a.folio}]</b> ${a.incidente}, turnado a: <b>${a.turnado}</b>, cantidad de notas: <b>${totalNotas}</b>\n`;
+            textoActividades += `${index + 1}. <b>[${a.folio}]</b> <i>${a.incidente}</i>, turnado a: <b>${a.turnado}</b>, cantidad de notas: <b>${totalNotas}</b>\n`;
         });
         textoActividades += `\n`;
     }
@@ -144,7 +144,7 @@ async function generarYEnviarReporteTelegram(esManual = false) {
         textoActividades += `<b>Prioridad BAJA:</b>\n`;
         actBajas.forEach((a, index) => {
             const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. <b>[${a.folio}]</b> ${a.incidente}, turnado a: <b>${a.turnado}</b>, cantidad de notas: <b>${totalNotas}</b>\n`;
+            textoActividades += `${index + 1}. <b>[${a.folio}]</b> <i>${a.incidente}</i>, turnado a: <b>${a.turnado}</b>, cantidad de notas: <b>${totalNotas}</b>\n`;
         });
     }
 
@@ -382,23 +382,13 @@ app.delete('/api/vacaciones/:id', async (req, res) => {
 
 // --- ⏱️ PROGRAMADOR DE TAREAS (CRON JOBS TELEGRAM) ---
 
-// Reporte matutino (8:00 AM)
-cron.schedule('0 8 * * *', async () => {
+// Reportes automáticos en horarios específicos: 8, 10, 12, 14, 18, 19, 20 y 21 horas
+cron.schedule('0 8,10,12,14,18,19,20,21 * * *', async () => {
     try {
         await generarYEnviarReporteTelegram(false);
-        console.log(`[CRON] Reporte matutino enviado a Telegram.`);
+        console.log(`[CRON] Reporte automático enviado a Telegram.`);
     } catch (error) {
-        console.error("Error en cron matutino:", error);
-    }
-});
-
-// Reporte de cierre (7:00 PM / 19:00 hrs)
-cron.schedule('0 19 * * *', async () => {
-    try {
-        await generarYEnviarReporteTelegram(false);
-        console.log(`[CRON] Reporte nocturno enviado a Telegram.`);
-    } catch (error) {
-        console.error("Error en cron nocturno:", error);
+        console.error("Error en cron programado:", error);
     }
 });
 
