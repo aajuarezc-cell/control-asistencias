@@ -324,22 +324,26 @@ async function guardarNotaLibreCompleta(e) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            document.getElementById('editNotaLibreId').value = '';
-            document.getElementById('btnNotaLibreSubmit').innerText = 'Guardar Nota de Reunión';
+            alert("Nota actualizada con éxito.");
         } else {
             await fetch('/api/notas-libres', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+            alert("Nota de reunión guardada con éxito.");
         }
+
+        // Limpieza automática del formulario para poder iniciar otra
         document.getElementById('formNotaLibre').reset();
+        document.getElementById('editNotaLibreId').value = '';
         document.getElementById('libreFecha').value = fechaHoy;
+        document.getElementById('btnNotaLibreSubmit').innerText = 'Guardar Nota de Reunión';
         puntosFormularioLibre = [];
         renderizarTablaPuntosFormularioLibre();
         poblarSelectAreas();
         cargarNotasLibres();
-        alert("Nota de reunión guardada con éxito.");
+        
     } catch (err) {
         console.error("Error al guardar nota libre:", err);
     }
