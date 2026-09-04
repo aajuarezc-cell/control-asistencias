@@ -84,10 +84,6 @@ function clickKpiActividadesBaja() {
     cargarPendientes();
 }
 
-function clickKpiVacacionesActivas() {
-    cambiarModulo('moduloVacaciones', document.querySelectorAll('.btn-modulo')[4]);
-}
-
 function clickKpiReunionesActivas() {
     filtroPrioridadActiva = null;
     cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
@@ -206,9 +202,10 @@ async function actualizarDashboardKPIs(dataPendientes) {
         const dataAsist = await resAsist.json();
         const enVacacionesHoy = dataAsist.filter(a => a.fecha === fechaHoy && a.estatus === 'Vacaciones');
         
-        document.getElementById('kpiVacacionesActivas').innerText = enVacacionesHoy.length;
-        const spanNombres = document.getElementById('kpiVacacionesNombres');
-        spanNombres.innerText = enVacacionesHoy.length > 0 ? enVacacionesHoy.map(v => v.personal).join(', ') : 'Ninguno';
+        const spanNombresQuick = document.getElementById('quickVacacionesNombres');
+        if (spanNombresQuick) {
+            spanNombresQuick.innerText = enVacacionesHoy.length > 0 ? enVacacionesHoy.map(v => v.personal).join(', ') : 'Ninguno';
+        }
 
         const reunionesActivas = dataPendientes.filter(p => p.tipo === 'Reunión' && !p.finalizado).length;
         document.getElementById('kpiReunionesActivas').innerText = reunionesActivas;
@@ -269,7 +266,7 @@ async function cargarPendientes() {
                     });
                 }
                 const asignadosStr = asignadosSet.size > 0 ? Array.from(asignadosSet).join(', ') : '-';
-                const badgePendientes = notasPendientesCount > 0 ? `<span class="badge" style="background: #fef2f2; color: #b91c1c;">${notasPendientesCount} Pend.</span>` : `<span class="badge" style="background: #f0fdf4; color: #15803d;">Al día</span>`;
+                const badgePendientes = notasPendientesCount > 0 ? `<span class="badge" style="background: #fee2e2; color: #991b1b;">${notasPendientesCount} Pend.</span>` : `<span class="badge" style="background: #d1fae5; color: #065f46;">Al día</span>`;
 
                 tr.innerHTML = `
                     <td><span class="badge badge-reu">${p.folio}</span></td>
@@ -344,7 +341,7 @@ async function cargarPendientes() {
                     });
                 }
                 const asignadosStr = asignadosSet.size > 0 ? Array.from(asignadosSet).join(', ') : '-';
-                const badgePendientes = notasPendientesCount > 0 ? `<span class="badge" style="background: #fef2f2; color: #b91c1c;">${notasPendientesCount} Pend.</span>` : `<span class="badge" style="background: #f0fdf4; color: #15803d;">Al día</span>`;
+                const badgePendientes = notasPendientesCount > 0 ? `<span class="badge" style="background: #fee2e2; color: #991b1b;">${notasPendientesCount} Pend.</span>` : `<span class="badge" style="background: #d1fae5; color: #065f46;">Al día</span>`;
 
                 const esDerivadaDeNota = p.observaciones && p.observaciones.includes('[Origen:');
                 const botonEliminarHtml = esDerivadaDeNota 
