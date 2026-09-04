@@ -372,7 +372,7 @@ async function cargarNotasLibres() {
                 <td class="text-center"><b>${totalNotas}</b></td>
                 <td class="text-center">
                     <div class="acciones-container">
-                        <button class="btn-accion btn-notas" onclick="cargarEdicionNotaLibre('${item._id}')" title="Ver o Editar Nota">Ver Nota</button>
+                        <button class="btn-accion btn-notas" onclick="abrirNotaEnNuevaVentana('${item._id}')" title="Ver Nota en Nueva Ventana">Ver Nota</button>
                         <button class="btn-accion btn-eliminar" onclick="eliminarNotaLibrePrincipal('${item._id}')">Eliminar</button>
                     </div>
                 </td>
@@ -381,6 +381,103 @@ async function cargarNotasLibres() {
         });
     } catch (e) {
         console.error("Error al cargar notas libres:", e);
+    }
+}
+
+async function abrirNotaEnNuevaVentana(id) {
+    try {
+        const res = await fetch(`/api/notas-libres/${id}`);
+        const item = await res.json();
+        if (!item) return;
+
+        let puntosHtml = '';
+        if (item.notasLista && item.notasLista.length > 0) {
+            item.notasLista.forEach((pto, idx) => {
+                const badgePri = pto.prioridad === 'Alta' ? '🔴 ALTA' : (pto.prioridad === 'Baja' ? '🟢 BAJA' : '🟡 MEDIA');
+                const estado = pto.completado ? '✅ [Completado]' : '⏳ [Pendiente]';
+                puntosHtml += `
+                    <div style="margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #eaeaea;">
+                        <div style="font-weight: bold; color: #0071e3; margin-bottom: 6px; font-size: 15px;">
+                            ${idx + 1}. <span style="color: #1d1d1f;">${pto.responsable || 'General'}</span> <span style="font-size: 11px; font-weight: normal; color: #666;">(${badgePri} - ${estado})</span>
+                        </div>
+                        <div style="padding-left: 20px; white-space: pre-line; color: #333; font-size: 14px; line-height: 1.5;">
+                            ${pto.texto}
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            puntosHtml = '<p style="color: #86868b; font-style: italic;">No hay puntos registrados en esta nota.</p>';
+        }
+
+        const nuevaVentana = window.open('', '_blank', 'width=800,height=700,scrollbars=yes');
+        nuevaVentana.document.write(`
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>Nota: ${item.titulo}</title>
+                <style>
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                        padding: 40px;
+                        background: #f5f5f7;
+                        color: #1d1d1f;
+                        max-width: 750px;
+                        margin: auto;
+                    }
+                    .documento-card {
+                        background: #ffffff;
+                        padding: 40px;
+                        border-radius: 16px;
+                        box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+                        border: 1px solid #d2d2d7;
+                    }
+                    h1 { font-size: 24px; margin-top: 0; color: #1d1d1f; border-bottom: 2px solid #0071e3; padding-bottom: 12px; }
+                    .meta-info { font-size: 13px; color: #6e6e73; margin-bottom: 25px; display: flex; gap: 25px; flex-wrap: wrap; }
+                    .meta-info div { font-weight: 500; }
+                    .meta-info span { font-weight: 600; color: #1d1d1f; }
+                    .btn-imprimir {
+                        background: #0071e3;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 10px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        margin-top: 25px;
+                        font-size: 14px;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 8px;
+                    }
+                    .btn-imprimir:hover { opacity: 0.9; }
+                    @media print {
+                        body { background: white; padding: 0; }
+                        .documento-card { border: none; box-shadow: none; padding: 0; }
+                        .btn-imprimir { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="documento-card">
+                    <h1>📝 ${item.titulo}</h1>
+                    <div class="meta-info">
+                        <div>Fecha: <span>${formatearFechaVista(item.fecha)}</span></div>
+                        <div>Área / Depto: <span>${item.area || 'General'}</span></div>
+                        <div>Total Puntos: <span>${item.notasLista ? item.notasLista.length : 0}</span></div>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        ${puntosHtml}
+                    </div>
+                    <button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
+                </div>
+            </body>
+            </html>
+        `);
+        nuevaVentana.document.close();
+    } catch (e) {
+        console.error("Error al abrir la nota en nueva ventana:", e);
     }
 }
 
