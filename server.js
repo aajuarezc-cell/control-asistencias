@@ -20,19 +20,27 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log('🟢 Conectado exitosamente a MongoDB'))
     .catch(err => console.error('🔴 Error al conectar a MongoDB:', err));
 
-// CONFIGURACIÓN DE DISCORD WEBHOOK
-const DISCORD_WEBHOOK_URL = 'https://discordapp.com/api/webhooks/1544456950140633229/4iuLpEcABT_lMADH8OI0amIyAYDsV0VXfVXcW043sx8vQKIi5pZh9TNzuFwZLdZdnNwb';
+// CONFIGURACIÓN DE TELEGRAM
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-async function enviarNotificacionDiscord(payload) {
-    if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('AQUÍ_PEGA')) return;
+async function enviarNotificacionTelegram(mensajeHtml) {
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+        console.error("🔴 Faltan las credenciales de Telegram en las variables de entorno.");
+        return;
+    }
     try {
-        await fetch(DISCORD_WEBHOOK_URL, {
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                chat_id: TELEGRAM_CHAT_ID,
+                text: mensajeHtml,
+                parse_mode: 'HTML'
+            })
         });
     } catch (error) {
-        console.error("Error al enviar notificación a Discord:", error);
+        console.error("Error al enviar notificación a Telegram:", error);
     }
 }
 
@@ -74,8 +82,8 @@ const vacacionSchema = new mongoose.Schema({
 
 const Vacacion = mongoose.model('Vacacion', vacacionSchema);
 
-// FUNCIÓN AUXILIAR PARA ARMAR EL REPORTE CON LA NUEVA ESTRUCTURA SOLICITADA
-async function generarYEnviarReporteDiscord(esManual = false) {
+// FUNCIÓN AUXILIAR PARA ARMAR EL REPORTE CON LA ESTRUCTURA EXACTA EN TELEGRAM
+async function generarYEnviarReporteTelegram(esManual = false) {
     const pendientesActivos = await Pendiente.find({ finalizado: false });
     const reuniones = pendientesActivos.filter(p => p.tipo === 'Reunión');
     const actividades = pendientesActivos.filter(p => p.tipo !== 'Reunión');
@@ -84,26 +92,19 @@ async function generarYEnviarReporteDiscord(esManual = false) {
     const fechaActual = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     if (pendientesActivos.length === 0) {
-        const payloadSinNovedades = {
-            embeds: [{
-                title: "🟢 Estado del Sistema: Al Día",
-                description: `No hay reuniones ni actividades pendientes en este momento.\n_Actualizado a las ${horaActual} (${fechaActual})_`,
-                color: 3066993 // Verde esmeralda
-            }]
-        };
-        await enviarNotificacionDiscord(payloadSinNovedades);
+        await enviarNotificacionTelegram(`🟢 <b>Estado del Sistema: Al Día</b>\nNo hay reuniones ni actividades pendientes en este momento.\n<i>Actualizado a las ${horaActual} (${fechaActual})</i>`);
         return;
     }
 
     // --- SECCIÓN AGENDA ---
     let textoAgenda = "";
     if (reuniones.length === 0) {
-        textoAgenda = "_No hay reuniones activas._\n";
+        textoAgenda = "<i>No hay reuniones activas.</i>\n";
     } else {
         reuniones.forEach((r, index) => {
             const totalNotas = r.notasLista ? r.notasLista.length : 0;
             const fechaHora = `${r.vencimiento}${r.horaReunion ? ' a las ' + r.horaReunion + 'h' : ''}`;
-            textoAgenda += `${index + 1}. **[${r.folio}]** ${fechaHora}, ${r.incidente}, cantidad de notas: **${totalNotas}**\n`;
+            textoAgenda += `${index + 1}. <b>[${r.folio}]</b> ${fechaHora}, ${r.incidente}, cantidad de notas: <b>${totalNotas}</b>\n`;
         });
     }
 
@@ -115,62 +116,42 @@ async function generarYEnviarReporteDiscord(esManual = false) {
     let textoActividades = "";
 
     // Prioridad Alta
-    textoActividades += `**Prioridad ALTA:**\n`;
+    textoActividades += `<b>Prioridad ALTA:</b>\n`;
     if (actAltas.length === 0) {
-        textoActividades += `_Sin actividades de alta prioridad._\n\n`;
+        textoActividades += `<i>Sin actividades de alta prioridad.</i>\n\n`;
     } else {
         actAltas.forEach((a, index) => {
             const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. **[${a.folio}]** ${a.incidente}, turnado a: **${a.turnado}**, cantidad de notas: **${totalNotas}**\n`;
+            textoActividades += `${index + 1}. <b>[${a.folio}]</b> ${a.incidente}, turnado a: <b>${a.turnado}</b>, cantidad de notas: <b>${totalNotas}</b>\n`;
         });
         textoActividades += `\n`;
     }
 
     // Prioridad Media
-    textoActividades += `**Prioridad MEDIA:**\n`;
+    textoActividades += `<b>Prioridad MEDIA:</b>\n`;
     if (actMedias.length === 0) {
-        textoActividades += `_Sin actividades de prioridad media._\n\n`;
+        textoActividades += `<i>Sin actividades de prioridad media.</i>\n\n`;
     } else {
         actMedias.forEach((a, index) => {
             const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. **[${a.folio}]** ${a.incidente}, turnado a: **${a.turnado}**, cantidad de notas: **${totalNotas}**\n`;
+            textoActividades += `${index + 1}. <b>[${a.folio}]</b> ${a.incidente}, turnado a: <b>${a.turnado}</b>, cantidad de notas: <b>${totalNotas}</b>\n`;
         });
         textoActividades += `\n`;
     }
 
-    // Prioridad Baja (por si existen registros con baja prioridad)
+    // Prioridad Baja
     if (actBajas.length > 0) {
-        textoActividades += `**Prioridad BAJA:**\n`;
+        textoActividades += `<b>Prioridad BAJA:</b>\n`;
         actBajas.forEach((a, index) => {
             const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. **[${a.folio}]** ${a.incidente}, turnado a: **${a.turnado}**, cantidad de notas: **${totalNotas}**\n`;
+            textoActividades += `${index + 1}. <b>[${a.folio}]</b> ${a.incidente}, turnado a: <b>${a.turnado}</b>, cantidad de notas: <b>${totalNotas}</b>\n`;
         });
     }
 
-    const payloadEmbed = {
-        content: esManual ? `🕹️ **REPORTE MANUAL SOLICITADO**` : `📋 **REPORTE PROGRAMADO DE ACTIVIDADES**`,
-        embeds: [{
-            title: `📊 Resumen Operativo — ${horaActual}`,
-            color: 3447003, // Azul moderno
-            fields: [
-                {
-                    name: `📅 AGENDA`,
-                    value: textoAgenda,
-                    inline: false
-                },
-                {
-                    name: `⚡ ACTIVIDADES`,
-                    value: textoActividades,
-                    inline: false
-                }
-            ],
-            footer: {
-                text: `Control de Oficina • ${fechaActual}`
-            }
-        }]
-    };
+    const tituloReporte = esManual ? `🕹️ <b>REPORTE MANUAL SOLICITADO</b>` : `📋 <b>REPORTE PROGRAMADO DE ACTIVIDADES</b>`;
+    const mensajeFinal = `${tituloReporte}\n📊 <b>Resumen Operativo — ${horaActual}</b>\n\n📅 <b>AGENDA</b>\n${textoAgenda}\n⚡ <b>ACTIVIDADES</b>\n${textoActividades}\n<i>Control de Oficina • ${fechaActual}</i>`;
 
-    await enviarNotificacionDiscord(payloadEmbed);
+    await enviarNotificacionTelegram(mensajeFinal);
 }
 
 // --- RUTAS API PENDIENTES / REUNIONES ---
@@ -217,21 +198,14 @@ app.post('/api/pendientes', async (req, res) => {
 
         await nuevoPendiente.save();
 
-        // Alerta inmediata solo para Prioridad Alta
+        // Alerta inmediata vía Telegram para Prioridad Alta
         if (nuevoPendiente.prioridad === 'Alta') {
-            const payloadAlertaAlta = {
-                embeds: [{
-                    title: `🚨 ¡NUEVO REGISTRO URGENTE (${nuevoPendiente.folio})!`,
-                    color: 15158332, // Rojo alerta
-                    fields: [
-                        { name: "Tipo", value: nuevoPendiente.tipo, inline: true },
-                        { name: "Asignado a", value: nuevoPendiente.turnado || 'General', inline: true },
-                        { name: "Fecha", value: nuevoPendiente.vencimiento, inline: true },
-                        { name: "Detalle", value: nuevoPendiente.incidente, inline: false }
-                    ]
-                }]
-            };
-            await enviarNotificacionDiscord(payloadAlertaAlta);
+            const alertaAlta = `🚨 <b>¡NUEVO REGISTRO URGENTE (${nuevoPendiente.folio})!</b>\n\n` +
+                               `• <b>Tipo:</b> ${nuevoPendiente.tipo}\n` +
+                               `• <b>Asignado a:</b> ${nuevoPendiente.turnado || 'General'}\n` +
+                               `• <b>Fecha:</b> ${nuevoPendiente.vencimiento}\n` +
+                               `• <b>Detalle:</b> ${nuevoPendiente.incidente}`;
+            await enviarNotificacionTelegram(alertaAlta);
         }
 
         res.status(201).json(nuevoPendiente);
@@ -277,13 +251,13 @@ app.delete('/api/pendientes/:folio', async (req, res) => {
     }
 });
 
-// --- RUTA API PARA FORZAR DISCORD DESDE EL BOTÓN ---
+// --- RUTA API PARA FORZAR TELEGRAM DESDE EL BOTÓN DE LA WEB ---
 app.post('/api/forzar-discord', async (req, res) => {
     try {
-        await generarYEnviarReporteDiscord(true);
+        await generarYEnviarReporteTelegram(true);
         res.json({ exito: true });
     } catch (error) {
-        console.error("Error al forzar envío a Discord:", error);
+        console.error("Error al forzar envío a Telegram:", error);
         res.status(500).json({ exito: false, error: error.message });
     }
 });
@@ -406,13 +380,13 @@ app.delete('/api/vacaciones/:id', async (req, res) => {
     }
 });
 
-// --- ⏱️ PROGRAMADOR DE TAREAS (CRON JOBS OPTIMIZADOS - SIN SPAM DE CADA 15 MIN) ---
+// --- ⏱️ PROGRAMADOR DE TAREAS (CRON JOBS TELEGRAM) ---
 
 // Reporte matutino (8:00 AM)
 cron.schedule('0 8 * * *', async () => {
     try {
-        await generarYEnviarReporteDiscord(false);
-        console.log(`[CRON] Reporte matutino enviado a Discord.`);
+        await generarYEnviarReporteTelegram(false);
+        console.log(`[CRON] Reporte matutino enviado a Telegram.`);
     } catch (error) {
         console.error("Error en cron matutino:", error);
     }
@@ -421,8 +395,8 @@ cron.schedule('0 8 * * *', async () => {
 // Reporte de cierre (7:00 PM / 19:00 hrs)
 cron.schedule('0 19 * * *', async () => {
     try {
-        await generarYEnviarReporteDiscord(false);
-        console.log(`[CRON] Reporte nocturno enviado a Discord.`);
+        await generarYEnviarReporteTelegram(false);
+        console.log(`[CRON] Reporte nocturno enviado a Telegram.`);
     } catch (error) {
         console.error("Error en cron nocturno:", error);
     }
