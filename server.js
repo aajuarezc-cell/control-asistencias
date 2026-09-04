@@ -6,21 +6,16 @@ const cron = require('node-cron');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware para leer JSON
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Servir archivos estáticos desde la carpeta 'public'
 app.use(express.static(path.join(__dirname, 'public')));
 
-// CONEXIÓN A MONGODB ATLAS (O LOCAL)
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/control_oficina';
 
 mongoose.connect(MONGO_URI)
     .then(() => console.log('🟢 Conectado exitosamente a MongoDB'))
     .catch(err => console.error('🔴 Error al conectar a MongoDB:', err));
 
-// CONFIGURACIÓN DE TELEGRAM
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
@@ -44,7 +39,16 @@ async function enviarNotificacionTelegram(mensajeHtml) {
     }
 }
 
-// 1. ESQUEMA Y MODELO DE PENDIENTES Y REUNIONES
+// Función auxiliar para transformar fechas de YYYY-MM-DD a DD/MM/YYYY
+function formatearFechaDMA(fechaStr) {
+    if (!fechaStr) return '';
+    const partes = fechaStr.split('-');
+    if (partes.length === 3) {
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+    return fechaStr;
+}
+
 const pendienteSchema = new mongoose.Schema({
     folio: { type: String, unique: true },
     tipo: String,
@@ -61,7 +65,6 @@ const pendienteSchema = new mongoose.Schema({
 
 const Pendiente = mongoose.model('Pendiente', pendienteSchema);
 
-// 2. ESQUEMA Y MODELO DE ASISTENCIAS
 const asistenciaSchema = new mongoose.Schema({
     personal: String,
     fecha: String,
@@ -70,7 +73,6 @@ const asistenciaSchema = new mongoose.Schema({
 
 const Asistencia = mongoose.model('Asistencia', asistenciaSchema);
 
-// 3. ESQUEMA Y MODELO DE VACACIONES
 const vacacionSchema = new mongoose.Schema({
     personal: String,
     periodoAnual: Number, 
@@ -82,17 +84,17 @@ const vacacionSchema = new mongoose.Schema({
 
 const Vacacion = mongoose.model('Vacacion', vacacionSchema);
 
-// FUNCIÓN AUXILIAR PARA ARMAR EL REPORTE CON EL NUEVO DISEÑO EN TELEGRAM
 async function generarYEnviarReporteTelegram(esManual = false) {
     const pendientesActivos = await Pendiente.find({ finalizado: false });
     const reuniones = pendientesActivos.filter(p => p.tipo === 'Reunión');
     const actividades = pendientesActivos.filter(p => p.tipo !== 'Reunión');
 
     const horaActual = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-    const fechaActual = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const fechaReporteDMA = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const fechaActualTexto = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     if (pendientesActivos.length === 0) {
-        await enviarNotificacionTelegram(`🟢 <b>Estado del Sistema: Al Día</b>\nNo hay reuniones ni actividades pendientes en este momento.\n<i>Actualizado a las ${horaActual} (${fechaActual})</i>`);
+        await enviarNotificacionTelegram(`🟢 <b>Estado del Sistema: Al Día</b>\nNo hay reuniones ni actividades pendientes en este momento.\n<i>Actualizado a las ${horaActual} (${fechaReporteDMA})</i>`);
         return;
     }
 
@@ -103,7 +105,8 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     } else {
         reuniones.forEach((r, index) => {
             const totalNotas = r.notasLista ? r.notasLista.length : 0;
-            const fechaHora = `${r.vencimiento}${r.horaReunion ? ' a las ' + r.horaReunion + 'h' : ''}`;
+            const fechaDMA = formatearFechaDMA(r.vencimiento);
+            const fechaHora = `${fechaDMA}${r.horaReunion ? ' a las ' + r.horaReunion + 'h' : ''}`;
             textoAgenda += `${index + 1}. <b>[${r.folio}]</b> ${fechaHora}\n<i>${r.incidente}</i>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
         });
     }
@@ -147,12 +150,10 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     }
 
     const tituloReporte = esManual ? `🕹️ <b>REPORTE MANUAL SOLICITADO</b>` : `📋 <b>REPORTE PROGRAMADO DE ACTIVIDADES</b>`;
-    const mensajeFinal = `${tituloReporte}\n📊 <b>Resumen Operativo — ${horaActual} (${fechaActual})</b>\n\n📅 <b>AGENDA</b>\n\n${textoAgenda}⚡ <b>ACTIVIDADES</b>\n\n${textoActividades}<i>Control de Oficina • ${fechaActual}</i>`;
+    const mensajeFinal = `${tituloReporte}\n📊 <b>Resumen Operativo — ${horaActual} (${fechaReporteDMA})</b>\n\n📅 <b>AGENDA</b>\n\n${textoAgenda}⚡ <b>ACTIVIDADES</b>\n\n${textoActividades}<i>Control de Oficina • ${fechaActualTexto}</i>`;
 
     await enviarNotificacionTelegram(mensajeFinal);
 }
-
-// --- RUTAS API PENDIENTES / REUNIONES ---
 
 app.get('/api/pendientes', async (req, res) => {
     try {
@@ -200,7 +201,7 @@ app.post('/api/pendientes', async (req, res) => {
             const alertaAlta = `🚨 <b>¡NUEVO REGISTRO URGENTE (${nuevoPendiente.folio})!</b>\n\n` +
                                `• <b>Tipo:</b> ${nuevoPendiente.tipo}\n` +
                                `• <b>Asignado a:</b> ${nuevoPendiente.turnado || 'General'}\n` +
-                               `• <b>Fecha:</b> ${nuevoPendiente.vencimiento}\n` +
+                               `• <b>Fecha:</b> ${formatearFechaDMA(nuevoPendiente.vencimiento)}\n` +
                                `• <b>Detalle:</b> ${nuevoPendiente.incidente}`;
             await enviarNotificacionTelegram(alertaAlta);
         }
@@ -248,7 +249,6 @@ app.delete('/api/pendientes/:folio', async (req, res) => {
     }
 });
 
-// --- RUTA API PARA FORZAR TELEGRAM DESDE EL BOTÓN DE LA WEB ---
 app.post('/api/forzar-discord', async (req, res) => {
     try {
         await generarYEnviarReporteTelegram(true);
@@ -258,8 +258,6 @@ app.post('/api/forzar-discord', async (req, res) => {
         res.status(500).json({ exito: false, error: error.message });
     }
 });
-
-// --- RUTAS API ASISTENCIAS ---
 
 app.get('/api/asistencias', async (req, res) => {
     try {
@@ -286,8 +284,6 @@ app.post('/api/asistencias', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-
-// --- RUTAS API VACACIONES ---
 
 app.get('/api/vacaciones', async (req, res) => {
     try {
@@ -377,9 +373,6 @@ app.delete('/api/vacaciones/:id', async (req, res) => {
     }
 });
 
-// --- ⏱️ PROGRAMADOR DE TAREAS (CRON JOBS TELEGRAM) ---
-
-// Reportes automáticos en horarios específicos: 8, 10, 12, 14, 18, 19, 20 y 21 horas
 cron.schedule('0 8,10,12,14,18,19,20,21 * * *', async () => {
     try {
         await generarYEnviarReporteTelegram(false);
@@ -389,7 +382,6 @@ cron.schedule('0 8,10,12,14,18,19,20,21 * * *', async () => {
     }
 });
 
-// Limpieza automática: Elimina actividades finalizadas con más de 15 días de antigüedad (Se ejecuta todos los días a las 3:00 AM)
 cron.schedule('0 3 * * *', async () => {
     try {
         const fechaLimite = new Date();
@@ -408,7 +400,6 @@ cron.schedule('0 3 * * *', async () => {
     }
 });
 
-// Iniciar servidor
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
