@@ -61,6 +61,7 @@
             <button class="btn-modulo" onclick="cambiarModulo('moduloPendientes', this)">⚡ Actividades</button>
             <button class="btn-modulo" onclick="cambiarModulo('moduloAsistencias', this)">📋 Asistencias</button>
             <button class="btn-modulo" onclick="cambiarModulo('moduloVacaciones', this)">🏖️ Vacaciones</button>
+            <button class="btn-modulo" onclick="cambiarModulo('moduloNotasLibres', this)">📝 Notas Libres</button>
         </nav>
 
         <!-- MÓDULO 1: NUEVO REGISTRO -->
@@ -382,6 +383,48 @@
                         </tr>
                     </thead>
                     <tbody id="tablaCalendarioVacaciones"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- MÓDULO 6: NOTAS LIBRES (REUNIONES INTERNAS NO PROGRAMADAS) -->
+        <section id="moduloNotasLibres" class="modulo-vista">
+            <div class="section-title">📝 Notas de Reuniones Internas (No Programadas)</div>
+            
+            <form id="formNotaLibre" onsubmit="guardarNotaLibre(event)">
+                <input type="hidden" id="editNotaLibreId">
+                <div class="form-group">
+                    <label for="libreTitulo">Título o Tema:</label>
+                    <input type="text" id="libreTitulo" required placeholder="Ej. Alineación interna de equipo...">
+                </div>
+                <div class="form-group">
+                    <label for="libreFecha">Fecha:</label>
+                    <input type="date" id="libreFecha" required>
+                </div>
+                <div class="form-group">
+                    <label for="libreParticipantes">Participantes:</label>
+                    <input type="text" id="libreParticipantes" placeholder="Nombres o área involucrada...">
+                </div>
+                <div class="form-group">
+                    <label for="libreContenido">Notas y Acuerdos:</label>
+                    <textarea id="libreContenido" rows="6" required placeholder="Escribe los puntos tratados..."></textarea>
+                </div>
+                <button type="submit" class="btn-guardar" id="btnNotaLibreSubmit">Guardar Nota de Reunión</button>
+            </form>
+
+            <div class="section-title">📚 Historial de Notas Libres</div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Título / Tema</th>
+                            <th>Participantes</th>
+                            <th>Contenido</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaNotasLibres"></tbody>
                 </table>
             </div>
         </section>

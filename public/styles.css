@@ -292,6 +292,11 @@ form {
 }
 .oculto { display: none !important; }
 
+#libreContenido {
+    resize: vertical;
+    min-height: 120px;
+}
+
 .minuta-input-container { 
     background: #ffffff; 
     border: 1px solid var(--border-color); 

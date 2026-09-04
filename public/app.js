@@ -52,6 +52,8 @@ function cambiarModulo(idModulo, btnElement) {
         cargarMatrizAsistencias();
     } else if (idModulo === 'moduloVacaciones') {
         cargarResumenVacaciones();
+    } else if (idModulo === 'moduloNotasLibres') {
+        cargarNotasLibres();
     }
 }
 
@@ -107,6 +109,8 @@ document.getElementById('asistFechaCalendario').value = fechaHoy;
 document.getElementById('filtroSemana').value = fechaHoy;
 document.getElementById('filtroMes').value = mesHoy;
 document.getElementById('vacFecha').value = fechaHoy;
+const inputLibreFecha = document.getElementById('libreFecha');
+if (inputLibreFecha) inputLibreFecha.value = fechaHoy;
 
 const selectPersonaRep = document.getElementById('filtroPersonaReporte');
 selectPersonaRep.innerHTML = '<option value="TODOS">-- Todos --</option>';
@@ -869,6 +873,93 @@ async function eliminarRegistroVacacion(id) {
         cargarMatrizAsistencias();
         cargarReporteSemanal();
         cargarReporteMensual();
+    }
+}
+
+async function guardarNotaLibre(e) {
+    e.preventDefault();
+    const idEdit = document.getElementById('editNotaLibreId').value;
+    const payload = {
+        titulo: document.getElementById('libreTitulo').value,
+        fecha: document.getElementById('libreFecha').value,
+        participantes: document.getElementById('libreParticipantes').value,
+        contenido: document.getElementById('libreContenido').value
+    };
+
+    try {
+        if (idEdit) {
+            await fetch(`/api/notas-libres/${idEdit}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            document.getElementById('editNotaLibreId').value = '';
+            document.getElementById('btnNotaLibreSubmit').innerText = 'Guardar Nota de Reunión';
+        } else {
+            await fetch('/api/notas-libres', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
+        document.getElementById('formNotaLibre').reset();
+        document.getElementById('libreFecha').value = fechaHoy;
+        cargarNotasLibres();
+        alert("Nota guardada con éxito.");
+    } catch (err) {
+        console.error("Error al guardar nota libre:", err);
+    }
+}
+
+async function cargarNotasLibres() {
+    try {
+        const res = await fetch('/api/notas-libres');
+        const data = await res.json();
+        const tbody = document.getElementById('tablaNotasLibres');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas registradas.</td></tr>`;
+            return;
+        }
+
+        data.forEach(item => {
+            const tr = document.createElement('tr');
+            const contenidoHtml = item.contenido.replace(/\n/g, '<br>');
+            tr.innerHTML = `
+                <td>${formatearFechaVista(item.fecha)}</td>
+                <td><b>${item.titulo}</b></td>
+                <td>${item.participantes || '-'}</td>
+                <td style="white-space: pre-line;">${contenidoHtml}</td>
+                <td class="text-center">
+                    <div class="acciones-container">
+                        <button class="btn-accion btn-editar" onclick="prepararEdicionNotaLibre('${item._id}', '${encodeURIComponent(item.titulo)}', '${item.fecha}', '${encodeURIComponent(item.participantes || '')}', '${encodeURIComponent(item.contenido)}')">Editar</button>
+                        <button class="btn-accion btn-eliminar" onclick="eliminarNotaLibre('${item._id}')">Eliminar</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error("Error al cargar notas libres:", e);
+    }
+}
+
+function prepararEdicionNotaLibre(id, titulo, fecha, participantes, contenido) {
+    document.getElementById('editNotaLibreId').value = id;
+    document.getElementById('libreTitulo').value = decodeURIComponent(titulo);
+    document.getElementById('libreFecha').value = fecha;
+    document.getElementById('libreParticipantes').value = decodeURIComponent(participantes);
+    document.getElementById('libreContenido').value = decodeURIComponent(contenido);
+    document.getElementById('btnNotaLibreSubmit').innerText = 'Actualizar Nota';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function eliminarNotaLibre(id) {
+    if (confirm("¿Estás seguro de eliminar esta nota?")) {
+        await fetch(`/api/notas-libres/${id}`, { method: 'DELETE' });
+        cargarNotasLibres();
     }
 }
 

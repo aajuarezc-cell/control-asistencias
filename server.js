@@ -39,7 +39,6 @@ async function enviarNotificacionTelegram(mensajeHtml) {
     }
 }
 
-// Función auxiliar para transformar fechas de YYYY-MM-DD a DD/MM/YYYY
 function formatearFechaDMA(fechaStr) {
     if (!fechaStr) return '';
     const partes = fechaStr.split('-');
@@ -62,7 +61,6 @@ const pendienteSchema = new mongoose.Schema({
     finalizado: { type: Boolean, default: false },
     fecha: String
 });
-
 const Pendiente = mongoose.model('Pendiente', pendienteSchema);
 
 const asistenciaSchema = new mongoose.Schema({
@@ -70,7 +68,6 @@ const asistenciaSchema = new mongoose.Schema({
     fecha: String,
     estatus: String
 });
-
 const Asistencia = mongoose.model('Asistencia', asistenciaSchema);
 
 const vacacionSchema = new mongoose.Schema({
@@ -81,8 +78,15 @@ const vacacionSchema = new mongoose.Schema({
     fechasSolicitadas: { type: Array, default: [] }, 
     estatus: { type: String, default: 'Activo' }
 });
-
 const Vacacion = mongoose.model('Vacacion', vacacionSchema);
+
+const notaLibreSchema = new mongoose.Schema({
+    titulo: String,
+    fecha: String,
+    participantes: String,
+    contenido: String
+});
+const NotaLibre = mongoose.model('NotaLibre', notaLibreSchema);
 
 async function generarYEnviarReporteTelegram(esManual = false) {
     const pendientesActivos = await Pendiente.find({ finalizado: false });
@@ -98,7 +102,6 @@ async function generarYEnviarReporteTelegram(esManual = false) {
         return;
     }
 
-    // --- SECCIÓN AGENDA ---
     let textoAgenda = "";
     if (reuniones.length === 0) {
         textoAgenda = "<i>No hay reuniones activas.</i>\n";
@@ -111,14 +114,12 @@ async function generarYEnviarReporteTelegram(esManual = false) {
         });
     }
 
-    // --- SECCIÓN ACTIVIDADES AGRUPADAS POR PRIORIDAD ---
     const actAltas = actividades.filter(a => a.prioridad === 'Alta');
     const actMedias = actividades.filter(a => a.prioridad === 'Media');
     const actBajas = actividades.filter(a => a.prioridad === 'Baja');
 
     let textoActividades = "";
 
-    // Prioridad Alta
     textoActividades += `<b>Prioridad ALTA:</b>\n\n`;
     if (actAltas.length === 0) {
         textoActividades += `<i>Sin actividades de alta prioridad.</i>\n\n`;
@@ -129,7 +130,6 @@ async function generarYEnviarReporteTelegram(esManual = false) {
         });
     }
 
-    // Prioridad Media
     textoActividades += `<b>Prioridad MEDIA:</b>\n\n`;
     if (actMedias.length === 0) {
         textoActividades += `<i>Sin actividades de prioridad media.</i>\n\n`;
@@ -140,7 +140,6 @@ async function generarYEnviarReporteTelegram(esManual = false) {
         });
     }
 
-    // Prioridad Baja
     if (actBajas.length > 0) {
         textoActividades += `<b>Prioridad BAJA:</b>\n\n`;
         actBajas.forEach((a, index) => {
@@ -368,6 +367,49 @@ app.delete('/api/vacaciones/:id', async (req, res) => {
             await Vacacion.findByIdAndDelete(req.params.id);
         }
         res.json({ mensaje: 'Registro de vacaciones eliminado y asistencias restablecidas' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/notas-libres', async (req, res) => {
+    try {
+        const notas = await NotaLibre.find().sort({ fecha: -1 });
+        res.json(notas);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/notas-libres', async (req, res) => {
+    try {
+        const { titulo, fecha, participantes, contenido } = req.body;
+        const nuevaNota = new NotaLibre({ titulo, fecha, participantes, contenido });
+        await nuevaNota.save();
+        res.status(201).json(nuevaNota);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/notas-libres/:id', async (req, res) => {
+    try {
+        const { titulo, fecha, participantes, contenido } = req.body;
+        const notaActualizada = await NotaLibre.findByIdAndUpdate(
+            req.params.id,
+            { titulo, fecha, participantes, contenido },
+            { new: true }
+        );
+        res.json(notaActualizada);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/notas-libres/:id', async (req, res) => {
+    try {
+        await NotaLibre.findByIdAndDelete(req.params.id);
+        res.json({ mensaje: 'Nota eliminada correctamente' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
