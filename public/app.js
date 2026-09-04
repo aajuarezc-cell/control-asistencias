@@ -9,7 +9,6 @@ let notasTemporalesModal = [];
 let filtroPrioridadActiva = null;
 let globalVacacionesData = [];
 
-// Función auxiliar para formatear fechas de YYYY-MM-DD a DD/MM/YYYY en la interfaz
 function formatearFechaVista(fechaStr) {
     if (!fechaStr) return '';
     const partes = fechaStr.split('-');
