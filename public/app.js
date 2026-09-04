@@ -10,12 +10,12 @@ let filtroPrioridadActiva = null;
 let globalVacacionesData = [];
 
 async function forzarEnvioDiscord() {
-    if (!confirm("¿Deseas enviar el reporte actual de Agenda y Actividades a Discord ahora mismo?")) return;
+    if (!confirm("¿Deseas enviar el reporte actual de Agenda y Actividades a Telegram ahora mismo?")) return;
     try {
         const res = await fetch('/api/forzar-discord', { method: 'POST' });
         const data = await res.json();
         if (data.exito) {
-            alert("¡Reporte enviado a Discord con éxito!");
+            alert("¡Reporte enviado a Telegram con éxito!");
         } else {
             alert("Error al enviar: " + (data.error || 'Desconocido'));
         }
@@ -37,7 +37,6 @@ function cambiarModulo(idModulo, btnElement) {
     document.getElementById(idModulo).classList.add('activo');
     if (btnElement) btnElement.classList.add('activo');
 
-    // Carga perezosa (Lazy loading de datos según el módulo abierto)
     if (idModulo === 'moduloAgenda' || idModulo === 'moduloPendientes') {
         cargarPendientes();
     } else if (idModulo === 'moduloAsistencias') {

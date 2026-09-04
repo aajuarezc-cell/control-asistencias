@@ -20,7 +20,7 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log('🟢 Conectado exitosamente a MongoDB'))
     .catch(err => console.error('🔴 Error al conectar a MongoDB:', err));
 
-// CONFIGURACIÓN DE TELEGRAM
+// CONFIGURACIÓN DE TELEGRAM (Toma los datos de las variables de entorno de Render)
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 

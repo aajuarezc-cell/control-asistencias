@@ -20,10 +20,9 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif; margin: 0; pa
 .btn-home:hover { background: var(--primary); color: white; }
 
 .reloj-widget { background: #0f172a; color: #38bdf8; padding: 6px 12px; border-radius: 8px; font-weight: 500; font-size: 13px; font-family: monospace; letter-spacing: 0.5px; }
-.btn-discord-header { background: #5865F2; color: white; border: none; padding: 7px 14px; border-radius: 8px; font-weight: 500; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
-.btn-discord-header:hover { background: #4752C4; }
+.btn-discord-header { background: #229ED9; color: white; border: none; padding: 7px 14px; border-radius: 8px; font-weight: 500; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+.btn-discord-header:hover { background: #1c88bc; }
 
-/* Dashboard más limpio, tipo píldoras planas */
 .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
 .kpi-card { background: #ffffff; border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.01); }
 .kpi-card:hover { border-color: var(--primary); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08); }
@@ -32,7 +31,6 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif; margin: 0; pa
 .kpi-info span { font-size: 18px; font-weight: 700; color: var(--text-main); }
 .kpi-subtext { font-size: 11px; color: #0284c7; font-weight: 500; margin-top: 2px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
 
-/* Pestañas superiores estilo minimalista */
 .nav-modulos { display: flex; gap: 8px; margin-bottom: 25px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; overflow-x: auto; white-space: nowrap; }
 .nav-modulos::-webkit-scrollbar { display: none; }
 .btn-modulo { background: transparent; color: var(--text-muted); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 500; cursor: pointer; font-size: 13px; transition: all 0.2s; }
