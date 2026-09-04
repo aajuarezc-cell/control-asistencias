@@ -167,18 +167,6 @@ body {
     color: var(--text-main); 
 }
 
-.kpi-subtext { 
-    font-size: 11px; 
-    color: var(--primary); 
-    font-weight: 500; 
-    margin-top: 2px; 
-    display: block; 
-    white-space: nowrap; 
-    overflow: hidden; 
-    text-overflow: ellipsis; 
-    max-width: 120px; 
-}
-
 .nav-modulos { 
     display: flex; 
     gap: 8px; 
@@ -291,11 +279,6 @@ form {
     box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.12); 
 }
 .oculto { display: none !important; }
-
-#libreContenido {
-    resize: vertical;
-    min-height: 120px;
-}
 
 .minuta-input-container { 
     background: #ffffff; 
@@ -465,6 +448,7 @@ tr:hover td { background: #fbfbfd; }
 }
 .badge-reu { background: #f3e8ff; color: #7e22ce; }
 .badge-pen { background: #e0f2fe; color: #0369a1; }
+.badge-libre { background: #fef3c7; color: #92400e; }
 
 .prioridad-alta { background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 10px; }
 .prioridad-media { background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 10px; }
@@ -504,7 +488,7 @@ tr:hover td { background: #fbfbfd; }
 .completado td { text-decoration: line-through; color: var(--text-muted); background: #fafafa; opacity: 0.6; }
 
 #modalAlerta { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.3); backdrop-filter: blur(10px); justify-content: center; align-items: center; padding: 15px; box-sizing: border-box; }
-#modalNotas { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100vw; height: 100vh; background-color: var(--bg-color); flex-direction: column; box-sizing: border-box; padding: 15px; overflow-y: auto; }
+#modalNotas, #modalNotasLibres { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100vw; height: 100vh; background-color: var(--bg-color); flex-direction: column; box-sizing: border-box; padding: 15px; overflow-y: auto; }
 .modal-pantalla-completa { background-color: white; width: 100%; max-width: 1200px; margin: auto; padding: 25px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); border: 1px solid var(--border-color); display: flex; flex-direction: column; flex: 1; box-sizing: border-box; }
 .modal-content { background-color: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 440px; text-align: left; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); max-height: 80vh; overflow-y: auto; box-sizing: border-box; border: 1px solid var(--border-color); }
 .modal-content h3 { color: var(--text-main); margin-top: 0; font-size: 18px; }

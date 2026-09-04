@@ -3,11 +3,20 @@ const personalLista = [
     "Itzel", "Ricardo", "Javier", "Christian", "Rosa Angeles", "Martin", "Emanuel", "Roberto"
 ];
 
+let areasListaInicial = [
+    "Dirección Gral de Administración",
+    "Academia de Policía",
+    "Recursos Humanos"
+];
+
 let folioNotaActual = null;
 let tipoItemActual = null;
 let notasTemporalesModal = [];
 let filtroPrioridadActiva = null;
 let globalVacacionesData = [];
+
+let idNotaLibreActual = null;
+let notasLibresTemporalesModal = [];
 
 function formatearFechaVista(fechaStr) {
     if (!fechaStr) return '';
@@ -66,21 +75,21 @@ function cambiarSubmodulo(idSubmodulo, btnElement) {
 
 function clickKpiActividadesAlta() {
     filtroPrioridadActiva = 'Alta';
-    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
+    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
     document.getElementById('filtroFechaPendientes').value = '';
     cargarPendientes();
 }
 
 function clickKpiActividadesMedia() {
     filtroPrioridadActiva = 'Media';
-    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
+    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
     document.getElementById('filtroFechaPendientes').value = '';
     cargarPendientes();
 }
 
 function clickKpiActividadesBaja() {
     filtroPrioridadActiva = 'Baja';
-    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[2]);
+    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
     document.getElementById('filtroFechaPendientes').value = '';
     cargarPendientes();
 }
@@ -166,6 +175,67 @@ if (selectNotaResp) {
         opt.value = p; opt.textContent = p;
         selectNotaResp.appendChild(opt);
     });
+}
+
+const selectLibreResp = document.getElementById('inputLibreNotaResponsable');
+if (selectLibreResp) {
+    selectLibreResp.innerHTML = '<option value="">Sin asignar</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        selectLibreResp.appendChild(opt);
+    });
+}
+
+async function poblarSelectAreas() {
+    const selectArea = document.getElementById('libreArea');
+    if (!selectArea) return;
+    try {
+        const res = await fetch('/api/areas');
+        const data = await res.json();
+        if (data && data.length > 0) {
+            areasListaInicial = data;
+        }
+    } catch (e) {
+        console.error("Error al cargar áreas:", e);
+    }
+
+    selectArea.innerHTML = '<option value="">Seleccionar área...</option>';
+    areasListaInicial.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a; opt.textContent = a;
+        selectArea.appendChild(opt);
+    });
+}
+poblarSelectAreas();
+
+async function agregarNuevaAreaPrompt() {
+    const nuevaArea = prompt("Escribe el nombre de la nueva Área o Departamento:");
+    if (!nuevaArea || !nuevaArea.trim()) return;
+    const areaTrim = nuevaArea.trim();
+    if (areasListaInicial.includes(areaTrim)) {
+        alert("Esa área ya existe en la lista.");
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/areas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre: areaTrim })
+        });
+        const data = await res.json();
+        if (data.areas) {
+            areasListaInicial = data.areas;
+        } else {
+            areasListaInicial.push(areaTrim);
+        }
+        poblarSelectAreas();
+        document.getElementById('libreArea').value = areaTrim;
+        alert("Área agregada con éxito.");
+    } catch (e) {
+        console.error("Error guardando área:", e);
+    }
 }
 
 function toggleCamposTipo() {
@@ -876,38 +946,47 @@ async function eliminarRegistroVacacion(id) {
     }
 }
 
-async function guardarNotaLibre(e) {
+async function guardarNotaLibrePrincipal(e) {
     e.preventDefault();
     const idEdit = document.getElementById('editNotaLibreId').value;
-    const payload = {
-        titulo: document.getElementById('libreTitulo').value,
-        fecha: document.getElementById('libreFecha').value,
-        participantes: document.getElementById('libreParticipantes').value,
-        contenido: document.getElementById('libreContenido').value
-    };
+    const titulo = document.getElementById('libreTitulo').value;
+    const fecha = document.getElementById('libreFecha').value;
+    const area = document.getElementById('libreArea').value;
+
+    if (!area) {
+        alert("Selecciona o agrega un área.");
+        return;
+    }
 
     try {
         if (idEdit) {
+            const res = await fetch(`/api/notas-libres/${idEdit}`);
+            const notaActual = await res.json();
+            notaActual.titulo = titulo;
+            notaActual.fecha = fecha;
+            notaActual.area = area;
+
             await fetch(`/api/notas-libres/${idEdit}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(notaActual)
             });
             document.getElementById('editNotaLibreId').value = '';
-            document.getElementById('btnNotaLibreSubmit').innerText = 'Guardar Nota de Reunión';
+            document.getElementById('btnNotaLibreSubmit').innerText = 'Crear Registro de Nota';
         } else {
             await fetch('/api/notas-libres', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ titulo, fecha, area, notasLista: [] })
             });
         }
         document.getElementById('formNotaLibre').reset();
         document.getElementById('libreFecha').value = fechaHoy;
+        poblarSelectAreas();
         cargarNotasLibres();
-        alert("Nota guardada con éxito.");
+        alert("Registro guardado con éxito.");
     } catch (err) {
-        console.error("Error al guardar nota libre:", err);
+        console.error("Error al guardar nota libre principal:", err);
     }
 }
 
@@ -925,17 +1004,17 @@ async function cargarNotasLibres() {
         }
 
         data.forEach(item => {
+            const totalNotas = item.notasLista ? item.notasLista.length : 0;
             const tr = document.createElement('tr');
-            const contenidoHtml = item.contenido.replace(/\n/g, '<br>');
             tr.innerHTML = `
                 <td>${formatearFechaVista(item.fecha)}</td>
                 <td><b>${item.titulo}</b></td>
-                <td>${item.participantes || '-'}</td>
-                <td style="white-space: pre-line;">${contenidoHtml}</td>
+                <td><span class="badge badge-libre">${item.area || 'General'}</span></td>
+                <td class="text-center"><b>${totalNotas}</b></td>
                 <td class="text-center">
                     <div class="acciones-container">
-                        <button class="btn-accion btn-editar" onclick="prepararEdicionNotaLibre('${item._id}', '${encodeURIComponent(item.titulo)}', '${item.fecha}', '${encodeURIComponent(item.participantes || '')}', '${encodeURIComponent(item.contenido)}')">Editar</button>
-                        <button class="btn-accion btn-eliminar" onclick="eliminarNotaLibre('${item._id}')">Eliminar</button>
+                        <button class="btn-accion btn-notas" onclick="abrirModalNotasLibres('${item._id}')">Notas</button>
+                        <button class="btn-accion btn-eliminar" onclick="eliminarNotaLibrePrincipal('${item._id}')">Eliminar</button>
                     </div>
                 </td>
             `;
@@ -946,18 +1025,106 @@ async function cargarNotasLibres() {
     }
 }
 
-function prepararEdicionNotaLibre(id, titulo, fecha, participantes, contenido) {
-    document.getElementById('editNotaLibreId').value = id;
-    document.getElementById('libreTitulo').value = decodeURIComponent(titulo);
-    document.getElementById('libreFecha').value = fecha;
-    document.getElementById('libreParticipantes').value = decodeURIComponent(participantes);
-    document.getElementById('libreContenido').value = decodeURIComponent(contenido);
-    document.getElementById('btnNotaLibreSubmit').innerText = 'Actualizar Nota';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+async function abrirModalNotasLibres(id) {
+    idNotaLibreActual = id;
+    try {
+        const res = await fetch(`/api/notas-libres/${id}`);
+        const item = await res.json();
+        if (!item) return;
+
+        document.getElementById('modalLibreTituloTema').innerText = item.titulo;
+        document.getElementById('modalLibreAreaInfo').innerText = `Área: ${item.area || 'General'} | Fecha: ${formatearFechaVista(item.fecha)}`;
+        document.getElementById('inputLibreNotaTexto').value = '';
+        document.getElementById('inputLibreNotaResponsable').value = '';
+        document.getElementById('inputLibreNotaPrioridad').value = 'Media';
+
+        notasLibresTemporalesModal = item.notasLista ? JSON.parse(JSON.stringify(item.notasLista)) : [];
+        renderizarTablaNotasLibresModal();
+        document.getElementById('modalNotasLibres').style.display = 'flex';
+    } catch (e) {
+        console.error("Error al abrir modal de notas libres:", e);
+    }
 }
 
-async function eliminarNotaLibre(id) {
-    if (confirm("¿Estás seguro de eliminar esta nota?")) {
+function agregarNotaLibreModal() {
+    const texto = document.getElementById('inputLibreNotaTexto').value.trim();
+    const responsable = document.getElementById('inputLibreNotaResponsable').value;
+    const prioridad = document.getElementById('inputLibreNotaPrioridad').value;
+    if (!texto) { alert('Escribe el contenido del punto o nota.'); return; }
+
+    notasLibresTemporalesModal.push({ texto, responsable: responsable || 'General', prioridad, completado: false });
+    document.getElementById('inputLibreNotaTexto').value = '';
+    document.getElementById('inputLibreNotaResponsable').value = '';
+    renderizarTablaNotasLibresModal();
+}
+
+function handleLibreTextAreaKeyDown(event) {
+    if (event.ctrlKey && event.key === 'Enter') {
+        event.preventDefault();
+        agregarNotaLibreModal();
+    }
+}
+
+function toggleNotaLibreRealizadaModal(indexNota, completado) {
+    if (notasLibresTemporalesModal[indexNota]) {
+        notasLibresTemporalesModal[indexNota].completado = completado;
+        renderizarTablaNotasLibresModal();
+    }
+}
+
+function eliminarNotaLibreModalItem(indexNota) {
+    notasLibresTemporalesModal.splice(indexNota, 1);
+    renderizarTablaNotasLibresModal();
+}
+
+function renderizarTablaNotasLibresModal() {
+    const tbody = document.getElementById('tablaNotasLibresModal');
+    tbody.innerHTML = '';
+    if (!notasLibresTemporalesModal || notasLibresTemporalesModal.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas individuales registradas.</td></tr>`;
+        return;
+    }
+
+    notasLibresTemporalesModal.forEach((nota, idx) => {
+        let badgePri = nota.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (nota.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
+        const tr = document.createElement('tr');
+        if (nota.completado) tr.classList.add('completado');
+        const textoHtml = nota.texto.replace(/\n/g, '<br>');
+
+        tr.innerHTML = `
+            <td class="text-center"><input type="checkbox" style="width: 18px; height: 18px;" ${nota.completado ? 'checked' : ''} onclick="toggleNotaLibreRealizadaModal(${idx}, this.checked)"></td>
+            <td style="white-space: pre-line;">${textoHtml}</td>
+            <td><b>${nota.responsable}</b></td>
+            <td class="text-center">${badgePri}</td>
+            <td class="text-center"><button class="btn-eliminar-item" onclick="eliminarNotaLibreModalItem(${idx})">Eliminar</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function cerrarModalLibreSimple() {
+    if (!idNotaLibreActual) return;
+    try {
+        const res = await fetch(`/api/notas-libres/${idNotaLibreActual}`);
+        const item = await res.json();
+        if (item) {
+            item.notasLista = notasLibresTemporalesModal;
+            await fetch(`/api/notas-libres/${idNotaLibreActual}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(item)
+            });
+        }
+        document.getElementById('modalNotasLibres').style.display = 'none';
+        idNotaLibreActual = null;
+        cargarNotasLibres();
+    } catch (e) {
+        console.error("Error al cerrar y guardar notas libres:", e);
+    }
+}
+
+async function eliminarNotaLibrePrincipal(id) {
+    if (confirm("¿Estás seguro de eliminar este registro de notas y todos sus puntos?")) {
         await fetch(`/api/notas-libres/${id}`, { method: 'DELETE' });
         cargarNotasLibres();
     }

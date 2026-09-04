@@ -83,10 +83,16 @@ const Vacacion = mongoose.model('Vacacion', vacacionSchema);
 const notaLibreSchema = new mongoose.Schema({
     titulo: String,
     fecha: String,
-    participantes: String,
-    contenido: String
+    area: String,
+    notasLista: { type: Array, default: [] }
 });
 const NotaLibre = mongoose.model('NotaLibre', notaLibreSchema);
+
+const configuracionSchema = new mongoose.Schema({
+    clave: { type: String, unique: true },
+    areas: { type: Array, default: [] }
+});
+const Configuracion = mongoose.model('Configuracion', configuracionSchema);
 
 async function generarYEnviarReporteTelegram(esManual = false) {
     const pendientesActivos = await Pendiente.find({ finalizado: false });
@@ -381,10 +387,19 @@ app.get('/api/notas-libres', async (req, res) => {
     }
 });
 
+app.get('/api/notas-libres/:id', async (req, res) => {
+    try {
+        const nota = await NotaLibre.findById(req.params.id);
+        res.json(nota);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/notas-libres', async (req, res) => {
     try {
-        const { titulo, fecha, participantes, contenido } = req.body;
-        const nuevaNota = new NotaLibre({ titulo, fecha, participantes, contenido });
+        const { titulo, fecha, area, notasLista } = req.body;
+        const nuevaNota = new NotaLibre({ titulo, fecha, area, notasLista: notasLista || [] });
         await nuevaNota.save();
         res.status(201).json(nuevaNota);
     } catch (err) {
@@ -394,10 +409,10 @@ app.post('/api/notas-libres', async (req, res) => {
 
 app.put('/api/notas-libres/:id', async (req, res) => {
     try {
-        const { titulo, fecha, participantes, contenido } = req.body;
+        const { titulo, fecha, area, notasLista } = req.body;
         const notaActualizada = await NotaLibre.findByIdAndUpdate(
             req.params.id,
-            { titulo, fecha, participantes, contenido },
+            { titulo, fecha, area, notasLista },
             { new: true }
         );
         res.json(notaActualizada);
@@ -410,6 +425,42 @@ app.delete('/api/notas-libres/:id', async (req, res) => {
     try {
         await NotaLibre.findByIdAndDelete(req.params.id);
         res.json({ mensaje: 'Nota eliminada correctamente' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/areas', async (req, res) => {
+    try {
+        let config = await Configuracion.findOne({ clave: 'config_global' });
+        if (!config) {
+            config = new Configuracion({
+                clave: 'config_global',
+                areas: ["Dirección Gral de Administración", "Academia de Policía", "Recursos Humanos"]
+            });
+            await config.save();
+        }
+        res.json(config.areas);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/areas', async (req, res) => {
+    try {
+        const { nombre } = req.body;
+        let config = await Configuracion.findOne({ clave: 'config_global' });
+        if (!config) {
+            config = new Configuracion({
+                clave: 'config_global',
+                areas: ["Dirección Gral de Administración", "Academia de Policía", "Recursos Humanos"]
+            });
+        }
+        if (!config.areas.includes(nombre)) {
+            config.areas.push(nombre);
+            await config.save();
+        }
+        res.json({ exito: true, areas: config.areas });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

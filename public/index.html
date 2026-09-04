@@ -54,16 +54,16 @@
             </div>
         </div>
 
-       <!-- NAVEGACIÓN DE MÓDULOS -->
+        <!-- NAVEGACIÓN DE MÓDULOS -->
         <nav class="nav-modulos">
             <button class="btn-modulo activo" onclick="cambiarModulo('moduloNuevoRegistro', this)">➕ Nuevo Registro</button>
             <button class="btn-modulo" onclick="cambiarModulo('moduloAgenda', this)">📅 Agenda</button>
-            <button class="btn-modulo" onclick="cambiarModulo('moduloNotasLibres', this)">📝 Notas Libres</button>
+            <button class="btn-modulo" onclick="cambiarModulo('moduloNotasLibres', this)">📝 Notas</button>
             <button class="btn-modulo" onclick="cambiarModulo('moduloPendientes', this)">⚡ Actividades</button>
             <button class="btn-modulo" onclick="cambiarModulo('moduloAsistencias', this)">📋 Asistencias</button>
             <button class="btn-modulo" onclick="cambiarModulo('moduloVacaciones', this)">🏖️ Vacaciones</button>
         </nav>
-        
+
         <!-- MÓDULO 1: NUEVO REGISTRO -->
         <section id="moduloNuevoRegistro" class="modulo-vista activo">
             <form id="formPendiente">
@@ -169,7 +169,48 @@
             </div>
         </section>
 
-        <!-- MÓDULO 3: ACTIVIDADES -->
+        <!-- MÓDULO 3: NOTAS LIBRES (REUNIONES INTERNAS NO PROGRAMADAS) -->
+        <section id="moduloNotasLibres" class="modulo-vista">
+            <div class="section-title">📝 Notas de Reuniones Internas (No Programadas)</div>
+            
+            <form id="formNotaLibre" onsubmit="guardarNotaLibrePrincipal(event)">
+                <input type="hidden" id="editNotaLibreId">
+                <div class="form-group">
+                    <label for="libreTitulo">Título o Tema:</label>
+                    <input type="text" id="libreTitulo" required placeholder="Ej. Alineación interna de equipo...">
+                </div>
+                <div class="form-group">
+                    <label for="libreFecha">Fecha:</label>
+                    <input type="date" id="libreFecha" required>
+                </div>
+                <div class="form-group">
+                    <label for="libreArea">Área o Departamento:</label>
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <select id="libreArea" style="flex: 1;" required></select>
+                        <button type="button" class="btn-add-minuta" style="width: auto; padding: 0 14px;" onclick="agregarNuevaAreaPrompt()" title="Agregar nueva área">+</button>
+                    </div>
+                </div>
+                <button type="submit" class="btn-guardar" id="btnNotaLibreSubmit">Crear Registro de Nota</button>
+            </form>
+
+            <div class="section-title">📚 Historial de Notas Internas</div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Título / Tema</th>
+                            <th>Área</th>
+                            <th class="text-center">Total Puntos</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaNotasLibres"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- MÓDULO 4: ACTIVIDADES -->
         <section id="moduloPendientes" class="modulo-vista">
             <div class="filter-box">
                 <label for="filtroFechaPendientes">Filtrar por Fecha:</label>
@@ -233,7 +274,7 @@
             </div>
         </section>
 
-        <!-- MÓDULO 4: ASISTENCIAS -->
+        <!-- MÓDULO 5: ASISTENCIAS -->
         <section id="moduloAsistencias" class="modulo-vista">
             <nav class="nav-submodulos">
                 <button class="btn-submodulo activo" onclick="cambiarSubmodulo('subAsistRegistro', this)">Registro Diario</button>
@@ -312,7 +353,7 @@
             </div>
         </section>
 
-        <!-- MÓDULO 5: VACACIONES -->
+        <!-- MÓDULO 6: VACACIONES -->
         <section id="moduloVacaciones" class="modulo-vista">
             <div class="card-vacaciones-quick" style="background: #fbfbfd; border: 1px solid var(--border-color); border-radius: 16px; padding: 16px 20px; display: flex; align-items: center; gap: 14px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
                 <div style="font-size: 18px; background: #ffffff; color: var(--primary); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 12px; flex-shrink: 0; border: 1px solid var(--border-color);">🏖️</div>
@@ -386,48 +427,6 @@
                 </table>
             </div>
         </section>
-
-        <!-- MÓDULO 6: NOTAS LIBRES (REUNIONES INTERNAS NO PROGRAMADAS) -->
-        <section id="moduloNotasLibres" class="modulo-vista">
-            <div class="section-title">📝 Notas de Reuniones Internas (No Programadas)</div>
-            
-            <form id="formNotaLibre" onsubmit="guardarNotaLibre(event)">
-                <input type="hidden" id="editNotaLibreId">
-                <div class="form-group">
-                    <label for="libreTitulo">Título o Tema:</label>
-                    <input type="text" id="libreTitulo" required placeholder="Ej. Alineación interna de equipo...">
-                </div>
-                <div class="form-group">
-                    <label for="libreFecha">Fecha:</label>
-                    <input type="date" id="libreFecha" required>
-                </div>
-                <div class="form-group">
-                    <label for="libreParticipantes">Participantes:</label>
-                    <input type="text" id="libreParticipantes" placeholder="Nombres o área involucrada...">
-                </div>
-                <div class="form-group">
-                    <label for="libreContenido">Notas y Acuerdos:</label>
-                    <textarea id="libreContenido" rows="6" required placeholder="Escribe los puntos tratados..."></textarea>
-                </div>
-                <button type="submit" class="btn-guardar" id="btnNotaLibreSubmit">Guardar Nota de Reunión</button>
-            </form>
-
-            <div class="section-title">📚 Historial de Notas Libres</div>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Título / Tema</th>
-                            <th>Participantes</th>
-                            <th>Contenido</th>
-                            <th class="text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaNotasLibres"></tbody>
-                </table>
-            </div>
-        </section>
     </div>
 
     <!-- MODAL DE NOTAS -->
@@ -466,6 +465,47 @@
                         </tr>
                     </thead>
                     <tbody id="tablaNotasModal"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE NOTAS LIBRES (INDIVIDUALES / COLABORADOR / ÁREA) -->
+    <div id="modalNotasLibres">
+        <div class="modal-pantalla-completa">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div>
+                    <h3 id="modalLibreTituloTema" style="margin:0; font-size:20px; color:var(--text-main);">Tema</h3>
+                    <p id="modalLibreAreaInfo" style="margin:4px 0 0 0; color:var(--text-muted); font-size:13px;"></p>
+                </div>
+                <button class="btn-cerrar" style="width: auto;" onclick="cerrarModalLibreSimple()">Cerrar y Guardar</button>
+            </div>
+
+            <div class="minuta-input-container">
+                <textarea id="inputLibreNotaTexto" placeholder="Escribe el punto o nota individual... (Ctrl + Enter para agregar)" onkeydown="handleLibreTextAreaKeyDown(event)"></textarea>
+                <div class="minuta-controls-row">
+                    <select id="inputLibreNotaResponsable"></select>
+                    <select id="inputLibreNotaPrioridad">
+                        <option value="Alta">Prioridad Alta</option>
+                        <option value="Media" selected>Prioridad Media</option>
+                        <option value="Baja">Prioridad Baja</option>
+                    </select>
+                    <button class="btn-add-minuta" onclick="agregarNotaLibreModal()">+ Agregar Nota</button>
+                </div>
+            </div>
+
+            <div class="table-container" style="flex:1;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width: 50px;">Hecho</th>
+                            <th>Descripción del Punto / Nota</th>
+                            <th>Asignado a (Colaborador)</th>
+                            <th class="text-center">Prioridad</th>
+                            <th class="text-center" style="width: 80px;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaNotasLibresModal"></tbody>
                 </table>
             </div>
         </div>
