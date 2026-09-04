@@ -169,11 +169,11 @@
             </div>
         </section>
 
-        <!-- MÓDULO 3: NOTAS LIBRES (REUNIONES INTERNAS NO PROGRAMADAS) -->
+        <!-- MÓDULO 3: NOTAS (REUNIONES INTERNAS NO PROGRAMADAS) -->
         <section id="moduloNotasLibres" class="modulo-vista">
             <div class="section-title">📝 Notas de Reuniones Internas (No Programadas)</div>
             
-            <form id="formNotaLibre" onsubmit="guardarNotaLibrePrincipal(event)">
+            <form id="formNotaLibre" onsubmit="guardarNotaLibreCompleta(event)">
                 <input type="hidden" id="editNotaLibreId">
                 <div class="form-group">
                     <label for="libreTitulo">Título o Tema:</label>
@@ -190,7 +190,44 @@
                         <button type="button" class="btn-add-minuta" style="width: auto; padding: 0 14px;" onclick="agregarNuevaAreaPrompt()" title="Agregar nueva área">+</button>
                     </div>
                 </div>
-                <button type="submit" class="btn-guardar" id="btnNotaLibreSubmit">Crear Registro de Nota</button>
+
+                <div class="form-group" style="align-items: flex-start;">
+                    <label style="padding-top: 10px;">Notas y Acuerdos:</label>
+                    <div style="width: 100%; display: flex; flex-direction: column; gap: 10px;">
+                        <div class="minuta-input-container" style="margin-bottom: 0;">
+                            <textarea id="inputLibreNotaTexto" placeholder="Escribe los puntos tratados... (Ctrl + Enter para agregar)" onkeydown="handleLibreTextAreaKeyDown(event)"></textarea>
+                            <div class="minuta-controls-row" style="flex-direction: row; gap: 8px; align-items: center;">
+                                <select id="inputLibreNotaResponsable" style="flex: 1;"></select>
+                                <select id="inputLibreNotaPrioridad" style="width: 150px;">
+                                    <option value="Alta">Prioridad Alta</option>
+                                    <option value="Media" selected>Prioridad Media</option>
+                                    <option value="Baja">Prioridad Baja</option>
+                                </select>
+                                <button type="button" class="btn-add-punto-verde" onclick="agregarPuntoFormularioLibre()" title="Agregar punto">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Tabla interna de puntos agregados en el formulario -->
+                        <div class="table-container" style="margin-top: 5px;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th class="text-center" style="width: 40px;">#</th>
+                                        <th>Descripción del Punto</th>
+                                        <th>Asignado a</th>
+                                        <th class="text-center">Prioridad</th>
+                                        <th class="text-center" style="width: 70px;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaPuntosFormularioLibre">
+                                    <tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 10px;">No hay puntos agregados todavía.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-guardar" id="btnNotaLibreSubmit" style="margin-top: 15px;">Guardar Nota de Reunión</button>
             </form>
 
             <div class="section-title">📚 Historial de Notas Internas</div>
@@ -465,47 +502,6 @@
                         </tr>
                     </thead>
                     <tbody id="tablaNotasModal"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE NOTAS LIBRES (INDIVIDUALES / COLABORADOR / ÁREA) -->
-    <div id="modalNotasLibres">
-        <div class="modal-pantalla-completa">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <div>
-                    <h3 id="modalLibreTituloTema" style="margin:0; font-size:20px; color:var(--text-main);">Tema</h3>
-                    <p id="modalLibreAreaInfo" style="margin:4px 0 0 0; color:var(--text-muted); font-size:13px;"></p>
-                </div>
-                <button class="btn-cerrar" style="width: auto;" onclick="cerrarModalLibreSimple()">Cerrar y Guardar</button>
-            </div>
-
-            <div class="minuta-input-container">
-                <textarea id="inputLibreNotaTexto" placeholder="Escribe el punto o nota individual... (Ctrl + Enter para agregar)" onkeydown="handleLibreTextAreaKeyDown(event)"></textarea>
-                <div class="minuta-controls-row">
-                    <select id="inputLibreNotaResponsable"></select>
-                    <select id="inputLibreNotaPrioridad">
-                        <option value="Alta">Prioridad Alta</option>
-                        <option value="Media" selected>Prioridad Media</option>
-                        <option value="Baja">Prioridad Baja</option>
-                    </select>
-                    <button class="btn-add-minuta" onclick="agregarNotaLibreModal()">+ Agregar Nota</button>
-                </div>
-            </div>
-
-            <div class="table-container" style="flex:1;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th class="text-center" style="width: 50px;">Hecho</th>
-                            <th>Descripción del Punto / Nota</th>
-                            <th>Asignado a (Colaborador)</th>
-                            <th class="text-center">Prioridad</th>
-                            <th class="text-center" style="width: 80px;">Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaNotasLibresModal"></tbody>
                 </table>
             </div>
         </div>

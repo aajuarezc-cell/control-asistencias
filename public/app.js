@@ -15,8 +15,7 @@ let notasTemporalesModal = [];
 let filtroPrioridadActiva = null;
 let globalVacacionesData = [];
 
-let idNotaLibreActual = null;
-let notasLibresTemporalesModal = [];
+let puntosFormularioLibre = [];
 
 function formatearFechaVista(fechaStr) {
     if (!fechaStr) return '';
@@ -235,6 +234,176 @@ async function agregarNuevaAreaPrompt() {
         alert("Área agregada con éxito.");
     } catch (e) {
         console.error("Error guardando área:", e);
+    }
+}
+
+function agregarPuntoFormularioLibre() {
+    const texto = document.getElementById('inputLibreNotaTexto').value.trim();
+    const responsable = document.getElementById('inputLibreNotaResponsable').value;
+    const prioridad = document.getElementById('inputLibreNotaPrioridad').value;
+    
+    if (!texto) { 
+        alert('Escribe el contenido del punto o nota.'); 
+        return; 
+    }
+
+    puntosFormularioLibre.push({ 
+        texto, 
+        responsable: responsable || 'General', 
+        prioridad, 
+        completado: false 
+    });
+
+    document.getElementById('inputLibreNotaTexto').value = '';
+    document.getElementById('inputLibreNotaResponsable').value = '';
+    renderizarTablaPuntosFormularioLibre();
+}
+
+function handleLibreTextAreaKeyDown(event) {
+    if (event.ctrlKey && event.key === 'Enter') {
+        event.preventDefault();
+        agregarPuntoFormularioLibre();
+    }
+}
+
+function eliminarPuntoFormularioLibre(index) {
+    puntosFormularioLibre.splice(index, 1);
+    renderizarTablaPuntosFormularioLibre();
+}
+
+function renderizarTablaPuntosFormularioLibre() {
+    const tbody = document.getElementById('tablaPuntosFormularioLibre');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (puntosFormularioLibre.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 10px;">No hay puntos agregados todavía.</td></tr>`;
+        return;
+    }
+
+    puntosFormularioLibre.forEach((pto, idx) => {
+        let badgePri = pto.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (pto.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
+        const tr = document.createElement('tr');
+        if (pto.completado) tr.classList.add('completado');
+        const textoHtml = pto.texto.replace(/\n/g, '<br>');
+
+        tr.innerHTML = `
+            <td class="text-center">${idx + 1}</td>
+            <td style="white-space: pre-line;">${textoHtml}</td>
+            <td><b>${pto.responsable}</b></td>
+            <td class="text-center">${badgePri}</td>
+            <td class="text-center"><button type="button" class="btn-eliminar-item" onclick="eliminarPuntoFormularioLibre(${idx})">Eliminar</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function guardarNotaLibreCompleta(e) {
+    e.preventDefault();
+    const idEdit = document.getElementById('editNotaLibreId').value;
+    const titulo = document.getElementById('libreTitulo').value;
+    const fecha = document.getElementById('libreFecha').value;
+    const area = document.getElementById('libreArea').value;
+
+    if (!area) {
+        alert("Selecciona o agrega un área.");
+        return;
+    }
+
+    const payload = {
+        titulo,
+        fecha,
+        area,
+        notasLista: puntosFormularioLibre
+    };
+
+    try {
+        if (idEdit) {
+            await fetch(`/api/notas-libres/${idEdit}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            document.getElementById('editNotaLibreId').value = '';
+            document.getElementById('btnNotaLibreSubmit').innerText = 'Guardar Nota de Reunión';
+        } else {
+            await fetch('/api/notas-libres', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
+        document.getElementById('formNotaLibre').reset();
+        document.getElementById('libreFecha').value = fechaHoy;
+        puntosFormularioLibre = [];
+        renderizarTablaPuntosFormularioLibre();
+        poblarSelectAreas();
+        cargarNotasLibres();
+        alert("Nota de reunión guardada con éxito.");
+    } catch (err) {
+        console.error("Error al guardar nota libre:", err);
+    }
+}
+
+async function cargarNotasLibres() {
+    try {
+        const res = await fetch('/api/notas-libres');
+        const data = await res.json();
+        const tbody = document.getElementById('tablaNotasLibres');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas registradas.</td></tr>`;
+            return;
+        }
+
+        data.forEach(item => {
+            const totalNotas = item.notasLista ? item.notasLista.length : 0;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${formatearFechaVista(item.fecha)}</td>
+                <td><b>${item.titulo}</b></td>
+                <td><span class="badge badge-libre">${item.area || 'General'}</span></td>
+                <td class="text-center"><b>${totalNotas}</b></td>
+                <td class="text-center">
+                    <div class="acciones-container">
+                        <button class="btn-accion btn-notas" onclick="cargarEdicionNotaLibre('${item._id}')" title="Ver o Editar Nota">Ver Nota</button>
+                        <button class="btn-accion btn-eliminar" onclick="eliminarNotaLibrePrincipal('${item._id}')">Eliminar</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error("Error al cargar notas libres:", e);
+    }
+}
+
+async function cargarEdicionNotaLibre(id) {
+    try {
+        const res = await fetch(`/api/notas-libres/${id}`);
+        const item = await res.json();
+        if (!item) return;
+
+        document.getElementById('editNotaLibreId').value = item._id;
+        document.getElementById('libreTitulo').value = item.titulo;
+        document.getElementById('libreFecha').value = item.fecha;
+        document.getElementById('libreArea').value = item.area || '';
+        
+        puntosFormularioLibre = item.notasLista ? JSON.parse(JSON.stringify(item.notasLista)) : [];
+        renderizarTablaPuntosFormularioLibre();
+        document.getElementById('btnNotaLibreSubmit').innerText = 'Actualizar Nota de Reunión';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+        console.error("Error al cargar nota para edición:", e);
+    }
+}
+
+async function eliminarNotaLibrePrincipal(id) {
+    if (confirm("¿Estás seguro de eliminar este registro de notas y todos sus puntos?")) {
+        await fetch(`/api/notas-libres/${id}`, { method: 'DELETE' });
+        cargarNotasLibres();
     }
 }
 
@@ -505,91 +674,11 @@ async function abrirModalNotas(folio) {
     }
 }
 
-async function guardarNotasModal() {
-    if (!folioNotaActual) return;
-    try {
-        const res = await fetch('/api/pendientes');
-        const data = await res.json();
-        const p = data.find(item => item.folio === folioNotaActual);
-        if (p) {
-            p.notasLista = notasTemporalesModal;
-            if (p.tipo === 'Reunión') {
-                await sincronizarNotasComoActividades(p.folio, p.notasLista, p.vencimiento);
-            }
-            await fetch(`/api/pendientes/${folioNotaActual}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(p)
-            });
-            alert("Notas guardadas.");
-            cargarPendientes();
-        }
-    } catch (e) {
-        console.error("Error al guardar notas:", e);
-    }
-}
-
 function cerrarModalSimple() {
     document.getElementById('modalNotas').style.display = 'none';
     folioNotaActual = null;
     tipoItemActual = null;
     cargarPendientes();
-}
-
-async function sincronizarNotasComoActividades(folioReunion, notas, fechaReunion) {
-    try {
-        const res = await fetch('/api/pendientes');
-        let todas = await res.json();
-        let actividadesExistentes = todas.filter(item => item.observaciones && item.observaciones.includes(`[Origen: ${folioReunion}-nota-`));
-        let indicesActuales = new Set();
-
-        for (let i = 0; i < notas.length; i++) {
-            let nota = notas[i];
-            if (nota.responsable && nota.responsable !== 'Sin asignar' && nota.responsable !== 'General') {
-                indicesActuales.add(i);
-                let marcaOrigen = `[Origen: ${folioReunion}-nota-${i}]`;
-                let existente = actividadesExistentes.find(act => act.observaciones.includes(marcaOrigen));
-
-                if (!existente && !nota.completado) {
-                    const nuevoFolio = `ACT-${folioReunion.replace('REU-', '')}-${i + 1}`;
-                    await fetch('/api/pendientes', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            folio: nuevoFolio,
-                            tipo: 'Actividad',
-                            prioridad: nota.prioridad || 'Media',
-                            incidente: nota.texto,
-                            turnado: nota.responsable,
-                            vencimiento: fechaReunion || fechaHoy,
-                            observaciones: `Derivado de reunión ${folioReunion} ${marcaOrigen}`,
-                            finalizado: false
-                        })
-                    });
-                } else if (existente) {
-                    if (existente.finalizado !== nota.completado || existente.incidente !== nota.texto || existente.turnado !== nota.responsable) {
-                        await fetch(`/api/pendientes/${existente.folio}`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ finalizado: nota.completado, incidente: nota.texto, turnado: nota.responsable })
-                        });
-                    }
-                }
-            }
-        }
-
-        for (let act of actividadesExistentes) {
-            let matchNota = act.observaciones.match(/\[Origen:\s*?.+?-nota-(\d+)\]/);
-            if (matchNota && matchNota.length >= 2) {
-                let idxNotaOriginal = parseInt(matchNota[1]);
-                if (!indicesActuales.has(idxNotaOriginal)) {
-                    await fetch(`/api/pendientes/${act.folio}`, { method: 'DELETE' });
-                }
-            }
-        }
-    } catch (e) {
-        console.error("Error sincronización:", e);
-    }
 }
 
 function agregarNotaModal() {
@@ -943,190 +1032,6 @@ async function eliminarRegistroVacacion(id) {
         cargarMatrizAsistencias();
         cargarReporteSemanal();
         cargarReporteMensual();
-    }
-}
-
-async function guardarNotaLibrePrincipal(e) {
-    e.preventDefault();
-    const idEdit = document.getElementById('editNotaLibreId').value;
-    const titulo = document.getElementById('libreTitulo').value;
-    const fecha = document.getElementById('libreFecha').value;
-    const area = document.getElementById('libreArea').value;
-
-    if (!area) {
-        alert("Selecciona o agrega un área.");
-        return;
-    }
-
-    try {
-        if (idEdit) {
-            const res = await fetch(`/api/notas-libres/${idEdit}`);
-            const notaActual = await res.json();
-            notaActual.titulo = titulo;
-            notaActual.fecha = fecha;
-            notaActual.area = area;
-
-            await fetch(`/api/notas-libres/${idEdit}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(notaActual)
-            });
-            document.getElementById('editNotaLibreId').value = '';
-            document.getElementById('btnNotaLibreSubmit').innerText = 'Crear Registro de Nota';
-        } else {
-            await fetch('/api/notas-libres', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ titulo, fecha, area, notasLista: [] })
-            });
-        }
-        document.getElementById('formNotaLibre').reset();
-        document.getElementById('libreFecha').value = fechaHoy;
-        poblarSelectAreas();
-        cargarNotasLibres();
-        alert("Registro guardado con éxito.");
-    } catch (err) {
-        console.error("Error al guardar nota libre principal:", err);
-    }
-}
-
-async function cargarNotasLibres() {
-    try {
-        const res = await fetch('/api/notas-libres');
-        const data = await res.json();
-        const tbody = document.getElementById('tablaNotasLibres');
-        if (!tbody) return;
-        tbody.innerHTML = '';
-
-        if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas registradas.</td></tr>`;
-            return;
-        }
-
-        data.forEach(item => {
-            const totalNotas = item.notasLista ? item.notasLista.length : 0;
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${formatearFechaVista(item.fecha)}</td>
-                <td><b>${item.titulo}</b></td>
-                <td><span class="badge badge-libre">${item.area || 'General'}</span></td>
-                <td class="text-center"><b>${totalNotas}</b></td>
-                <td class="text-center">
-                    <div class="acciones-container">
-                        <button class="btn-accion btn-notas" onclick="abrirModalNotasLibres('${item._id}')">Notas</button>
-                        <button class="btn-accion btn-eliminar" onclick="eliminarNotaLibrePrincipal('${item._id}')">Eliminar</button>
-                    </div>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (e) {
-        console.error("Error al cargar notas libres:", e);
-    }
-}
-
-async function abrirModalNotasLibres(id) {
-    idNotaLibreActual = id;
-    try {
-        const res = await fetch(`/api/notas-libres/${id}`);
-        const item = await res.json();
-        if (!item) return;
-
-        document.getElementById('modalLibreTituloTema').innerText = item.titulo;
-        document.getElementById('modalLibreAreaInfo').innerText = `Área: ${item.area || 'General'} | Fecha: ${formatearFechaVista(item.fecha)}`;
-        document.getElementById('inputLibreNotaTexto').value = '';
-        document.getElementById('inputLibreNotaResponsable').value = '';
-        document.getElementById('inputLibreNotaPrioridad').value = 'Media';
-
-        notasLibresTemporalesModal = item.notasLista ? JSON.parse(JSON.stringify(item.notasLista)) : [];
-        renderizarTablaNotasLibresModal();
-        document.getElementById('modalNotasLibres').style.display = 'flex';
-    } catch (e) {
-        console.error("Error al abrir modal de notas libres:", e);
-    }
-}
-
-function agregarNotaLibreModal() {
-    const texto = document.getElementById('inputLibreNotaTexto').value.trim();
-    const responsable = document.getElementById('inputLibreNotaResponsable').value;
-    const prioridad = document.getElementById('inputLibreNotaPrioridad').value;
-    if (!texto) { alert('Escribe el contenido del punto o nota.'); return; }
-
-    notasLibresTemporalesModal.push({ texto, responsable: responsable || 'General', prioridad, completado: false });
-    document.getElementById('inputLibreNotaTexto').value = '';
-    document.getElementById('inputLibreNotaResponsable').value = '';
-    renderizarTablaNotasLibresModal();
-}
-
-function handleLibreTextAreaKeyDown(event) {
-    if (event.ctrlKey && event.key === 'Enter') {
-        event.preventDefault();
-        agregarNotaLibreModal();
-    }
-}
-
-function toggleNotaLibreRealizadaModal(indexNota, completado) {
-    if (notasLibresTemporalesModal[indexNota]) {
-        notasLibresTemporalesModal[indexNota].completado = completado;
-        renderizarTablaNotasLibresModal();
-    }
-}
-
-function eliminarNotaLibreModalItem(indexNota) {
-    notasLibresTemporalesModal.splice(indexNota, 1);
-    renderizarTablaNotasLibresModal();
-}
-
-function renderizarTablaNotasLibresModal() {
-    const tbody = document.getElementById('tablaNotasLibresModal');
-    tbody.innerHTML = '';
-    if (!notasLibresTemporalesModal || notasLibresTemporalesModal.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas individuales registradas.</td></tr>`;
-        return;
-    }
-
-    notasLibresTemporalesModal.forEach((nota, idx) => {
-        let badgePri = nota.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (nota.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
-        const tr = document.createElement('tr');
-        if (nota.completado) tr.classList.add('completado');
-        const textoHtml = nota.texto.replace(/\n/g, '<br>');
-
-        tr.innerHTML = `
-            <td class="text-center"><input type="checkbox" style="width: 18px; height: 18px;" ${nota.completado ? 'checked' : ''} onclick="toggleNotaLibreRealizadaModal(${idx}, this.checked)"></td>
-            <td style="white-space: pre-line;">${textoHtml}</td>
-            <td><b>${nota.responsable}</b></td>
-            <td class="text-center">${badgePri}</td>
-            <td class="text-center"><button class="btn-eliminar-item" onclick="eliminarNotaLibreModalItem(${idx})">Eliminar</button></td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-async function cerrarModalLibreSimple() {
-    if (!idNotaLibreActual) return;
-    try {
-        const res = await fetch(`/api/notas-libres/${idNotaLibreActual}`);
-        const item = await res.json();
-        if (item) {
-            item.notasLista = notasLibresTemporalesModal;
-            await fetch(`/api/notas-libres/${idNotaLibreActual}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(item)
-            });
-        }
-        document.getElementById('modalNotasLibres').style.display = 'none';
-        idNotaLibreActual = null;
-        cargarNotasLibres();
-    } catch (e) {
-        console.error("Error al cerrar y guardar notas libres:", e);
-    }
-}
-
-async function eliminarNotaLibrePrincipal(id) {
-    if (confirm("¿Estás seguro de eliminar este registro de notas y todos sus puntos?")) {
-        await fetch(`/api/notas-libres/${id}`, { method: 'DELETE' });
-        cargarNotasLibres();
     }
 }
 
