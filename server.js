@@ -254,7 +254,7 @@ app.delete('/api/pendientes/:folio', async (req, res) => {
     }
 });
 
-app.post('/api/forzar-discord', async (req, res) => {
+app.post('/api/forzar-telegram', async (req, res) => {
     try {
         await generarYEnviarReporteTelegram(true);
         res.json({ exito: true });
@@ -466,7 +466,7 @@ app.post('/api/areas', async (req, res) => {
     }
 });
 
-// Tarea programada modificada para ejecutarse cada hora desde las 8:00 hasta las 21:00 hrs
+// Tarea programada: Cada hora de 8:00 a 21:00 hrs
 cron.schedule('0 8-21 * * *', async () => {
     try {
         await generarYEnviarReporteTelegram(false);

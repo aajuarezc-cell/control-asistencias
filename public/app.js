@@ -27,10 +27,10 @@ function formatearFechaVista(fechaStr) {
     return fechaStr;
 }
 
-async function forzarEnvioDiscord() {
+async function forzarEnvioTelegram() {
     if (!confirm("¿Deseas enviar el reporte actual de Agenda y Actividades a Telegram ahora mismo?")) return;
     try {
-        const res = await fetch('/api/forzar-discord', { method: 'POST' });
+        const res = await fetch('/api/forzar-telegram', { method: 'POST' });
         const data = await res.json();
         if (data.exito) {
             alert("¡Reporte enviado a Telegram con éxito!");
@@ -1334,13 +1334,6 @@ async function toggleEstado(folio, finalizado) {
         }
         cargarPendientes();
     } catch (e) { cargarPendientes(); }
-}
-
-function cerrarAlerta() { document.getElementById('modalAlerta').style.display = 'none'; }
-function mostrarModal(t, h) {
-    document.getElementById('tituloModal').innerText = t;
-    document.getElementById('contenidoModal').innerHTML = h;
-    document.getElementById('modalAlerta').style.display = 'flex';
 }
 
 window.onload = () => {
