@@ -309,48 +309,72 @@ function renderizarTablaPuntosFormularioLibre() {
     });
 }
 
-async function guardarNotaLibreCompleta(e) {
+async function guardarRegistroGeneral(e) {
     e.preventDefault();
-    const idEdit = document.getElementById('editNotaLibreId').value;
-    const titulo = document.getElementById('libreTitulo').value;
-    const fecha = document.getElementById('libreFecha').value;
-    const area = document.getElementById('libreArea').value;
+    const tipo = document.getElementById('tipo').value;
 
-    if (!area) {
-        alert("Selecciona o agrega un área.");
-        return;
-    }
+    if (tipo === 'Nota') {
+        const idEdit = document.getElementById('editNotaLibreId').value;
+        const titulo = document.getElementById('libreTitulo').value;
+        const fecha = document.getElementById('libreFecha').value;
+        const area = document.getElementById('libreArea').value;
 
-    const payload = {
-        titulo,
-        fecha,
-        area,
-        notasLista: puntosFormularioLibre
-    };
-
-    try {
-        if (idEdit) {
-            await fetch(`/api/notas-libres/${idEdit}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            alert("Nota actualizada con éxito.");
-        } else {
-            await fetch('/api/notas-libres', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            alert("Nota de reunión guardada con éxito.");
+        if (!area) {
+            alert("Selecciona o agrega un área.");
+            return;
         }
 
-        cancelarEdicionNotaLibreForm();
-        poblarSelectAreas();
-        cargarNotasLibres();
-        
-    } catch (err) {
-        console.error("Error al guardar nota libre:", err);
+        const payload = {
+            titulo,
+            fecha,
+            area,
+            notasLista: puntosFormularioLibre
+        };
+
+        try {
+            if (idEdit) {
+                await fetch(`/api/notas-libres/${idEdit}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                alert("Nota actualizada con éxito.");
+            } else {
+                await fetch('/api/notas-libres', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                alert("Nota de reunión guardada con éxito.");
+            }
+
+            cancelarEdicionFormulario();
+            poblarSelectAreas();
+            cargarNotasLibres();
+            cambiarModulo('moduloNotasLibres', document.querySelectorAll('.btn-modulo')[2]);
+        } catch (err) {
+            console.error("Error al guardar nota libre:", err);
+        }
+    } else {
+        const editFolio = document.getElementById('editFolio').value;
+        const payload = {
+            tipo,
+            incidente: document.getElementById('incidente').value,
+            turnado: document.getElementById('turnado').value,
+            vencimiento: document.getElementById('vencimiento').value,
+            horaReunion: document.getElementById('horaReunion').value,
+            observaciones: document.getElementById('observaciones').value,
+            prioridad: document.getElementById('prioridad').value
+        };
+
+        if (editFolio) {
+            await fetch(`/api/pendientes/${editFolio}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        } else {
+            await fetch('/api/pendientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        }
+
+        cancelarEdicionFormulario();
+        cargarPendientes();
     }
 }
 
@@ -493,33 +517,29 @@ async function cargarEdicionNotaLibre(id) {
         const item = await res.json();
         if (!item) return;
 
+        tipoItemEnEdicion = 'Nota';
         document.getElementById('editNotaLibreId').value = item._id;
+        document.getElementById('tipo').value = 'Nota';
+        toggleCamposTipo();
+
         document.getElementById('libreTitulo').value = item.titulo;
         document.getElementById('libreFecha').value = item.fecha;
         document.getElementById('libreArea').value = item.area || '';
         
         puntosFormularioLibre = item.notasLista ? JSON.parse(JSON.stringify(item.notasLista)) : [];
         renderizarTablaPuntosFormularioLibre();
-        document.getElementById('btnNotaLibreSubmit').innerText = 'Actualizar Nota de Reunión';
-        document.getElementById('btnCancelarNotaLibre').classList.remove('oculto');
+        document.getElementById('btnSubmitText').innerText = 'Actualizar Nota de Reunión';
+        document.getElementById('btnCancelarEdicion').classList.remove('oculto');
+        
+        cambiarModulo('moduloNuevoRegistro', document.querySelector('.nav-modulos button:first-child'));
         window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
         console.error("Error al cargar nota para edición:", e);
     }
 }
 
-function cancelarEdicionNotaLibreForm() {
-    document.getElementById('formNotaLibre').reset();
-    document.getElementById('editNotaLibreId').value = '';
-    document.getElementById('libreFecha').value = fechaHoy;
-    document.getElementById('btnNotaLibreSubmit').innerText = 'Guardar Nota de Reunión';
-    document.getElementById('btnCancelarNotaLibre').classList.add('oculto');
-    puntosFormularioLibre = [];
-    renderizarTablaPuntosFormularioLibre();
-}
-
 async function eliminarNotaLibrePrincipal(id) {
-    if (confirm("¿Estás seguro de eliminar este registro de notas y todos sus puntos?")) {
+    if (confirm("¿Estás seguro de eliminar este registro de notas y todos seus puntos?")) {
         await fetch(`/api/notas-libres/${id}`, { method: 'DELETE' });
         cargarNotasLibres();
     }
@@ -532,18 +552,53 @@ function toggleCamposTipo() {
     const grupoTurnado = document.getElementById('grupoTurnado');
     const selectTurnadoElem = document.getElementById('turnado');
     
+    const grupoPrioridad = document.getElementById('grupoPrioridad');
+    const grupoVencimiento = document.getElementById('grupoVencimiento');
+    const grupoIncidente = document.getElementById('grupoIncidente');
+    const grupoObservaciones = document.getElementById('grupoObservaciones');
+
+    const grupoTituloNota = document.getElementById('grupoTituloNota');
+    const grupoFechaNota = document.getElementById('grupoFechaNota');
+    const grupoAreaNota = document.getElementById('grupoAreaNota');
+    const grupoPuntosNota = document.getElementById('grupoPuntosNota');
+    
     if (tipo === 'Reunión') {
-        grupoHora.classList.remove('oculto');
-        inputHora.required = true;
-        grupoTurnado.classList.add('oculto');
-        selectTurnadoElem.required = false;
-        selectTurnadoElem.value = '';
-    } else {
-        grupoHora.classList.add('oculto');
-        inputHora.required = false;
-        inputHora.value = '';
-        grupoTurnado.classList.remove('oculto');
-        selectTurnadoElem.required = true;
+        grupoHora.classList.remove('oculto'); inputHora.required = true;
+        grupoTurnado.classList.add('oculto'); selectTurnadoElem.required = false; selectTurnadoElem.value = '';
+        grupoPrioridad.classList.remove('oculto'); document.getElementById('prioridad').required = true;
+        grupoVencimiento.classList.remove('oculto'); document.getElementById('vencimiento').required = true;
+        grupoIncidente.classList.remove('oculto'); document.getElementById('incidente').required = true;
+        grupoObservaciones.classList.remove('oculto');
+
+        grupoTituloNota.classList.add('oculto'); document.getElementById('libreTitulo').required = false;
+        grupoFechaNota.classList.add('oculto'); document.getElementById('libreFecha').required = false;
+        grupoAreaNota.classList.add('oculto'); document.getElementById('libreArea').required = false;
+        grupoPuntosNota.classList.add('oculto');
+    } else if (tipo === 'Nota') {
+        grupoHora.classList.add('oculto'); inputHora.required = false; inputHora.value = '';
+        grupoTurnado.classList.add('oculto'); selectTurnadoElem.required = false; selectTurnadoElem.value = '';
+        grupoPrioridad.classList.add('oculto'); document.getElementById('prioridad').required = false;
+        grupoVencimiento.classList.add('oculto'); document.getElementById('vencimiento').required = false;
+        grupoIncidente.classList.add('oculto'); document.getElementById('incidente').required = false;
+        grupoObservaciones.classList.add('oculto');
+
+        grupoTituloNota.classList.remove('oculto'); document.getElementById('libreTitulo').required = true;
+        grupoFechaNota.classList.remove('oculto'); document.getElementById('libreFecha').required = true;
+        if (!document.getElementById('libreFecha').value) document.getElementById('libreFecha').value = fechaHoy;
+        grupoAreaNota.classList.remove('oculto'); document.getElementById('libreArea').required = true;
+        grupoPuntosNota.classList.remove('oculto');
+    } else { // Actividad
+        grupoHora.classList.add('oculto'); inputHora.required = false; inputHora.value = '';
+        grupoTurnado.classList.remove('oculto'); selectTurnadoElem.required = true;
+        grupoPrioridad.classList.remove('oculto'); document.getElementById('prioridad').required = true;
+        grupoVencimiento.classList.remove('oculto'); document.getElementById('vencimiento').required = true;
+        grupoIncidente.classList.remove('oculto'); document.getElementById('incidente').required = true;
+        grupoObservaciones.classList.remove('oculto');
+
+        grupoTituloNota.classList.add('oculto'); document.getElementById('libreTitulo').required = false;
+        grupoFechaNota.classList.add('oculto'); document.getElementById('libreFecha').required = false;
+        grupoAreaNota.classList.add('oculto'); document.getElementById('libreArea').required = false;
+        grupoPuntosNota.classList.add('oculto');
     }
 }
 
@@ -1166,29 +1221,6 @@ function limpiarFiltroPendientes() { filtroPrioridadActiva = null; document.getE
 function limpiarFiltroSemana() { document.getElementById('filtroSemana').value = fechaHoy; document.getElementById('filtroPersonaReporte').value = 'TODOS'; cargarReporteSemanal(); }
 function limpiarFiltroMensual() { document.getElementById('filtroMes').value = mesHoy; document.getElementById('filtroPersonaMensual').value = 'TODOS'; cargarReporteMensual(); }
 
-document.getElementById('formPendiente').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const editFolio = document.getElementById('editFolio').value;
-    const payload = {
-        tipo: document.getElementById('tipo').value,
-        incidente: document.getElementById('incidente').value,
-        turnado: document.getElementById('turnado').value,
-        vencimiento: document.getElementById('vencimiento').value,
-        horaReunion: document.getElementById('horaReunion').value,
-        observaciones: document.getElementById('observaciones').value,
-        prioridad: document.getElementById('prioridad').value
-    };
-
-    if (editFolio) {
-        await fetch(`/api/pendientes/${editFolio}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    } else {
-        await fetch('/api/pendientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    }
-
-    cancelarEdicionFormulario();
-    cargarPendientes();
-});
-
 async function prepararEdicion(folio) {
     try {
         const res = await fetch('/api/pendientes');
@@ -1198,6 +1230,7 @@ async function prepararEdicion(folio) {
 
         tipoItemEnEdicion = p.tipo;
         document.getElementById('editFolio').value = p.folio;
+        document.getElementById('editNotaLibreId').value = '';
         document.getElementById('tipo').value = p.tipo;
         toggleCamposTipo();
         document.getElementById('horaReunion').value = p.horaReunion || '';
@@ -1218,13 +1251,18 @@ function cancelarEdicionFormulario() {
     const tipoTemp = tipoItemEnEdicion;
     document.getElementById('formPendiente').reset();
     document.getElementById('editFolio').value = '';
+    document.getElementById('editNotaLibreId').value = '';
     document.getElementById('btnSubmitText').innerText = 'Guardar Registro';
     document.getElementById('btnCancelarEdicion').classList.add('oculto');
+    puntosFormularioLibre = [];
+    renderizarTablaPuntosFormularioLibre();
     tipoItemEnEdicion = null;
     toggleCamposTipo();
 
     if (tipoTemp === 'Reunión') {
         cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
+    } else if (tipoTemp === 'Nota') {
+        cambiarModulo('moduloNotasLibres', document.querySelectorAll('.btn-modulo')[2]);
     } else {
         cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
     }
