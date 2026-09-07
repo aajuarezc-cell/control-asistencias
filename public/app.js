@@ -539,7 +539,7 @@ async function cargarEdicionNotaLibre(id) {
 }
 
 async function eliminarNotaLibrePrincipal(id) {
-    if (confirm("¿Estás seguro de eliminar este registro de notas y todos seus puntos?")) {
+    if (confirm("¿Estás seguro de eliminar este registro de notas y todos sus puntos?")) {
         await fetch(`/api/notas-libres/${id}`, { method: 'DELETE' });
         cargarNotasLibres();
     }
@@ -657,6 +657,8 @@ async function cargarPendientes() {
         const tbodyPendientes = document.getElementById('tablaPendientes');
         const tbodyPendientesFinalizados = document.getElementById('tablaPendientesFinalizados');
         
+        if (!tbodyReuniones || !tbodyPendientes) return;
+
         tbodyReuniones.innerHTML = '';
         tbodyReunionesFinalizadas.innerHTML = '';
         tbodyPendientes.innerHTML = '';
@@ -921,6 +923,7 @@ async function cargarMatrizAsistencias() {
         });
 
         const tbody = document.getElementById('tablaMatrizAsistencias');
+        if (!tbody) return;
         tbody.innerHTML = '';
 
         personalLista.forEach(persona => {
@@ -999,6 +1002,7 @@ async function cargarReporteSemanal() {
         const res = await fetch('/api/asistencias');
         const data = await res.json();
         const tbody = document.getElementById('tablaReporteSemanal');
+        if (!tbody) return;
         tbody.innerHTML = '';
 
         let listaMostrar = personaSel !== 'TODOS' ? [personaSel] : personalLista;
@@ -1047,6 +1051,7 @@ async function cargarReporteMensual() {
         });
 
         const tbody = document.getElementById('tablaReporteMensual');
+        if (!tbody) return;
         tbody.innerHTML = '';
         let listaMostrar = personaSel !== 'TODOS' ? [personaSel] : personalLista;
 
@@ -1312,4 +1317,5 @@ function mostrarModal(t, h) {
 
 window.onload = () => {
     cargarPendientes();
+    poblarSelectAreas();
 };
