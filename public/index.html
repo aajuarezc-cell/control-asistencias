@@ -239,6 +239,12 @@
 
         <!-- MÓDULO 3: NOTAS -->
         <section id="moduloNotasLibres" class="modulo-vista">
+            <div class="filter-box">
+                <label for="filtroAreaNotas">Filtrar por Área / Departamento:</label>
+                <select id="filtroAreaNotas" onchange="cargarNotasLibres()"></select>
+                <button class="btn-limpiar-filtro" onclick="limpiarFiltroAreaNotas()">Ver Todas</button>
+            </div>
+
             <div class="section-title">📚 Historial de Notas Internas</div>
             <div class="table-container">
                 <table>
@@ -314,7 +320,7 @@
                                 <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="tablaPendientesFinalizados"></tbody>
+                        <tbody id="tablaPendientesFinalizadas"></tbody>
                     </table>
                 </div>
             </div>

@@ -62,6 +62,7 @@ function cambiarModulo(idModulo, btnElement) {
     } else if (idModulo === 'moduloVacaciones') {
         cargarResumenVacaciones();
     } else if (idModulo === 'moduloNotasLibres') {
+        poblarSelectAreas();
         cargarNotasLibres();
     }
 }
@@ -188,8 +189,6 @@ if (selectLibreResp) {
 }
 
 async function poblarSelectAreas() {
-    const selectArea = document.getElementById('libreArea');
-    if (!selectArea) return;
     try {
         const res = await fetch('/api/areas');
         const data = await res.json();
@@ -200,12 +199,29 @@ async function poblarSelectAreas() {
         console.error("Error al cargar áreas:", e);
     }
 
-    selectArea.innerHTML = '<option value="">Seleccionar área...</option>';
-    areasListaInicial.forEach(a => {
-        const opt = document.createElement('option');
-        opt.value = a; opt.textContent = a;
-        selectArea.appendChild(opt);
-    });
+    const selectArea = document.getElementById('libreArea');
+    if (selectArea) {
+        const valorActual = selectArea.value;
+        selectArea.innerHTML = '<option value="">Seleccionar área...</option>';
+        areasListaInicial.forEach(a => {
+            const opt = document.createElement('option');
+            opt.value = a; opt.textContent = a;
+            selectArea.appendChild(opt);
+        });
+        if (valorActual) selectArea.value = valorActual;
+    }
+
+    const selectFiltroArea = document.getElementById('filtroAreaNotas');
+    if (selectFiltroArea) {
+        const filtroActual = selectFiltroArea.value;
+        selectFiltroArea.innerHTML = '<option value="TODOS">-- Todas las Áreas --</option>';
+        areasListaInicial.forEach(a => {
+            const opt = document.createElement('option');
+            opt.value = a; opt.textContent = a;
+            selectFiltroArea.appendChild(opt);
+        });
+        if (filtroActual) selectFiltroArea.value = filtroActual;
+    }
 }
 poblarSelectAreas();
 
@@ -381,13 +397,19 @@ async function guardarRegistroGeneral(e) {
 async function cargarNotasLibres() {
     try {
         const res = await fetch('/api/notas-libres');
-        const data = await res.json();
+        let data = await res.json();
+        
+        const filtroArea = document.getElementById('filtroAreaNotas');
+        if (filtroArea && filtroArea.value && filtroArea.value !== 'TODOS') {
+            data = data.filter(item => item.area === filtroArea.value);
+        }
+
         const tbody = document.getElementById('tablaNotasLibres');
         if (!tbody) return;
         tbody.innerHTML = '';
 
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas registradas.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas registradas para esta área.</td></tr>`;
             return;
         }
 
@@ -412,6 +434,12 @@ async function cargarNotasLibres() {
     } catch (e) {
         console.error("Error al cargar notas libres:", e);
     }
+}
+
+function limpiarFiltroAreaNotas() {
+    const filtroArea = document.getElementById('filtroAreaNotas');
+    if (filtroArea) filtroArea.value = 'TODOS';
+    cargarNotasLibres();
 }
 
 async function abrirNotaEnNuevaVentana(id) {
