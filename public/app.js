@@ -77,37 +77,43 @@ function cambiarSubmodulo(idSubmodulo, btnElement) {
 function clickKpiActividadesAlta() {
     filtroPrioridadActiva = 'Alta';
     cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
-    document.getElementById('filtroFechaPendientes').value = '';
+    const inputFecha = document.getElementById('filtroFechaPendientes');
+    if (inputFecha) inputFecha.value = '';
     cargarPendientes();
 }
 
 function clickKpiActividadesMedia() {
     filtroPrioridadActiva = 'Media';
     cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
-    document.getElementById('filtroFechaPendientes').value = '';
+    const inputFecha = document.getElementById('filtroFechaPendientes');
+    if (inputFecha) inputFecha.value = '';
     cargarPendientes();
 }
 
 function clickKpiActividadesBaja() {
     filtroPrioridadActiva = 'Baja';
     cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
-    document.getElementById('filtroFechaPendientes').value = '';
+    const inputFecha = document.getElementById('filtroFechaPendientes');
+    if (inputFecha) inputFecha.value = '';
     cargarPendientes();
 }
 
 function clickKpiReunionesActivas() {
     filtroPrioridadActiva = null;
     cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
-    document.getElementById('filtroFechaAgenda').value = '';
+    const inputFecha = document.getElementById('filtroFechaAgenda');
+    if (inputFecha) inputFecha.value = '';
     cargarPendientes();
 }
 
 function actualizarReloj() {
+    const relojEl = document.getElementById('relojWidget');
+    if (!relojEl) return;
     const ahora = new Date();
     const horas = String(ahora.getHours()).padStart(2, '0');
     const minutos = String(ahora.getMinutes()).padStart(2, '0');
     const segundos = String(ahora.getSeconds()).padStart(2, '0');
-    document.getElementById('relojWidget').innerText = `${horas}:${minutos}:${segundos}`;
+    relojEl.innerText = `${horas}:${minutos}:${segundos}`;
 }
 setInterval(actualizarReloj, 1000);
 actualizarReloj();
@@ -115,28 +121,32 @@ actualizarReloj();
 const fechaHoy = new Date().toISOString().split('T')[0];
 const mesHoy = fechaHoy.substring(0, 7);
 
-document.getElementById('asistFechaCalendario').value = fechaHoy;
-document.getElementById('filtroSemana').value = fechaHoy;
-document.getElementById('filtroMes').value = mesHoy;
-document.getElementById('vacFecha').value = fechaHoy;
+if (document.getElementById('asistFechaCalendario')) document.getElementById('asistFechaCalendario').value = fechaHoy;
+if (document.getElementById('filtroSemana')) document.getElementById('filtroSemana').value = fechaHoy;
+if (document.getElementById('filtroMes')) document.getElementById('filtroMes').value = mesHoy;
+if (document.getElementById('vacFecha')) document.getElementById('vacFecha').value = fechaHoy;
 const inputLibreFecha = document.getElementById('libreFecha');
 if (inputLibreFecha) inputLibreFecha.value = fechaHoy;
 
 const selectPersonaRep = document.getElementById('filtroPersonaReporte');
-selectPersonaRep.innerHTML = '<option value="TODOS">-- Todos --</option>';
-personalLista.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p; opt.textContent = p;
-    selectPersonaRep.appendChild(opt);
-});
+if (selectPersonaRep) {
+    selectPersonaRep.innerHTML = '<option value="TODOS">-- Todos --</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        selectPersonaRep.appendChild(opt);
+    });
+}
 
 const selectPersonaMensual = document.getElementById('filtroPersonaMensual');
-selectPersonaMensual.innerHTML = '<option value="TODOS">-- Todos --</option>';
-personalLista.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p; opt.textContent = p;
-    selectPersonaMensual.appendChild(opt);
-});
+if (selectPersonaMensual) {
+    selectPersonaMensual.innerHTML = '<option value="TODOS">-- Todos --</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        selectPersonaMensual.appendChild(opt);
+    });
+}
 
 const selectVacPersonal = document.getElementById('vacPersonal');
 if (selectVacPersonal) {
@@ -633,13 +643,13 @@ function toggleCamposTipo() {
 async function actualizarDashboardKPIs(dataPendientes) {
     try {
         const actAlta = dataPendientes.filter(p => p.tipo !== 'Reunión' && !p.finalizado && p.prioridad === 'Alta').length;
-        document.getElementById('kpiActividadesAlta').innerText = actAlta;
+        if (document.getElementById('kpiActividadesAlta')) document.getElementById('kpiActividadesAlta').innerText = actAlta;
 
         const actMedia = dataPendientes.filter(p => p.tipo !== 'Reunión' && !p.finalizado && p.prioridad === 'Media').length;
-        document.getElementById('kpiActividadesMedia').innerText = actMedia;
+        if (document.getElementById('kpiActividadesMedia')) document.getElementById('kpiActividadesMedia').innerText = actMedia;
 
         const actBaja = dataPendientes.filter(p => p.tipo !== 'Reunión' && !p.finalizado && p.prioridad === 'Baja').length;
-        document.getElementById('kpiActividadesBaja').innerText = actBaja;
+        if (document.getElementById('kpiActividadesBaja')) document.getElementById('kpiActividadesBaja').innerText = actBaja;
 
         const resAsist = await fetch('/api/asistencias');
         const dataAsist = await resAsist.json();
@@ -651,7 +661,7 @@ async function actualizarDashboardKPIs(dataPendientes) {
         }
 
         const reunionesActivas = dataPendientes.filter(p => p.tipo === 'Reunión' && !p.finalizado).length;
-        document.getElementById('kpiReunionesActivas').innerText = reunionesActivas;
+        if (document.getElementById('kpiReunionesActivas')) document.getElementById('kpiReunionesActivas').innerText = reunionesActivas;
     } catch (e) {
         console.error("Error al actualizar KPIs:", e);
     }
@@ -667,8 +677,8 @@ async function cargarPendientes() {
 
         actualizarDashboardKPIs(data);
         
-        const fechaAgenda = document.getElementById('filtroFechaAgenda').value;
-        const fechaPendientes = document.getElementById('filtroFechaPendientes').value;
+        const fechaAgenda = document.getElementById('filtroFechaAgenda')?.value;
+        const fechaPendientes = document.getElementById('filtroFechaPendientes')?.value;
         
         let dataReuniones = data.filter(p => p.tipo === 'Reunión');
         let dataPendientes = data.filter(p => p.tipo !== 'Reunión');
@@ -683,14 +693,14 @@ async function cargarPendientes() {
         const tbodyReuniones = document.getElementById('tablaReuniones');
         const tbodyReunionesFinalizadas = document.getElementById('tablaReunionesFinalizadas');
         const tbodyPendientes = document.getElementById('tablaPendientes');
-        const tbodyPendientesFinalizados = document.getElementById('tablaPendientesFinalizados');
+        const tbodyPendientesFinalizados = document.getElementById('tablaPendientesFinalizadas');
         
         if (!tbodyReuniones || !tbodyPendientes) return;
 
         tbodyReuniones.innerHTML = '';
-        tbodyReunionesFinalizadas.innerHTML = '';
+        if (tbodyReunionesFinalizadas) tbodyReunionesFinalizadas.innerHTML = '';
         tbodyPendientes.innerHTML = '';
-        tbodyPendientesFinalizados.innerHTML = '';
+        if (tbodyPendientesFinalizados) tbodyPendientesFinalizados.innerHTML = '';
         
         const reunionesActivas = dataReuniones.filter(p => !p.finalizado);
         const reunionesFinalizadas = dataReuniones.filter(p => p.finalizado);
@@ -712,13 +722,14 @@ async function cargarPendientes() {
                 }
                 const asignadosStr = asignadosSet.size > 0 ? Array.from(asignadosSet).join(', ') : '-';
                 const badgePendientes = notasPendientesCount > 0 ? `<span class="badge" style="background: #fee2e2; color: #991b1b;">${notasPendientesCount} Pend.</span>` : `<span class="badge" style="background: #d1fae5; color: #065f46;">Al día</span>`;
+                const incidenteTextoSeguro = (p.incidente || '').replace(/`/g, '\\`').replace(/'/g, "\\'");
 
                 tr.innerHTML = `
                     <td><span class="badge badge-reu">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
                     <td>${formatearFechaVista(p.fecha)}</td>
-                    <td><div style="cursor: pointer; color: var(--primary);" onclick="mostrarIncidenteCompleto('${p.folio}', \`${p.incidente.replace(/`/g, '\\`')}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
-                    <td class="text-center">${formatearFechaVista(p.vencimiento)} - ${p.horaReunion}h</td>
+                    <td><div style="cursor: pointer; color: var(--primary);" onclick="mostrarIncidenteCompleto('${p.folio}', \`${incidenteTextoSeguro}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
+                    <td class="text-center">${formatearFechaVista(p.vencimiento)} - ${p.horaReunion || ''}h</td>
                     <td class="text-center"><b>${totalNotas}</b></td>
                     <td>${asignadosStr}</td>
                     <td class="text-center">${badgePendientes}</td>
@@ -736,19 +747,18 @@ async function cargarPendientes() {
             });
         }
 
-        if (reunionesFinalizadas.length === 0) {
-            tbodyReunionesFinalizadas.innerHTML = `<tr><td colspan="11" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay reuniones finalizadas.</td></tr>`;
-        } else {
+        if (reunionesFinalizadas.length > 0 && tbodyReunionesFinalizadas) {
             reunionesFinalizadas.forEach(p => {
                 const tr = document.createElement('tr');
                 tr.classList.add('completado');
                 let badgePri = p.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (p.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
+                const incidenteTextoSeguro = (p.incidente || '').replace(/`/g, '\\`').replace(/'/g, "\\'");
                 tr.innerHTML = `
                     <td><span class="badge badge-reu">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
                     <td>${formatearFechaVista(p.fecha)}</td>
-                    <td><div style="cursor: pointer;" onclick="mostrarIncidenteCompleto('${p.folio}', \`${p.incidente.replace(/`/g, '\\`')}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
-                    <td class="text-center">${formatearFechaVista(p.vencimiento)} - ${p.horaReunion}h</td>
+                    <td><div style="cursor: pointer;" onclick="mostrarIncidenteCompleto('${p.folio}', \`${incidenteTextoSeguro}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
+                    <td class="text-center">${formatearFechaVista(p.vencimiento)} - ${p.horaReunion || ''}h</td>
                     <td class="text-center"><b>${p.notasLista ? p.notasLista.length : 0}</b></td>
                     <td>-</td>
                     <td class="text-center">-</td>
@@ -764,6 +774,8 @@ async function cargarPendientes() {
                 `;
                 tbodyReunionesFinalizadas.appendChild(tr);
             });
+        } else if (tbodyReunionesFinalizadas) {
+            tbodyReunionesFinalizadas.innerHTML = `<tr><td colspan="11" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay reuniones finalizadas.</td></tr>`;
         }
 
         const actividadesActivas = dataPendientes.filter(p => !p.finalizado);
@@ -793,11 +805,13 @@ async function cargarPendientes() {
                     ? `<button class="btn-accion btn-eliminar" style="opacity: 0.5; cursor: not-allowed;" title="Derivada de reunión" disabled>Eliminar</button>` 
                     : `<button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${p.folio}')">Eliminar</button>`;
 
+                const incidenteTextoSeguro = (p.incidente || '').replace(/`/g, '\\`').replace(/'/g, "\\'");
+
                 tr.innerHTML = `
                     <td><span class="badge badge-pen">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
                     <td>${formatearFechaVista(p.fecha)}</td>
-                    <td><div style="cursor: pointer; color: var(--primary);" onclick="mostrarIncidenteCompleto('${p.folio}', \`${p.incidente.replace(/`/g, '\\`')}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
+                    <td><div style="cursor: pointer; color: var(--primary);" onclick="mostrarIncidenteCompleto('${p.folio}', \`${incidenteTextoSeguro}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
                     <td class="text-center"><b>${p.turnado}</b></td>
                     <td>${formatearFechaVista(p.vencimiento)}</td>
                     <td class="text-center"><b>${totalNotas}</b></td>
@@ -818,18 +832,18 @@ async function cargarPendientes() {
             });
         }
 
-        if (actividadesFinalizadas.length === 0) {
-            tbodyPendientesFinalizados.innerHTML = `<tr><td colspan="12" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay actividades finalizadas.</td></tr>`;
-        } else {
+        const tbodyPendientesFinElem = document.getElementById('tablaPendientesFinalizadas');
+        if (actividadesFinalizadas.length > 0 && tbodyPendientesFinElem) {
             actividadesFinalizadas.forEach(p => {
                 const tr = document.createElement('tr');
                 tr.classList.add('completado');
                 let badgePri = p.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (p.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
+                const incidenteTextoSeguro = (p.incidente || '').replace(/`/g, '\\`').replace(/'/g, "\\'");
                 tr.innerHTML = `
                     <td><span class="badge badge-pen">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
                     <td>${formatearFechaVista(p.fecha)}</td>
-                    <td><div style="cursor: pointer;" onclick="mostrarIncidenteCompleto('${p.folio}', \`${p.incidente.replace(/`/g, '\\`')}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
+                    <td><div style="cursor: pointer;" onclick="mostrarIncidenteCompleto('${p.folio}', \`${incidenteTextoSeguro}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
                     <td class="text-center"><b>${p.turnado}</b></td>
                     <td>${formatearFechaVista(p.vencimiento)}</td>
                     <td class="text-center"><b>${p.notasLista ? p.notasLista.length : 0}</b></td>
@@ -845,8 +859,10 @@ async function cargarPendientes() {
                         </div>
                     </td>
                 `;
-                tbodyPendientesFinalizados.appendChild(tr);
+                tbodyPendientesFinElem.appendChild(tr);
             });
+        } else if (tbodyPendientesFinElem) {
+            tbodyPendientesFinElem.innerHTML = `<tr><td colspan="12" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay actividades finalizadas.</td></tr>`;
         }
     } catch (e) {
         console.error("Error al cargar pendientes:", e);
@@ -917,6 +933,7 @@ function eliminarNotaModal(indexNota) {
 
 function renderizarTablaNotasModal() {
     const tbody = document.getElementById('tablaNotasModal');
+    if (!tbody) return;
     tbody.innerHTML = '';
     if (!notasTemporalesModal || notasTemporalesModal.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas registradas.</td></tr>`;
@@ -1024,7 +1041,8 @@ async function cargarReporteSemanal() {
         const nombresDias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
 
         for (let i = 0; i < 5; i++) {
-            document.getElementById(`th${['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'][i]}`).innerText = `${nombresDias[i]} (${formatearFechaVista(diasSemana[i]).substring(0, 5)})`;
+            const thElem = document.getElementById(`th${['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'][i]}`);
+            if (thElem) thElem.innerText = `${nombresDias[i]} (${formatearFechaVista(diasSemana[i]).substring(0, 5)})`;
         }
 
         const res = await fetch('/api/asistencias');
@@ -1186,7 +1204,7 @@ async function cargarResumenVacaciones() {
 }
 
 async function renderizarCalendarioVacaciones() {
-    const personaSel = document.getElementById('filtroCalendarioVacaciones').value;
+    const personaSel = document.getElementById('filtroCalendarioVacaciones')?.value;
     const tbody = document.getElementById('tablaCalendarioVacaciones');
     if (!tbody) return;
     tbody.innerHTML = '';
@@ -1243,16 +1261,35 @@ async function eliminarRegistroVacacion(id) {
 
 function exportarPDF(seccionId) {
     const contenidoOriginal = document.body.innerHTML;
-    document.body.innerHTML = document.getElementById(seccionId).innerHTML;
+    const seccionEl = document.getElementById(seccionId);
+    if (!seccionEl) return;
+    document.body.innerHTML = seccionEl.innerHTML;
     window.print();
     document.body.innerHTML = contenidoOriginal;
     window.location.reload();
 }
 
-function limpiarFiltroAgenda() { document.getElementById('filtroFechaAgenda').value = ''; cargarPendientes(); }
-function limpiarFiltroPendientes() { filtroPrioridadActiva = null; document.getElementById('filtroFechaPendientes').value = ''; cargarPendientes(); }
-function limpiarFiltroSemana() { document.getElementById('filtroSemana').value = fechaHoy; document.getElementById('filtroPersonaReporte').value = 'TODOS'; cargarReporteSemanal(); }
-function limpiarFiltroMensual() { document.getElementById('filtroMes').value = mesHoy; document.getElementById('filtroPersonaMensual').value = 'TODOS'; cargarReporteMensual(); }
+function limpiarFiltroAgenda() { 
+    const inputAgenda = document.getElementById('filtroFechaAgenda');
+    if (inputAgenda) inputAgenda.value = ''; 
+    cargarPendientes(); 
+}
+function limpiarFiltroPendientes() { 
+    filtroPrioridadActiva = null; 
+    const inputPend = document.getElementById('filtroFechaPendientes');
+    if (inputPend) inputPend.value = ''; 
+    cargarPendientes(); 
+}
+function limpiarFiltroSemana() { 
+    if (document.getElementById('filtroSemana')) document.getElementById('filtroSemana').value = fechaHoy; 
+    if (document.getElementById('filtroPersonaReporte')) document.getElementById('filtroPersonaReporte').value = 'TODOS'; 
+    cargarReporteSemanal(); 
+}
+function limpiarFiltroMensual() { 
+    if (document.getElementById('filtroMes')) document.getElementById('filtroMes').value = mesHoy; 
+    if (document.getElementById('filtroPersonaMensual')) document.getElementById('filtroPersonaMensual').value = 'TODOS'; 
+    cargarReporteMensual(); 
+}
 
 async function prepararEdicion(folio) {
     try {
