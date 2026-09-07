@@ -14,6 +14,7 @@ let tipoItemActual = null;
 let notasTemporalesModal = [];
 let filtroPrioridadActiva = null;
 let globalVacacionesData = [];
+let tipoItemEnEdicion = null; // Variable para recordar si editábamos Reunión o Actividad
 
 let puntosFormularioLibre = [];
 
@@ -237,7 +238,6 @@ async function agregarNuevaAreaPrompt() {
     }
 }
 
-// Función para mostrar el incidente completo al hacer clic
 function mostrarIncidenteCompleto(tituloFolio, texto) {
     document.getElementById('modalIncidenteTitulo').innerText = `Detalle - ${tituloFolio}`;
     document.getElementById('modalIncidenteTexto').innerText = texto || 'Sin descripción';
@@ -1189,6 +1189,7 @@ async function prepararEdicion(folio) {
         const p = data.find(item => item.folio === folio);
         if (!p) return;
 
+        tipoItemEnEdicion = p.tipo; // Guardamos si es Reunión o Actividad
         document.getElementById('editFolio').value = p.folio;
         document.getElementById('tipo').value = p.tipo;
         toggleCamposTipo();
@@ -1207,11 +1208,21 @@ async function prepararEdicion(folio) {
 }
 
 function cancelarEdicionFormulario() {
+    const tipoTemp = tipoItemEnEdicion;
     document.getElementById('formPendiente').reset();
     document.getElementById('editFolio').value = '';
     document.getElementById('btnSubmitText').innerText = 'Guardar Registro';
     document.getElementById('btnCancelarEdicion').classList.add('oculto');
+    tipoItemEnEdicion = null;
     toggleCamposTipo();
+
+    // Redirigir al módulo correspondiente según el tipo que se estaba editando
+    if (tipoTemp === 'Reunión') {
+        cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
+    } else {
+        cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function eliminarPendiente(folio) {
