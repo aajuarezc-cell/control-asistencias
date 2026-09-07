@@ -237,6 +237,17 @@ async function agregarNuevaAreaPrompt() {
     }
 }
 
+// Función para mostrar el incidente completo al hacer clic
+function mostrarIncidenteCompleto(tituloFolio, texto) {
+    document.getElementById('modalIncidenteTitulo').innerText = `Detalle - ${tituloFolio}`;
+    document.getElementById('modalIncidenteTexto').innerText = texto || 'Sin descripción';
+    document.getElementById('modalIncidente').style.display = 'flex';
+}
+
+function cerrarModalIncidente() {
+    document.getElementById('modalIncidente').style.display = 'none';
+}
+
 function agregarPuntoFormularioLibre() {
     const texto = document.getElementById('inputLibreNotaTexto').value.trim();
     const responsable = document.getElementById('inputLibreNotaResponsable').value;
@@ -334,7 +345,6 @@ async function guardarNotaLibreCompleta(e) {
             alert("Nota de reunión guardada con éxito.");
         }
 
-        // Limpieza automática del formulario para poder iniciar otra
         document.getElementById('formNotaLibre').reset();
         document.getElementById('editNotaLibreId').value = '';
         document.getElementById('libreFecha').value = fechaHoy;
@@ -615,7 +625,7 @@ async function cargarPendientes() {
                     <td><span class="badge badge-reu">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
                     <td>${formatearFechaVista(p.fecha)}</td>
-                    <td>${p.incidente}</td>
+                    <td><div style="cursor: pointer; color: var(--primary);" onclick="mostrarIncidenteCompleto('${p.folio}', \`${p.incidente.replace(/`/g, '\\`')}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
                     <td class="text-center">${formatearFechaVista(p.vencimiento)} - ${p.horaReunion}h</td>
                     <td class="text-center"><b>${totalNotas}</b></td>
                     <td>${asignadosStr}</td>
@@ -645,7 +655,7 @@ async function cargarPendientes() {
                     <td><span class="badge badge-reu">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
                     <td>${formatearFechaVista(p.fecha)}</td>
-                    <td>${p.incidente}</td>
+                    <td><div style="cursor: pointer;" onclick="mostrarIncidenteCompleto('${p.folio}', \`${p.incidente.replace(/`/g, '\\`')}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
                     <td class="text-center">${formatearFechaVista(p.vencimiento)} - ${p.horaReunion}h</td>
                     <td class="text-center"><b>${p.notasLista ? p.notasLista.length : 0}</b></td>
                     <td>-</td>
@@ -695,7 +705,7 @@ async function cargarPendientes() {
                     <td><span class="badge badge-pen">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
                     <td>${formatearFechaVista(p.fecha)}</td>
-                    <td>${p.incidente}</td>
+                    <td><div style="cursor: pointer; color: var(--primary);" onclick="mostrarIncidenteCompleto('${p.folio}', \`${p.incidente.replace(/`/g, '\\`')}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
                     <td class="text-center"><b>${p.turnado}</b></td>
                     <td>${formatearFechaVista(p.vencimiento)}</td>
                     <td class="text-center"><b>${totalNotas}</b></td>
@@ -727,7 +737,7 @@ async function cargarPendientes() {
                     <td><span class="badge badge-pen">${p.folio}</span></td>
                     <td class="text-center">${badgePri}</td>
                     <td>${formatearFechaVista(p.fecha)}</td>
-                    <td>${p.incidente}</td>
+                    <td><div style="cursor: pointer;" onclick="mostrarIncidenteCompleto('${p.folio}', \`${p.incidente.replace(/`/g, '\\`')}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
                     <td class="text-center"><b>${p.turnado}</b></td>
                     <td>${formatearFechaVista(p.vencimiento)}</td>
                     <td class="text-center"><b>${p.notasLista ? p.notasLista.length : 0}</b></td>
@@ -1164,14 +1174,11 @@ document.getElementById('formPendiente').addEventListener('submit', async (e) =>
 
     if (editFolio) {
         await fetch(`/api/pendientes/${editFolio}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        document.getElementById('editFolio').value = '';
-        document.getElementById('btnSubmitText').innerText = 'Guardar Registro';
     } else {
         await fetch('/api/pendientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     }
 
-    document.getElementById('formPendiente').reset();
-    toggleCamposTipo();
+    cancelarEdicionFormulario();
     cargarPendientes();
 });
 
@@ -1192,9 +1199,19 @@ async function prepararEdicion(folio) {
         document.getElementById('vencimiento').value = p.vencimiento || '';
         document.getElementById('observaciones').value = p.observaciones || '';
         document.getElementById('btnSubmitText').innerText = `Actualizar (${p.folio})`;
+        document.getElementById('btnCancelarEdicion').classList.remove('oculto');
+        
         cambiarModulo('moduloNuevoRegistro', document.querySelector('.nav-modulos button:first-child'));
         window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) { console.error("Error edición:", e); }
+}
+
+function cancelarEdicionFormulario() {
+    document.getElementById('formPendiente').reset();
+    document.getElementById('editFolio').value = '';
+    document.getElementById('btnSubmitText').innerText = 'Guardar Registro';
+    document.getElementById('btnCancelarEdicion').classList.add('oculto');
+    toggleCamposTipo();
 }
 
 async function eliminarPendiente(folio) {

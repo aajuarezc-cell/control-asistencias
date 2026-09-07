@@ -103,7 +103,11 @@
                     <label for="observaciones">Observaciones</label>
                     <textarea id="observaciones" rows="2" placeholder="Notas adicionales..."></textarea>
                 </div>
-                <button type="submit" class="btn-guardar" id="btnSubmitText">Guardar Registro</button>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn-guardar" id="btnSubmitText" style="flex: 2;">Guardar Registro</button>
+                    <button type="button" id="btnCancelarEdicion" class="btn-cerrar oculto" onclick="cancelarEdicionFormulario()" style="flex: 1; background: #e5e5ea; font-weight: 600;">Cancelar Edición</button>
+                </div>
             </form>
         </section>
 
@@ -169,7 +173,7 @@
             </div>
         </section>
 
-        <!-- MÓDULO 3: NOTAS (REUNIONES INTERNAS NO PROGRAMADAS) -->
+        <!-- MÓDULO 3: NOTAS -->
         <section id="moduloNotasLibres" class="modulo-vista">
             <div class="section-title">📝 Notas de Reuniones Internas (No Programadas)</div>
             
@@ -207,7 +211,6 @@
                             </div>
                         </div>
 
-                        <!-- Tabla interna de puntos agregados en el formulario -->
                         <div class="table-container" style="margin-top: 5px;">
                             <table>
                                 <thead>
@@ -464,6 +467,20 @@
                 </table>
             </div>
         </section>
+    </div>
+
+    <!-- MODAL PARA VER INCIDENTE AMPLIADO -->
+    <div id="modalIncidente" style="display: none; position: fixed; z-index: 3000; left: 0; top: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.4); backdrop-filter: blur(8px); align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
+        <div style="background: white; width: 100%; max-width: 600px; padding: 30px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid var(--border-color); box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                <h3 id="modalIncidenteTitulo" style="margin: 0; font-size: 18px; color: var(--text-main);">Detalle del Incidente</h3>
+                <button type="button" onclick="cerrarModalIncidente()" style="background: #e5e5ea; border: none; width: 30px; height: 30px; border-radius: 50%; font-weight: bold; cursor: pointer;">✕</button>
+            </div>
+            <div id="modalIncidenteTexto" style="font-size: 15px; color: var(--text-main); white-space: pre-line; line-height: 1.6; max-height: 60vh; overflow-y: auto; padding-right: 5px;"></div>
+            <div style="margin-top: 20px; text-align: right;">
+                <button type="button" class="btn-cerrar" onclick="cerrarModalIncidente()" style="width: auto; padding: 8px 20px;">Cerrar</button>
+            </div>
+        </div>
     </div>
 
     <!-- MODAL DE NOTAS -->
