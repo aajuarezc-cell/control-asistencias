@@ -14,7 +14,7 @@ let tipoItemActual = null;
 let notasTemporalesModal = [];
 let filtroPrioridadActiva = null;
 let globalVacacionesData = [];
-let tipoItemEnEdicion = null; // Variable para recordar si editábamos Reunión o Actividad
+let tipoItemEnEdicion = null;
 
 let puntosFormularioLibre = [];
 
@@ -345,12 +345,7 @@ async function guardarNotaLibreCompleta(e) {
             alert("Nota de reunión guardada con éxito.");
         }
 
-        document.getElementById('formNotaLibre').reset();
-        document.getElementById('editNotaLibreId').value = '';
-        document.getElementById('libreFecha').value = fechaHoy;
-        document.getElementById('btnNotaLibreSubmit').innerText = 'Guardar Nota de Reunión';
-        puntosFormularioLibre = [];
-        renderizarTablaPuntosFormularioLibre();
+        cancelarEdicionNotaLibreForm();
         poblarSelectAreas();
         cargarNotasLibres();
         
@@ -382,7 +377,8 @@ async function cargarNotasLibres() {
                 <td class="text-center"><b>${totalNotas}</b></td>
                 <td class="text-center">
                     <div class="acciones-container">
-                        <button class="btn-accion btn-notas" onclick="abrirNotaEnNuevaVentana('${item._id}')" title="Ver Nota en Nueva Ventana">Ver Nota</button>
+                        <button class="btn-accion btn-notas" onclick="abrirNotaEnNuevaVentana('${item._id}')" title="Ver Nota">Ver</button>
+                        <button class="btn-accion btn-editar" onclick="cargarEdicionNotaLibre('${item._id}')">Editar</button>
                         <button class="btn-accion btn-eliminar" onclick="eliminarNotaLibrePrincipal('${item._id}')">Eliminar</button>
                     </div>
                 </td>
@@ -505,10 +501,21 @@ async function cargarEdicionNotaLibre(id) {
         puntosFormularioLibre = item.notasLista ? JSON.parse(JSON.stringify(item.notasLista)) : [];
         renderizarTablaPuntosFormularioLibre();
         document.getElementById('btnNotaLibreSubmit').innerText = 'Actualizar Nota de Reunión';
+        document.getElementById('btnCancelarNotaLibre').classList.remove('oculto');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
         console.error("Error al cargar nota para edición:", e);
     }
+}
+
+function cancelarEdicionNotaLibreForm() {
+    document.getElementById('formNotaLibre').reset();
+    document.getElementById('editNotaLibreId').value = '';
+    document.getElementById('libreFecha').value = fechaHoy;
+    document.getElementById('btnNotaLibreSubmit').innerText = 'Guardar Nota de Reunión';
+    document.getElementById('btnCancelarNotaLibre').classList.add('oculto');
+    puntosFormularioLibre = [];
+    renderizarTablaPuntosFormularioLibre();
 }
 
 async function eliminarNotaLibrePrincipal(id) {
@@ -1189,7 +1196,7 @@ async function prepararEdicion(folio) {
         const p = data.find(item => item.folio === folio);
         if (!p) return;
 
-        tipoItemEnEdicion = p.tipo; // Guardamos si es Reunión o Actividad
+        tipoItemEnEdicion = p.tipo;
         document.getElementById('editFolio').value = p.folio;
         document.getElementById('tipo').value = p.tipo;
         toggleCamposTipo();
@@ -1216,7 +1223,6 @@ function cancelarEdicionFormulario() {
     tipoItemEnEdicion = null;
     toggleCamposTipo();
 
-    // Redirigir al módulo correspondiente según el tipo que se estaba editando
     if (tipoTemp === 'Reunión') {
         cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
     } else {

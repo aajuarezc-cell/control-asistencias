@@ -230,7 +230,10 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn-guardar" id="btnNotaLibreSubmit" style="margin-top: 15px;">Guardar Nota de Reunión</button>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button type="submit" class="btn-guardar" id="btnNotaLibreSubmit" style="flex: 2;">Guardar Nota de Reunión</button>
+                    <button type="button" id="btnCancelarNotaLibre" class="btn-cerrar oculto" onclick="cancelarEdicionNotaLibreForm()" style="flex: 1; background: #e5e5ea; font-weight: 600;">Cancelar</button>
+                </div>
             </form>
 
             <div class="section-title">📚 Historial de Notas Internas</div>

@@ -490,8 +490,8 @@ tr:hover td { background: #fbfbfd; }
 .alerta-falta { background: #fee2e2 !important; color: #991b1b !important; font-weight: 600; }
 .text-center { text-align: center; }
 
-.acciones-container { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; justify-content: center; max-width: 140px; }
-.btn-accion { padding: 6px 10px; border: none; cursor: pointer; border-radius: 8px; font-size: 11px; font-weight: 500; color: white; display: inline-flex; align-items: center; justify-content: center; gap: 2px; text-decoration: none; flex: 1 1 calc(50% - 4px); min-width: 45px; transition: opacity 0.2s; }
+.acciones-container { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; justify-content: center; max-width: 180px; }
+.btn-accion { padding: 6px 10px; border: none; cursor: pointer; border-radius: 8px; font-size: 11px; font-weight: 500; color: white; display: inline-flex; align-items: center; justify-content: center; gap: 2px; text-decoration: none; flex: 1 1 calc(33% - 4px); min-width: 45px; transition: opacity 0.2s; }
 .btn-accion:hover { opacity: 0.85; }
 .btn-editar { background: #ff9500; }
 .btn-eliminar { background: #ff3b30; }
