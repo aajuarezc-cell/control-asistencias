@@ -466,7 +466,8 @@ app.post('/api/areas', async (req, res) => {
     }
 });
 
-cron.schedule('0 8,10,12,14,18,19,20,21 * * *', async () => {
+// Tarea programada modificada para ejecutarse cada hora desde las 8:00 hasta las 21:00 hrs
+cron.schedule('0 8-21 * * *', async () => {
     try {
         await generarYEnviarReporteTelegram(false);
         console.log(`[CRON] Reporte automático enviado a Telegram.`);
