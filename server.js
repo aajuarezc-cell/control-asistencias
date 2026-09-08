@@ -51,7 +51,6 @@ function formatearFechaDMA(fechaStr) {
     return fechaStr;
 }
 
-// Función auxiliar para obtener la fecha local correcta en formato YYYY-MM-DD
 function obtenerFechaLocalStr(d = new Date()) {
     const anio = d.getFullYear();
     const mes = String(d.getMonth() + 1).padStart(2, '0');
@@ -174,7 +173,6 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     await enviarNotificacionTelegram(mensajeFinal);
 }
 
-// Función robusta de verificación de reuniones a 2 horas (con fecha local correcta)
 async function verificarYNotificarReunionesProximas() {
     try {
         const ahora = new Date();
@@ -196,7 +194,6 @@ async function verificarYNotificarReunionesProximas() {
             const diferenciaMs = fechaHoraReunion.getTime() - ahora.getTime();
             const diferenciaMinutos = diferenciaMs / (1000 * 60);
 
-            // Ventana de tolerancia entre 118 y 122 minutos
             if (diferenciaMinutos >= 118 && diferenciaMinutos <= 122) {
                 const mensajeAlerta = `⏰ <b>¡RECORDATORIO DE REUNIÓN PRÓXIMA!</b>\n\n` +
                                       `La reunión <b>[${reunion.folio}]</b> comenzará en <b>2 horas</b> (${reunion.horaReunion} hrs).\n\n` +
@@ -478,6 +475,26 @@ app.put('/api/notas-libres/:id', async (req, res) => {
     }
 });
 
+// Ruta para actualizar el estado completado de un punto específico dentro de una nota libre
+app.patch('/api/notas-libres/:id/punto/:index', async (req, res) => {
+    try {
+        const { completado } = req.body;
+        const nota = await NotaLibre.findById(req.params.id);
+        if (!nota) return res.status(404).json({ error: 'Nota no encontrada' });
+
+        const index = parseInt(req.params.index);
+        if (nota.notasLista && nota.notasLista[index]) {
+            nota.notasLista[index].completado = completado;
+            await nota.save();
+            res.json({ exito: true, nota });
+        } else {
+            res.status(400).json({ error: 'Índice de punto inválido' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.delete('/api/notas-libres/:id', async (req, res) => {
     try {
         await NotaLibre.findByIdAndDelete(req.params.id);
@@ -523,7 +540,6 @@ app.post('/api/areas', async (req, res) => {
     }
 });
 
-// Tarea programada: Reporte periódico cada hora de 8:00 a 21:00 hrs
 cron.schedule('0 8-21 * * *', async () => {
     try {
         await generarYEnviarReporteTelegram(false);
@@ -533,7 +549,6 @@ cron.schedule('0 8-21 * * *', async () => {
     }
 });
 
-// Tarea programada: Revisión minuto a minuto de reuniones próximas
 cron.schedule('* * * * *', () => {
     verificarYNotificarReunionesProximas();
 });

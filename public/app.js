@@ -462,14 +462,20 @@ async function abrirNotaEnNuevaVentana(id) {
         if (item.notasLista && item.notasLista.length > 0) {
             item.notasLista.forEach((pto, idx) => {
                 const badgePri = pto.prioridad === 'Alta' ? '🔴 ALTA' : (pto.prioridad === 'Baja' ? '🟢 BAJA' : '🟡 MEDIA');
-                const estado = pto.completado ? '✅ [Completado]' : '⏳ [Pendiente]';
+                const estiloTachado = pto.completado ? 'text-decoration: line-through; color: #86868b;' : '';
+                
                 puntosHtml += `
-                    <div style="margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #eaeaea;">
-                        <div style="font-weight: bold; color: #0071e3; margin-bottom: 6px; font-size: 15px;">
-                            ${idx + 1}. <span style="color: #1d1d1f;">${pto.responsable || 'General'}</span> <span style="font-size: 11px; font-weight: normal; color: #666;">(${badgePri} - ${estado})</span>
-                        </div>
-                        <div style="padding-left: 20px; white-space: pre-line; color: #333; font-size: 14px; line-height: 1.5;">
-                            ${pto.texto}
+                    <div id="punto-container-${idx}" style="margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #eaeaea; display: flex; align-items: flex-start; gap: 12px;">
+                        <input type="checkbox" style="width: 20px; height: 20px; margin-top: 3px; cursor: pointer;" 
+                            ${pto.completado ? 'checked' : ''} 
+                            onchange="togglePuntoNotaLibre('${item._id}', ${idx}, this.checked)">
+                        <div style="flex-grow: 1;">
+                            <div style="font-weight: bold; color: #0071e3; margin-bottom: 6px; font-size: 15px;">
+                                ${idx + 1}. <span style="color: #1d1d1f;">${pto.responsable || 'General'}</span> <span style="font-size: 11px; font-weight: normal; color: #666;">(${badgePri})</span>
+                            </div>
+                            <div id="texto-pto-${idx}" style="padding-left: 5px; white-space: pre-line; color: #333; font-size: 14px; line-height: 1.5; ${estiloTachado}">
+                                ${pto.texto}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -478,7 +484,7 @@ async function abrirNotaEnNuevaVentana(id) {
             puntosHtml = '<p style="color: #86868b; font-style: italic;">No hay puntos registrados en esta nota.</p>';
         }
 
-        const nuevaVentana = window.open('', '_blank', 'width=800,height=700,scrollbars=yes');
+        const nuevaVentana = window.open('', '_blank', 'width=850,height=750,scrollbars=yes');
         nuevaVentana.document.write(`
             <!DOCTYPE html>
             <html lang="es">
@@ -491,7 +497,7 @@ async function abrirNotaEnNuevaVentana(id) {
                         padding: 40px;
                         background: #f5f5f7;
                         color: #1d1d1f;
-                        max-width: 750px;
+                        max-width: 800px;
                         margin: auto;
                     }
                     .documento-card {
@@ -524,8 +530,32 @@ async function abrirNotaEnNuevaVentana(id) {
                         body { background: white; padding: 0; }
                         .documento-card { border: none; box-shadow: none; padding: 0; }
                         .btn-imprimir { display: none; }
+                        input[type="checkbox"] { display: none; }
                     }
                 </style>
+                <script>
+                    async function togglePuntoNotaLibre(notaId, index, completado) {
+                        try {
+                            const res = await fetch(\`/api/notas-libres/\${notaId}/punto/\${index}\`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ completado })
+                            });
+                            if (res.ok) {
+                                const textEl = document.getElementById('texto-pto-' + index);
+                                if (completado) {
+                                    textEl.style.textDecoration = 'line-through';
+                                    textEl.style.color = '#86868b';
+                                } else {
+                                    textEl.style.textDecoration = 'none';
+                                    textEl.style.color = '#333';
+                                }
+                            }
+                        } catch (e) {
+                            console.error("Error al actualizar estado del punto:", e);
+                        }
+                    }
+                </script>
             </head>
             <body>
                 <div class="documento-card">
