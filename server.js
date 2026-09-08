@@ -16,9 +16,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://tu_usuario:tu_password@cluster.mongodb.net/control_asistencias?retryWrites=true&w=majority';
 
 mongoose.connect(MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
+
 .then(() => console.log("🟢 Conectado exitosamente a MongoDB"))
 .catch(err => console.error("🔴 Error conectando a MongoDB:", err));
 
