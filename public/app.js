@@ -923,7 +923,19 @@ async function abrirModalNotas(folio) {
     }
 }
 
-function cerrarModalSimple() {
+async function cerrarModalSimple() {
+    if (folioNotaActual) {
+        try {
+            await fetch(`/api/pendientes/${folioNotaActual}/notas`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notasLista: notasTemporalesModal })
+            });
+        } catch (e) {
+            console.error("Error al guardar notas en el servidor:", e);
+        }
+    }
+
     document.getElementById('modalNotas').style.display = 'none';
     folioNotaActual = null;
     tipoItemActual = null;

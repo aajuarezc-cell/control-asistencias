@@ -285,6 +285,24 @@ app.put('/api/pendientes/:folio', async (req, res) => {
     }
 });
 
+// Ruta para actualizar las notas internas de un pendiente o reunión por su folio
+app.put('/api/pendientes/:folio/notas', async (req, res) => {
+    try {
+        const { notasLista } = req.body;
+        const pendienteActualizado = await Pendiente.findOneAndUpdate(
+            { folio: req.params.folio },
+            { notasLista },
+            { new: true }
+        );
+        if (!pendienteActualizado) {
+            return res.status(404).json({ error: 'Registro no encontrado' });
+        }
+        res.json({ exito: true, pendiente: pendienteActualizado });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.patch('/api/pendientes/:folio', async (req, res) => {
     try {
         const { finalizado } = req.body;
@@ -475,7 +493,6 @@ app.put('/api/notas-libres/:id', async (req, res) => {
     }
 });
 
-// Ruta para actualizar el estado completado de un punto específico dentro de una nota libre
 app.patch('/api/notas-libres/:id/punto/:index', async (req, res) => {
     try {
         const { completado } = req.body;
