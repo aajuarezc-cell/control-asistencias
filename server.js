@@ -51,6 +51,14 @@ function formatearFechaDMA(fechaStr) {
     return fechaStr;
 }
 
+// Función auxiliar para obtener la fecha local correcta en formato YYYY-MM-DD
+function obtenerFechaLocalStr(d = new Date()) {
+    const anio = d.getFullYear();
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const dia = String(d.getDate()).padStart(2, '0');
+    return `${anio}-${mes}-${dia}`;
+}
+
 const pendienteSchema = new mongoose.Schema({
     folio: { type: String, unique: true },
     tipo: String,
@@ -63,7 +71,7 @@ const pendienteSchema = new mongoose.Schema({
     observaciones: String,
     finalizado: { type: Boolean, default: false },
     fecha: String,
-    notificadoDosHoras: { type: Boolean, default: false } // Bandera para evitar duplicados
+    notificadoDosHoras: { type: Boolean, default: false }
 });
 const Pendiente = mongoose.model('Pendiente', pendienteSchema);
 
@@ -166,13 +174,12 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     await enviarNotificacionTelegram(mensajeFinal);
 }
 
-// Función robusta para verificar y notificar reuniones exactamente a 2 horas de su inicio
+// Función robusta de verificación de reuniones a 2 horas (con fecha local correcta)
 async function verificarYNotificarReunionesProximas() {
     try {
         const ahora = new Date();
-        const fechaHoyStr = ahora.toISOString().split('T')[0];
+        const fechaHoyStr = obtenerFechaLocalStr(ahora);
 
-        // Buscamos todas las reuniones activas del día actual que aún no hayan sido notificadas
         const reunionesHoy = await Pendiente.find({
             tipo: 'Reunión',
             finalizado: false,
@@ -184,15 +191,12 @@ async function verificarYNotificarReunionesProximas() {
             if (!reunion.horaReunion) continue;
 
             const [horasReu, minutosReu] = reunion.horaReunion.split(':').map(Number);
-            
-            // Creamos un objeto Date para la hora exacta de la reunión de hoy
             const fechaHoraReunion = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), horasReu, minutosReu, 0);
             
-            // Diferencia en milisegundos entre la reunión y el momento actual
             const diferenciaMs = fechaHoraReunion.getTime() - ahora.getTime();
             const diferenciaMinutos = diferenciaMs / (1000 * 60);
 
-            // Si faltan entre 119 y 121 minutos (es decir, exactamente alrededor de 2 horas con un pequeño margen de tolerancia)
+            // Ventana de tolerancia entre 118 y 122 minutos
             if (diferenciaMinutos >= 118 && diferenciaMinutos <= 122) {
                 const mensajeAlerta = `⏰ <b>¡RECORDATORIO DE REUNIÓN PRÓXIMA!</b>\n\n` +
                                       `La reunión <b>[${reunion.folio}]</b> comenzará en <b>2 horas</b> (${reunion.horaReunion} hrs).\n\n` +
@@ -201,7 +205,6 @@ async function verificarYNotificarReunionesProximas() {
 
                 await enviarNotificacionTelegram(mensajeAlerta);
                 
-                // Marcamos la reunión como notificada para que no vuelva a mandar alerta repetida
                 reunion.notificadoDosHoras = true;
                 await reunion.save();
 
@@ -237,7 +240,7 @@ app.post('/api/pendientes', async (req, res) => {
         }
         const folioGenerado = `${prefijo}${String(siguienteNumero).padStart(3, '0')}`;
         
-        const fechaActual = new Date().toISOString().split('T')[0];
+        const fechaActual = obtenerFechaLocalStr(new Date());
 
         const nuevoPendiente = new Pendiente({
             folio: folioGenerado,
@@ -384,7 +387,7 @@ app.post('/api/vacaciones', async (req, res) => {
         while (addedDays < diasSolicitados) {
             let dayOfWeek = current.getDay();
             if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                let fechaStr = current.toISOString().split('T')[0];
+                let fechaStr = obtenerFechaLocalStr(current);
                 fechasAgregadas.push(fechaStr);
                 
                 await Asistencia.findOneAndUpdate(
@@ -461,7 +464,7 @@ app.post('/api/notas-libres', async (req, res) => {
     }
 });
 
-app.put('/api/notas-libres/:id', async (err, res) => {
+app.put('/api/notas-libres/:id', async (req, res) => {
     try {
         const { titulo, fecha, area, notasLista } = req.body;
         const notaActualizada = await NotaLibre.findByIdAndUpdate(
@@ -530,7 +533,7 @@ cron.schedule('0 8-21 * * *', async () => {
     }
 });
 
-// Tarea programada: Revisión minuto a minuto de reuniones próximas (con margen de tolerancia)
+// Tarea programada: Revisión minuto a minuto de reuniones próximas
 cron.schedule('* * * * *', () => {
     verificarYNotificarReunionesProximas();
 });
@@ -539,7 +542,7 @@ cron.schedule('0 3 * * *', async () => {
     try {
         const fechaLimite = new Date();
         fechaLimite.setDate(fechaLimite.getDate() - 15);
-        const fechaStr = fechaLimite.toISOString().split('T')[0];
+        const fechaStr = obtenerFechaLocalStr(fechaLimite);
 
         const resultado = await Pendiente.deleteMany({
             finalizado: true,
