@@ -103,7 +103,7 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     const fechaReporteDMA = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const fechaActualTexto = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    const urlAplicacion = "https://tu-dominio.com"; 
+    const urlAplicacion = "https://control-asistencias-63ws.onrender.com/"; 
 
     if (pendientesActivos.length === 0) {
         await enviarNotificacionTelegram(`🟢 <b>Estado del Sistema: Al Día</b>\nNo hay reuniones ni actividades pendientes en este momento.\n<i>Actualizado a las ${horaActual} (${fechaReporteDMA})</i>\n\n🗓️ <b>Fecha:</b> ${fechaReporteDMA}\n🔗 <b>Acceso al Sistema:</b> <a href="${urlAplicacion}">Ir a la Aplicación</a>`);
