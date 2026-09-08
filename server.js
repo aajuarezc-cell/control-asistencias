@@ -305,7 +305,7 @@ app.post('/api/vacaciones', async (req, res) => {
 
         const totalActual = registroVac.diasTomados + diasSolicitados;
         if (totalActual > 10) {
-            return.status(400).json({ error: `El periodo ${tipoPeriodo} excede el límite de 10 días (actuales: ${registroVac.diasTomados}, solicitados: ${diasSolicitados}).` });
+            return res.status(400).json({ error: `El periodo ${tipoPeriodo} excede el límite de 10 días (actuales: ${registroVac.diasTomados}, solicitados: ${diasSolicitados}).` });
         }
 
         registroVac.diasTomados = totalActual;
