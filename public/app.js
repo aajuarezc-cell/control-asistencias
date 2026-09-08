@@ -473,9 +473,9 @@ async function abrirNotaEnNuevaVentana(id) {
                 
                 puntosHtml += `
                     <div id="punto-container-${idx}" style="margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #eaeaea; display: flex; align-items: flex-start; gap: 12px;">
-                        <input type="checkbox" id="check-pto-${idx}" style="width: 20px; height: 20px; margin-top: 3px; cursor: pointer;" 
+                        <input type="checkbox" style="width: 20px; height: 20px; margin-top: 3px; cursor: pointer;" 
                             ${pto.completado ? 'checked' : ''} 
-                            onchange="actualizarEstadoPuntoLocal(${idx}, this.checked)">
+                            onchange="togglePuntoNotaLibre('${item._id}', ${idx}, this.checked)">
                         <div style="flex-grow: 1;">
                             <div style="font-weight: bold; color: #0071e3; margin-bottom: 6px; font-size: 15px;">
                                 ${idx + 1}. <span style="color: #1d1d1f;">${pto.responsable || 'General'}</span> <span style="font-size: 11px; font-weight: normal; color: #666;">(${badgePri})</span>
@@ -548,46 +548,33 @@ async function abrirNotaEnNuevaVentana(id) {
                     }
                 </style>
                 <script>
-                    let puntosLocales = ${JSON.stringify(item.notasLista || [])};
-
-                    function actualizarEstadoPuntoLocal(index, completado) {
-                        if (puntosLocales[index]) {
-                            puntosLocales[index].completado = completado;
-                            const textEl = document.getElementById('texto-pto-' + index);
-                            if (completado) {
-                                textEl.style.textDecoration = 'line-through';
-                                textEl.style.color = '#86868b';
-                            } else {
-                                textEl.style.textDecoration = 'none';
-                                textEl.style.color = '#333';
+                    async function togglePuntoNotaLibre(notaId, index, completado) {
+                        try {
+                            const res = await fetch(\`/api/notas-libres/\${notaId}/punto/\${index}\`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ completado })
+                            });
+                            if (res.ok) {
+                                const textEl = document.getElementById('texto-pto-' + index);
+                                if (completado) {
+                                    textEl.style.textDecoration = 'line-through';
+                                    textEl.style.color = '#86868b';
+                                } else {
+                                    textEl.style.textDecoration = 'none';
+                                    textEl.style.color = '#333';
+                                }
                             }
+                        } catch (e) {
+                            console.error("Error al actualizar estado del punto:", e);
                         }
                     }
 
-                    async function guardarCambiosVentana() {
-                        try {
-                            const res = await fetch('/api/notas-libres/${item._id}', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    titulo: \`${item.titulo.replace(/`/g, '\\`')}\`,
-                                    fecha: '${item.fecha}',
-                                    area: \`${(item.area || '').replace(/`/g, '\\`')}\`,
-                                    notasLista: puntosLocales
-                                })
-                            });
-                            if (res.ok) {
-                                if (window.opener && typeof window.opener.cargarNotasLibres === 'function') {
-                                    window.opener.cargarNotasLibres();
-                                }
-                                alert("Cambios guardados correctamente.");
-                            } else {
-                                alert("Error al guardar los cambios.");
-                            }
-                        } catch (e) {
-                            console.error("Error al guardar nota:", e);
-                            alert("Error de conexión al guardar.");
+                    function guardarCambiosVentana() {
+                        if (window.opener && typeof window.opener.cargarNotasLibres === 'function') {
+                            window.opener.cargarNotasLibres();
                         }
+                        alert("Cambios guardados correctamente.");
                     }
 
                     function cerrarVentana() {
@@ -622,6 +609,125 @@ async function abrirNotaEnNuevaVentana(id) {
     } catch (e) {
         console.error("Error al abrir la nota en nueva ventana:", e);
     }
+}
+
+async function abrirModalNotas(folio) {
+    folioNotaActual = folio;
+    try {
+        const res = await fetch('/api/pendientes');
+        const data = await res.json();
+        const p = data.find(item => item.folio === folio);
+        if (!p) return;
+
+        tipoItemActual = p.tipo;
+        notasTemporalesModal = p.notasLista ? JSON.parse(JSON.stringify(p.notasLista)) : [];
+
+        let puntosHtml = '';
+        if (notasTemporalesModal && notasTemporalesModal.length > 0) {
+            notasTemporalesModal.forEach((pto, idx) => {
+                const badgePri = pto.prioridad === 'Alta' ? '🔴 ALTA' : (pto.prioridad === 'Baja' ? '🟢 BAJA' : '🟡 MEDIA');
+                const estiloTachado = pto.completado ? 'text-decoration: line-through; color: #86868b;' : '';
+                
+                puntosHtml += `
+                    <div style="margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #eaeaea; display: flex; align-items: flex-start; gap: 12px;">
+                        <input type="checkbox" style="width: 20px; height: 20px; margin-top: 3px; cursor: pointer;" 
+                            ${pto.completado ? 'checked' : ''} 
+                            onchange="toggleNotaRealizadaModal(${idx}, this.checked)">
+                        <div style="flex-grow: 1;">
+                            <div style="font-weight: bold; color: #0071e3; margin-bottom: 6px; font-size: 15px;">
+                                ${idx + 1}. <span style="color: #1d1d1f;">${pto.responsable || 'General'}</span> <span style="font-size: 11px; font-weight: normal; color: #666;">(${badgePri})</span>
+                            </div>
+                            <div id="texto-modal-pto-${idx}" style="padding-left: 5px; white-space: pre-line; color: #333; font-size: 14px; line-height: 1.5; ${estiloTachado}">
+                                ${pto.texto}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            puntosHtml = '<p style="color: #86868b; font-style: italic;">No hay puntos registrados.</p>';
+        }
+
+        const modalContainer = document.getElementById('modalNotas').querySelector('.modal-contenido') || document.getElementById('modalNotas').firstElementChild;
+        if (modalContainer) {
+            modalContainer.innerHTML = `
+                <div style="background: #ffffff; padding: 30px; border-radius: 16px; max-width: 800px; margin: auto; max-height: 90vh; overflow-y: auto;">
+                    <h2 style="font-size: 22px; margin-top: 0; color: #1d1d1f; border-bottom: 2px solid #0071e3; padding-bottom: 10px;">
+                        📋 [${p.folio}] ${p.incidente}
+                    </h2>
+                    <div style="font-size: 13px; color: #6e6e73; margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap;">
+                        <div>Tipo: <span>${p.tipo}</span></div>
+                        <div>Turnado/Asignado: <span>${p.turnado || 'N/A'}</span></div>
+                        <div>Total Puntos: <span>${notasTemporalesModal.length}</span></div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        ${puntosHtml}
+                    </div>
+                    <div style="margin-top: 25px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                        <button class="btn-accion-ventana" style="background: #0071e3; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
+                        <button class="btn-accion-ventana" style="background: #34c759; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="guardarYActualizarModalNotas()">💾 Guardar</button>
+                        <button class="btn-accion-ventana" style="background: #8e8e93; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="cerrarModalSimple()">❌ Cerrar</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        document.getElementById('modalNotas').style.display = 'flex';
+    } catch (e) {
+        console.error("Error al abrir notas:", e);
+    }
+}
+
+function toggleNotaRealizadaModal(indexNota, completado) {
+    if (notasTemporalesModal[indexNota]) {
+        notasTemporalesModal[indexNota].completado = completado;
+        const textEl = document.getElementById('texto-modal-pto-' + indexNota);
+        if (textEl) {
+            if (completado) {
+                textEl.style.textDecoration = 'line-through';
+                textEl.style.color = '#86868b';
+            } else {
+                textEl.style.textDecoration = 'none';
+                textEl.style.color = '#333';
+            }
+        }
+    }
+}
+
+async function guardarYActualizarModalNotas() {
+    if (folioNotaActual) {
+        try {
+            await fetch(`/api/pendientes/${folioNotaActual}/notas`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notasLista: notasTemporalesModal })
+            });
+            alert("Cambios guardados correctamente.");
+            cargarPendientes();
+        } catch (e) {
+            console.error("Error al guardar notas en el servidor:", e);
+            alert("Error al intentar guardar los cambios.");
+        }
+    }
+}
+
+async function cerrarModalSimple() {
+    if (folioNotaActual) {
+        try {
+            await fetch(`/api/pendientes/${folioNotaActual}/notas`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notasLista: notasTemporalesModal })
+            });
+        } catch (e) {
+            console.error("Error al guardar notas en el servidor:", e);
+        }
+    }
+
+    document.getElementById('modalNotas').style.display = 'none';
+    folioNotaActual = null;
+    tipoItemActual = null;
+    cargarPendientes();
 }
 
 async function cargarEdicionNotaLibre(id) {
@@ -942,106 +1048,6 @@ async function cargarPendientes() {
     } catch (e) {
         console.error("Error al cargar pendientes:", e);
     }
-}
-
-async function abrirModalNotas(folio) {
-    folioNotaActual = folio;
-    try {
-        const res = await fetch('/api/pendientes');
-        const data = await res.json();
-        const p = data.find(item => item.folio === folio);
-        if (!p) return;
-
-        tipoItemActual = p.tipo;
-
-        document.getElementById('modalNotasFolio').innerText = p.folio;
-        document.getElementById('modalNotasDesc').innerText = `[${p.tipo}] ${p.incidente}`;
-        document.getElementById('inputNotaTexto').value = '';
-        document.getElementById('inputNotaResponsable').value = '';
-        document.getElementById('inputNotaPrioridad').value = 'Media';
-
-        notasTemporalesModal = p.notasLista ? JSON.parse(JSON.stringify(p.notasLista)) : [];
-        renderizarTablaNotasModal();
-        document.getElementById('modalNotas').style.display = 'flex';
-    } catch (e) {
-        console.error("Error al abrir notas:", e);
-    }
-}
-
-async function cerrarModalSimple() {
-    if (folioNotaActual) {
-        try {
-            await fetch(`/api/pendientes/${folioNotaActual}/notas`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ notasLista: notasTemporalesModal })
-            });
-        } catch (e) {
-            console.error("Error al guardar notas en el servidor:", e);
-        }
-    }
-
-    document.getElementById('modalNotas').style.display = 'none';
-    folioNotaActual = null;
-    tipoItemActual = null;
-    cargarPendientes();
-}
-
-function agregarNotaModal() {
-    const texto = document.getElementById('inputNotaTexto').value.trim();
-    const responsable = document.getElementById('inputNotaResponsable').value;
-    const prioridad = document.getElementById('inputNotaPrioridad').value;
-    if (!texto) { alert('Escribe el contenido de la nota.'); return; }
-
-    notasTemporalesModal.push({ texto, responsable: responsable || 'General', prioridad, completado: false });
-    document.getElementById('inputNotaTexto').value = '';
-    document.getElementById('inputNotaResponsable').value = '';
-    renderizarTablaNotasModal();
-}
-
-function handleTextAreaKeyDown(event) {
-    if (event.ctrlKey && event.key === 'Enter') {
-        event.preventDefault();
-        agregarNotaModal();
-    }
-}
-
-function toggleNotaRealizadaModal(indexNota, completado) {
-    if (notasTemporalesModal[indexNota]) {
-        notasTemporalesModal[indexNota].completado = completado;
-        renderizarTablaNotasModal();
-    }
-}
-
-function eliminarNotaModal(indexNota) {
-    notasTemporalesModal.splice(indexNota, 1);
-    renderizarTablaNotasModal();
-}
-
-function renderizarTablaNotasModal() {
-    const tbody = document.getElementById('tablaNotasModal');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    if (!notasTemporalesModal || notasTemporalesModal.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas registradas.</td></tr>`;
-        return;
-    }
-
-    notasTemporalesModal.forEach((nota, idx) => {
-        let badgePri = nota.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (nota.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
-        const tr = document.createElement('tr');
-        if (nota.completado) tr.classList.add('completado');
-        const textoHtml = nota.texto.replace(/\n/g, '<br>');
-
-        tr.innerHTML = `
-            <td class="text-center"><input type="checkbox" style="width: 18px; height: 18px;" ${nota.completado ? 'checked' : ''} onclick="toggleNotaRealizadaModal(${idx}, this.checked)"></td>
-            <td style="white-space: pre-line;">${textoHtml}</td>
-            <td><b>${nota.responsable}</b></td>
-            <td class="text-center">${badgePri}</td>
-            <td class="text-center"><button class="btn-eliminar-item" onclick="eliminarNotaModal(${idx})">Eliminar</button></td>
-        `;
-        tbody.appendChild(tr);
-    });
 }
 
 async function cargarMatrizAsistencias() {
