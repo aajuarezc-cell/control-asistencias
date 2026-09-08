@@ -749,7 +749,6 @@ async function guardarYActualizarModalNotas() {
         }
     }
 }
-
 async function cerrarModalSimple() {
     if (folioNotaActual) {
         try {
