@@ -419,18 +419,25 @@ async function cargarNotasLibres() {
         tbody.innerHTML = '';
 
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas registradas para esta área.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas registradas para esta área.</td></tr>`;
             return;
         }
 
         data.forEach(item => {
             const totalNotas = item.notasLista ? item.notasLista.length : 0;
+            const puntosPendientesCount = item.notasLista ? item.notasLista.filter(nt => !nt.completado).length : 0;
+            
+            const badgePendientes = puntosPendientesCount > 0 
+                ? `<span class="badge" style="background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${puntosPendientesCount} PEND.</span>` 
+                : `<span class="badge" style="background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-weight: bold;">AL DÍA</span>`;
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${formatearFechaVista(item.fecha)}</td>
                 <td><b>${item.titulo}</b></td>
                 <td><span class="badge badge-libre">${item.area || 'General'}</span></td>
                 <td class="text-center"><b>${totalNotas}</b></td>
+                <td class="text-center">${badgePendientes}</td>
                 <td class="text-center">
                     <div class="acciones-container">
                         <button class="btn-accion btn-notas" onclick="abrirNotaEnNuevaVentana('${item._id}')" title="Ver Nota">Ver</button>
