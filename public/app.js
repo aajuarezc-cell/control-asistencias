@@ -622,59 +622,127 @@ async function abrirModalNotas(folio) {
         tipoItemActual = p.tipo;
         notasTemporalesModal = p.notasLista ? JSON.parse(JSON.stringify(p.notasLista)) : [];
 
-        let puntosHtml = '';
-        if (notasTemporalesModal && notasTemporalesModal.length > 0) {
-            notasTemporalesModal.forEach((pto, idx) => {
-                const badgePri = pto.prioridad === 'Alta' ? '🔴 ALTA' : (pto.prioridad === 'Baja' ? '🟢 BAJA' : '🟡 MEDIA');
-                const estiloTachado = pto.completado ? 'text-decoration: line-through; color: #86868b;' : '';
-                
-                puntosHtml += `
-                    <div style="margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #eaeaea; display: flex; align-items: flex-start; gap: 12px;">
-                        <input type="checkbox" style="width: 20px; height: 20px; margin-top: 3px; cursor: pointer;" 
-                            ${pto.completado ? 'checked' : ''} 
-                            onchange="toggleNotaRealizadaModal(${idx}, this.checked)">
-                        <div style="flex-grow: 1;">
-                            <div style="font-weight: bold; color: #0071e3; margin-bottom: 6px; font-size: 15px;">
-                                ${idx + 1}. <span style="color: #1d1d1f;">${pto.responsable || 'General'}</span> <span style="font-size: 11px; font-weight: normal; color: #666;">(${badgePri})</span>
-                            </div>
-                            <div id="texto-modal-pto-${idx}" style="padding-left: 5px; white-space: pre-line; color: #333; font-size: 14px; line-height: 1.5; ${estiloTachado}">
-                                ${pto.texto}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-        } else {
-            puntosHtml = '<p style="color: #86868b; font-style: italic;">No hay puntos registrados.</p>';
-        }
+        // Generamos dinámicamente las opciones de personal para el select de responsables dentro del modal
+        let opcionesPersonalHtml = '<option value="">Sin asignar</option>';
+        personalLista.forEach(pers => {
+            opcionesPersonalHtml += `<option value="${pers}">${pers}</option>`;
+        });
 
         const modalContainer = document.getElementById('modalNotas').querySelector('.modal-contenido') || document.getElementById('modalNotas').firstElementChild;
         if (modalContainer) {
             modalContainer.innerHTML = `
-                <div style="background: #ffffff; padding: 30px; border-radius: 16px; max-width: 800px; margin: auto; max-height: 90vh; overflow-y: auto;">
+                <div style="background: #ffffff; padding: 30px; border-radius: 16px; max-width: 850px; margin: auto; max-height: 90vh; overflow-y: auto;">
                     <h2 style="font-size: 22px; margin-top: 0; color: #1d1d1f; border-bottom: 2px solid #0071e3; padding-bottom: 10px;">
                         📋 [${p.folio}] ${p.incidente}
                     </h2>
                     <div style="font-size: 13px; color: #6e6e73; margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap;">
                         <div>Tipo: <span>${p.tipo}</span></div>
                         <div>Turnado/Asignado: <span>${p.turnado || 'N/A'}</span></div>
-                        <div>Total Puntos: <span>${notasTemporalesModal.length}</span></div>
+                        <div>Total Puntos: <span id="modalTotalPuntosCount">${notasTemporalesModal.length}</span></div>
                     </div>
-                    <div style="margin-top: 15px;">
-                        ${puntosHtml}
+
+                    <!-- CAJA DE CAPTURA NUEVA PUNTO (Igual a la imagen 1) -->
+                    <div style="background: #fbfbfd; border: 1px solid #d2d2d7; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <textarea id="inputModalNotaTexto" placeholder="Escribe los puntos tratados... (Ctrl + Enter para agregar)" style="width: 100%; height: 80px; padding: 12px; border: 1px solid #d2d2d7; border-radius: 8px; resize: vertical; font-family: inherit; font-size: 14px; margin-bottom: 12px;" onkeydown="handleModalTextAreaKeyDown(event)"></textarea>
+                        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                            <select id="inputModalNotaResponsable" style="flex: 2; padding: 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; background: white;">
+                                ${opcionesPersonalHtml}
+                            </select>
+                            <select id="inputModalNotaPrioridad" style="flex: 2; padding: 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; background: white;">
+                                <option value="Media">Prioridad Media</option>
+                                <option value="Alta">Prioridad Alta</option>
+                                <option value="Baja">Prioridad Baja</option>
+                            </select>
+                            <button type="button" onclick="agregarNotaModalDesdeUI()" style="background: #34c759; color: white; border: none; width: 45px; height: 40px; border-radius: 8px; font-size: 20px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;">+</button>
+                        </div>
                     </div>
-                    <div style="margin-top: 25px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                        <button class="btn-accion-ventana" style="background: #0071e3; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
-                        <button class="btn-accion-ventana" style="background: #34c759; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="guardarYActualizarModalNotas()">💾 Guardar</button>
-                        <button class="btn-accion-ventana" style="background: #8e8e93; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="cerrarModalSimple()">❌ Cerrar</button>
+
+                    <!-- LISTADO INTERACTIVO CON CHECKBOXES -->
+                    <div id="contenedorListaNotasModal" style="margin-top: 15px;">
+                        <!-- Se renderiza mediante JS -->
+                    </div>
+
+                    <!-- BOTONES DE ACCIÓN (Imprimir, Guardar, Cerrar) -->
+                    <div style="margin-top: 25px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border-top: 1px solid #eaeaea; padding-top: 20px;">
+                        <button class="btn-accion-ventana" style="background: #0071e3; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
+                        <button class="btn-accion-ventana" style="background: #34c759; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="guardarYActualizarModalNotas()">💾 Guardar</button>
+                        <button class="btn-accion-ventana" style="background: #8e8e93; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="cerrarModalSimple()">❌ Cerrar</button>
                     </div>
                 </div>
             `;
         }
 
+        renderizarListaNotasModalInteractiva();
         document.getElementById('modalNotas').style.display = 'flex';
     } catch (e) {
         console.error("Error al abrir notas:", e);
+    }
+}
+
+function renderizarListaNotasModalInteractiva() {
+    const contenedor = document.getElementById('contenedorListaNotasModal');
+    const spanTotal = document.getElementById('modalTotalPuntosCount');
+    if (!contenedor) return;
+
+    if (spanTotal) spanTotal.innerText = notasTemporalesModal.length;
+
+    if (!notasTemporalesModal || notasTemporalesModal.length === 0) {
+        contenedor.innerHTML = `<p style="color: #86868b; font-style: italic; text-align: center; padding: 15px;">No hay puntos registrados.</p>`;
+        return;
+    }
+
+    let html = '';
+    notasTemporalesModal.forEach((pto, idx) => {
+        const badgePri = pto.prioridad === 'Alta' ? '🔴 ALTA' : (pto.prioridad === 'Baja' ? '🟢 BAJA' : '🟡 MEDIA');
+        const estiloTachado = pto.completado ? 'text-decoration: line-through; color: #86868b;' : '';
+        
+        html += `
+            <div style="margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #eaeaea; display: flex; align-items: flex-start; gap: 12px;">
+                <input type="checkbox" style="width: 20px; height: 20px; margin-top: 3px; cursor: pointer;" 
+                    ${pto.completado ? 'checked' : ''} 
+                    onchange="toggleNotaRealizadaModal(${idx}, this.checked)">
+                <div style="flex-grow: 1;">
+                    <div style="font-weight: bold; color: #0071e3; margin-bottom: 6px; font-size: 15px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>${idx + 1}. <span style="color: #1d1d1f;">${pto.responsable || 'General'}</span> <span style="font-size: 11px; font-weight: normal; color: #666;">(${badgePri})</span></span>
+                        <button type="button" onclick="eliminarNotaModalUI(${idx})" style="background: #ff3b30; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;">Eliminar</button>
+                    </div>
+                    <div id="texto-modal-pto-${idx}" style="padding-left: 5px; white-space: pre-line; color: #333; font-size: 14px; line-height: 1.5; ${estiloTachado}">
+                        ${pto.texto}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    contenedor.innerHTML = html;
+}
+
+function agregarNotaModalDesdeUI() {
+    const texto = document.getElementById('inputModalNotaTexto').value.trim();
+    const responsable = document.getElementById('inputModalNotaResponsable').value;
+    const prioridad = document.getElementById('inputModalNotaPrioridad').value;
+    
+    if (!texto) { 
+        alert('Escribe el contenido del punto o nota.'); 
+        return; 
+    }
+
+    notasTemporalesModal.push({ 
+        texto, 
+        responsable: responsable || 'General', 
+        prioridad, 
+        completado: false 
+    });
+
+    document.getElementById('inputModalNotaTexto').value = '';
+    document.getElementById('inputModalNotaResponsable').value = '';
+    document.getElementById('inputModalNotaPrioridad').value = 'Media';
+    renderizarListaNotasModalInteractiva();
+}
+
+function handleModalTextAreaKeyDown(event) {
+    if (event.ctrlKey && event.key === 'Enter') {
+        event.preventDefault();
+        agregarNotaModalDesdeUI();
     }
 }
 
@@ -692,6 +760,11 @@ function toggleNotaRealizadaModal(indexNota, completado) {
             }
         }
     }
+}
+
+function eliminarNotaModalUI(indexNota) {
+    notasTemporalesModal.splice(indexNota, 1);
+    renderizarListaNotasModalInteractiva();
 }
 
 async function guardarYActualizarModalNotas() {
