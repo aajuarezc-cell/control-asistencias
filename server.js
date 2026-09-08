@@ -104,7 +104,7 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     const fechaActualTexto = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     if (pendientesActivos.length === 0) {
-        await enviarNotificacionTelegram(`🟢 <b>Estado del Sistema: Al Día</b>\nNo hay reuniones ni actividades pendientes en este momento.\n<i>Actualizado a las ${horaActual} (${fechaReporteDMA})</i>`);
+        await enviarNotificacionTelegram(`🟢 <b>Estado del Sistema: Al Día</b>\nNo hay reuniones ni actividades pendientes en este momento.\n<i>Actualizado a las ${horaActual} (${fechaReporteDMA})</i>\n\n🔗 <b>Sistema:</b> <a href="https://tu-dominio.com">Abrir Control de Oficina</a>`);
         return;
     }
 
@@ -155,7 +155,11 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     }
 
     const tituloReporte = esManual ? `🕹️ <b>REPORTE MANUAL SOLICITADO</b>` : `📋 <b>REPORTE PROGRAMADO DE ACTIVIDADES</b>`;
-    const mensajeFinal = `${tituloReporte}\n📊 <b>Resumen Operativo — ${horaActual} (${fechaReporteDMA})</b>\n\n📅 <b>AGENDA</b>\n\n${textoAgenda}⚡ <b>ACTIVIDADES</b>\n\n${textoActividades}<i>Control de Oficina • ${fechaActualTexto}</i>`;
+    
+    // URL de tu aplicación (puedes cambiarla por tu dominio o IP pública real)
+    const urlAplicacion = "https://control-asistencias-63ws.onrender.com/"; 
+
+    const mensajeFinal = `${tituloReporte}\n📊 <b>Resumen Operativo — ${horaActual} (${fechaReporteDMA})</b>\n\n📅 <b>AGENDA</b>\n\n${textoAgenda}⚡ <b>ACTIVIDADES</b>\n\n${textoActividades}<i>Control de Oficina • ${fechaActualTexto}</i>\n🗓️ <b>Fecha:</b> ${fechaReporteDMA}\n🔗 <b>Acceso al Sistema:</b> <a href="${urlAplicacion}">Ir a la Aplicación</a>`;
 
     await enviarNotificacionTelegram(mensajeFinal);
 }
