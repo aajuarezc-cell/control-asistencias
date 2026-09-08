@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "dependencies": {
+    "cors": "^2.8.6",
     "express": "^4.19.2",
     "mongoose": "^9.9.4",
     "node-cron": "^4.6.0",
