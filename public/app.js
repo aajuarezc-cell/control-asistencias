@@ -518,25 +518,32 @@ async function abrirNotaEnNuevaVentana(id) {
                     .meta-info { font-size: 13px; color: #6e6e73; margin-bottom: 25px; display: flex; gap: 25px; flex-wrap: wrap; }
                     .meta-info div { font-weight: 500; }
                     .meta-info span { font-weight: 600; color: #1d1d1f; }
-                    .btn-imprimir {
-                        background: #0071e3;
-                        color: white;
+                    .botones-accion-container {
+                        margin-top: 25px;
+                        display: flex;
+                        gap: 12px;
+                        align-items: center;
+                        flex-wrap: wrap;
+                    }
+                    .btn-accion-ventana {
                         border: none;
                         padding: 12px 24px;
                         border-radius: 10px;
                         font-weight: 600;
                         cursor: pointer;
-                        margin-top: 25px;
                         font-size: 14px;
                         display: inline-flex;
                         align-items: center;
                         gap: 8px;
                     }
-                    .btn-imprimir:hover { opacity: 0.9; }
+                    .btn-imprimir { background: #0071e3; color: white; }
+                    .btn-guardar { background: #34c759; color: white; }
+                    .btn-cerrar { background: #8e8e93; color: white; }
+                    .btn-accion-ventana:hover { opacity: 0.9; }
                     @media print {
                         body { background: white; padding: 0; }
                         .documento-card { border: none; box-shadow: none; padding: 0; }
-                        .btn-imprimir { display: none; }
+                        .botones-accion-container { display: none; }
                         input[type="checkbox"] { display: none; }
                     }
                 </style>
@@ -562,6 +569,20 @@ async function abrirNotaEnNuevaVentana(id) {
                             console.error("Error al actualizar estado del punto:", e);
                         }
                     }
+
+                    function guardarCambiosVentana() {
+                        if (window.opener && typeof window.opener.cargarNotasLibres === 'function') {
+                            window.opener.cargarNotasLibres();
+                        }
+                        alert("Cambios guardados correctamente.");
+                    }
+
+                    function cerrarVentana() {
+                        if (window.opener && typeof window.opener.cargarNotasLibres === 'function') {
+                            window.opener.cargarNotasLibres();
+                        }
+                        window.close();
+                    }
                 </script>
             </head>
             <body>
@@ -575,7 +596,11 @@ async function abrirNotaEnNuevaVentana(id) {
                     <div style="margin-top: 20px;">
                         ${puntosHtml}
                     </div>
-                    <button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
+                    <div class="botones-accion-container">
+                        <button class="btn-accion-ventana btn-imprimir" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
+                        <button class="btn-accion-ventana btn-guardar" onclick="guardarCambiosVentana()">💾 Guardar</button>
+                        <button class="btn-accion-ventana btn-cerrar" onclick="cerrarVentana()">❌ Cerrar</button>
+                    </div>
                 </div>
             </body>
             </html>
