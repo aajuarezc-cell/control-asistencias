@@ -28,17 +28,9 @@ function formatearFechaVista(fechaStr) {
 }
 
 async function forzarEnvioTelegram() {
-    if (!confirm("¿Deseas enviar el reporte actual de Agenda y Actividades a Telegram ahora mismo?")) return;
     try {
-        const res = await fetch('/api/forzar-telegram', { method: 'POST' });
-        const data = await res.json();
-        if (data.exito) {
-            alert("¡Reporte enviado a Telegram con éxito!");
-        } else {
-            alert("Error al enviar: " + (data.error || 'Desconocido'));
-        }
+        await fetch('/api/forzar-telegram', { method: 'POST' });
     } catch (e) {
-        alert("Error de conexión al intentar enviar el reporte.");
         console.error(e);
     }
 }
@@ -239,10 +231,7 @@ async function agregarNuevaAreaPrompt() {
     const nuevaArea = prompt("Escribe el nombre de la nueva Área o Departamento:");
     if (!nuevaArea || !nuevaArea.trim()) return;
     const areaTrim = nuevaArea.trim();
-    if (areasListaInicial.includes(areaTrim)) {
-        alert("Esa área ya existe en la lista.");
-        return;
-    }
+    if (areasListaInicial.includes(areaTrim)) return;
 
     try {
         const res = await fetch('/api/areas', {
@@ -258,7 +247,6 @@ async function agregarNuevaAreaPrompt() {
         }
         poblarSelectAreas();
         document.getElementById('libreArea').value = areaTrim;
-        alert("Área agregada con éxito.");
     } catch (e) {
         console.error("Error guardando área:", e);
     }
@@ -279,10 +267,7 @@ function agregarPuntoFormularioLibre() {
     const responsable = document.getElementById('inputLibreNotaResponsable').value;
     const prioridad = document.getElementById('inputLibreNotaPrioridad').value;
     
-    if (!texto) { 
-        alert('Escribe el contenido del punto o nota.'); 
-        return; 
-    }
+    if (!texto) return;
 
     puntosFormularioLibre.push({ 
         texto, 
@@ -345,10 +330,7 @@ async function guardarRegistroGeneral(e) {
         const fecha = document.getElementById('libreFecha').value;
         const area = document.getElementById('libreArea').value;
 
-        if (!area) {
-            alert("Selecciona o agrega un área.");
-            return;
-        }
+        if (!area) return;
 
         const payload = {
             titulo,
@@ -364,14 +346,12 @@ async function guardarRegistroGeneral(e) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                alert("Nota actualizada con éxito.");
             } else {
                 await fetch('/api/notas-libres', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                alert("Nota de reunión guardada con éxito.");
             }
 
             cancelarEdicionFormulario();
@@ -550,20 +530,18 @@ async function abrirNotaEnNuevaVentana(id) {
                 <script>
                     async function togglePuntoNotaLibre(notaId, index, completado) {
                         try {
-                            const res = await fetch(\`/api/notas-libres/\${notaId}/punto/\${index}\`, {
+                            await fetch(\`/api/notas-libres/\${notaId}/punto/\${index}\`, {
                                 method: 'PATCH',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ completado })
                             });
-                            if (res.ok) {
-                                const textEl = document.getElementById('texto-pto-' + index);
-                                if (completado) {
-                                    textEl.style.textDecoration = 'line-through';
-                                    textEl.style.color = '#86868b';
-                                } else {
-                                    textEl.style.textDecoration = 'none';
-                                    textEl.style.color = '#333';
-                                }
+                            const textEl = document.getElementById('texto-pto-' + index);
+                            if (completado) {
+                                textEl.style.textDecoration = 'line-through';
+                                textEl.style.color = '#86868b';
+                            } else {
+                                textEl.style.textDecoration = 'none';
+                                textEl.style.color = '#333';
                             }
                         } catch (e) {
                             console.error("Error al actualizar estado del punto:", e);
@@ -574,7 +552,6 @@ async function abrirNotaEnNuevaVentana(id) {
                         if (window.opener && typeof window.opener.cargarNotasLibres === 'function') {
                             window.opener.cargarNotasLibres();
                         }
-                        alert("Cambios guardados correctamente.");
                     }
 
                     function cerrarVentana() {
@@ -622,7 +599,6 @@ async function abrirModalNotas(folio) {
         tipoItemActual = p.tipo;
         notasTemporalesModal = p.notasLista ? JSON.parse(JSON.stringify(p.notasLista)) : [];
 
-        // Generamos dinámicamente las opciones de personal para el select de responsables dentro del modal
         let opcionesPersonalHtml = '<option value="">Sin asignar</option>';
         personalLista.forEach(pers => {
             opcionesPersonalHtml += `<option value="${pers}">${pers}</option>`;
@@ -641,7 +617,6 @@ async function abrirModalNotas(folio) {
                         <div>Total Puntos: <span id="modalTotalPuntosCount">${notasTemporalesModal.length}</span></div>
                     </div>
 
-                    <!-- CAJA DE CAPTURA NUEVA PUNTO (Igual a la imagen 1) -->
                     <div style="background: #fbfbfd; border: 1px solid #d2d2d7; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
                         <textarea id="inputModalNotaTexto" placeholder="Escribe los puntos tratados... (Ctrl + Enter para agregar)" style="width: 100%; height: 80px; padding: 12px; border: 1px solid #d2d2d7; border-radius: 8px; resize: vertical; font-family: inherit; font-size: 14px; margin-bottom: 12px;" onkeydown="handleModalTextAreaKeyDown(event)"></textarea>
                         <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
@@ -657,12 +632,8 @@ async function abrirModalNotas(folio) {
                         </div>
                     </div>
 
-                    <!-- LISTADO INTERACTIVO CON CHECKBOXES -->
-                    <div id="contenedorListaNotasModal" style="margin-top: 15px;">
-                        <!-- Se renderiza mediante JS -->
-                    </div>
+                    <div id="contenedorListaNotasModal" style="margin-top: 15px;"></div>
 
-                    <!-- BOTONES DE ACCIÓN (Imprimir, Guardar, Cerrar) -->
                     <div style="margin-top: 25px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border-top: 1px solid #eaeaea; padding-top: 20px;">
                         <button class="btn-accion-ventana" style="background: #0071e3; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
                         <button class="btn-accion-ventana" style="background: #34c759; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="guardarYActualizarModalNotas()">💾 Guardar</button>
@@ -721,10 +692,7 @@ function agregarNotaModalDesdeUI() {
     const responsable = document.getElementById('inputModalNotaResponsable').value;
     const prioridad = document.getElementById('inputModalNotaPrioridad').value;
     
-    if (!texto) { 
-        alert('Escribe el contenido del punto o nota.'); 
-        return; 
-    }
+    if (!texto) return;
 
     notasTemporalesModal.push({ 
         texto, 
@@ -775,11 +743,9 @@ async function guardarYActualizarModalNotas() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ notasLista: notasTemporalesModal })
             });
-            alert("Cambios guardados correctamente.");
             cargarPendientes();
         } catch (e) {
             console.error("Error al guardar notas en el servidor:", e);
-            alert("Error al intentar guardar los cambios.");
         }
     }
 }
@@ -831,10 +797,8 @@ async function cargarEdicionNotaLibre(id) {
 }
 
 async function eliminarNotaLibrePrincipal(id) {
-    if (confirm("¿Estás seguro de eliminar este registro de notas y todos sus puntos?")) {
-        await fetch(`/api/notas-libres/${id}`, { method: 'DELETE' });
-        cargarNotasLibres();
-    }
+    await fetch(`/api/notas-libres/${id}`, { method: 'DELETE' });
+    cargarNotasLibres();
 }
 
 function toggleCamposTipo() {
@@ -879,7 +843,7 @@ function toggleCamposTipo() {
         if (!document.getElementById('libreFecha').value) document.getElementById('libreFecha').value = fechaHoy;
         grupoAreaNota.classList.remove('oculto'); document.getElementById('libreArea').required = true;
         grupoPuntosNota.classList.remove('oculto');
-    } else { // Actividad
+    } else { 
         grupoHora.classList.add('oculto'); inputHora.required = false; inputHora.value = '';
         grupoTurnado.classList.remove('oculto'); selectTurnadoElem.required = true;
         grupoPrioridad.classList.remove('oculto'); document.getElementById('prioridad').required = true;
@@ -1184,7 +1148,6 @@ async function guardarCambiosAsistencias() {
     cargarReporteSemanal();
     cargarReporteMensual();
     cargarPendientes();
-    alert("Asistencias guardadas exitosamente.");
 }
 
 function obtenerDiasSemana(fechaStr) {
@@ -1297,10 +1260,7 @@ async function guardarVacaciones(e) {
             body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (!res.ok) {
-            alert("⚠️ " + data.error);
-        } else {
-            alert("¡Vacaciones registradas con éxito!");
+        if (res.ok) {
             document.getElementById('formVacaciones').reset();
             document.getElementById('vacFecha').value = fechaHoy;
             document.getElementById('vacAnio').value = "2026";
@@ -1416,13 +1376,11 @@ async function renderizarCalendarioVacaciones() {
 }
 
 async function eliminarRegistroVacacion(id) {
-    if (confirm("¿Estás seguro de restablecer este registro de periodo?")) {
-        await fetch(`/api/vacaciones/${id}`, { method: 'DELETE' });
-        cargarResumenVacaciones();
-        cargarMatrizAsistencias();
-        cargarReporteSemanal();
-        cargarReporteMensual();
-    }
+    await fetch(`/api/vacaciones/${id}`, { method: 'DELETE' });
+    cargarResumenVacaciones();
+    cargarMatrizAsistencias();
+    cargarReporteSemanal();
+    cargarReporteMensual();
 }
 
 function exportarPDF(seccionId) {
@@ -1506,10 +1464,8 @@ function cancelarEdicionFormulario() {
 }
 
 async function eliminarPendiente(folio) {
-    if (confirm(`¿Eliminar registro ${folio}?`)) {
-        await fetch(`/api/pendientes/${folio}`, { method: 'DELETE' });
-        cargarPendientes();
-    }
+    await fetch(`/api/pendientes/${folio}`, { method: 'DELETE' });
+    cargarPendientes();
 }
 
 async function toggleEstado(folio, finalizado) {
