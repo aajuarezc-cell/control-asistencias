@@ -1,79 +1,55 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const cors = require('cors');
 const path = require('path');
-const cron = require('node-cron');
-
-// Forzar la zona horaria local para que Render no use UTC por defecto
-process.env.TZ = 'America/Mexico_City';
+const fetch = require('node-fetch'); // O usa el fetch nativo de Node si usas versiones recientes
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
+app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/control_oficina';
+// ==========================================
+// CONEXIÓN A MONGODB
+// ==========================================
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://tu_usuario:tu_password@cluster.mongodb.net/control_asistencias?retryWrites=true&w=majority';
 
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('🟢 Conectado exitosamente a MongoDB'))
-    .catch(err => console.error('🔴 Error al conectar a MongoDB:', err));
+mongoose.connect(MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+})
+.then(() => console.log("🟢 Conectado exitosamente a MongoDB"))
+.catch(err => console.error("🔴 Error conectando a MongoDB:", err));
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+// ==========================================
+// MODELOS DE MONGOOSE
+// ==========================================
 
-async function enviarNotificacionTelegram(mensajeHtml) {
-    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-        console.error("🔴 Faltan las credenciales de Telegram en las variables de entorno.");
-        return;
-    }
-    try {
-        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: TELEGRAM_CHAT_ID,
-                text: mensajeHtml,
-                parse_mode: 'HTML'
-            })
-        });
-    } catch (error) {
-        console.error("Error al enviar notificación a Telegram:", error);
-    }
-}
-
-function formatearFechaDMA(fechaStr) {
-    if (!fechaStr) return '';
-    const partes = fechaStr.split('-');
-    if (partes.length === 3) {
-        return `${partes[2]}/${partes[1]}/${partes[0]}`;
-    }
-    return fechaStr;
-}
-
-function obtenerFechaLocalStr(d = new Date()) {
-    const anio = d.getFullYear();
-    const mes = String(d.getMonth() + 1).padStart(2, '0');
-    const dia = String(d.getDate()).padStart(2, '0');
-    return `${anio}-${mes}-${dia}`;
-}
-
+// 1. Esquema de Pendientes, Reuniones y Actividades
 const pendienteSchema = new mongoose.Schema({
-    folio: { type: String, unique: true },
-    tipo: String,
+    folio: { type: String, required: true, unique: true },
+    tipo: { type: String, required: true }, // 'Reunión' o 'Actividad'
+    incidente: { type: String, required: true },
+    turnado: { type: String, default: '' },
+    vencimiento: { type: String, default: '' },
+    horaReunion: { type: String, default: '' },
+    observaciones: { type: String, default: '' },
     prioridad: { type: String, default: 'Media' },
-    incidente: String,
-    turnado: String,
-    vencimiento: String,
-    horaReunion: String,
-    notasLista: { type: Array, default: [] },
-    observaciones: String,
     finalizado: { type: Boolean, default: false },
-    fecha: String,
-    notificadoDosHoras: { type: Boolean, default: false }
+    fechaFinalizacion: { type: Date, default: null }, // Fecha exacta en que se marcó como completado
+    fecha: { type: String, default: () => new Date().toISOString().split('T')[0] },
+    notasLista: [{
+        texto: String,
+        responsable: String,
+        prioridad: String,
+        completado: { type: Boolean, default: false }
+    }]
 });
 const Pendiente = mongoose.model('Pendiente', pendienteSchema);
 
+// 2. Esquema de Asistencias
 const asistenciaSchema = new mongoose.Schema({
     personal: String,
     fecha: String,
@@ -81,293 +57,220 @@ const asistenciaSchema = new mongoose.Schema({
 });
 const Asistencia = mongoose.model('Asistencia', asistenciaSchema);
 
-const vacacionSchema = new mongoose.Schema({
+// 3. Esquema de Vacaciones
+const vacacionesSchema = new mongoose.Schema({
     personal: String,
-    periodoAnual: Number, 
-    tipoPeriodo: { type: Number, enum: [1, 2] }, 
-    diasTomados: { type: Number, default: 0 }, 
-    fechasSolicitadas: { type: Array, default: [] }, 
-    estatus: { type: String, default: 'Activo' }
+    periodoAnual: Number,
+    tipoPeriodo: Number,
+    diasTomados: Number,
+    fechasSolicitadas: [{
+        inicio: String,
+        dias: Number,
+        fechas: [String]
+    }]
 });
-const Vacacion = mongoose.model('Vacacion', vacacionSchema);
+const Vacaciones = mongoose.model('Vacaciones', vacacionesSchema);
 
+// 4. Esquema de Áreas
+const areaSchema = new mongoose.Schema({
+    nombre: { type: String, unique: true }
+});
+const Area = mongoose.model('Area', areaSchema);
+
+// 5. Esquema de Notas Libres
 const notaLibreSchema = new mongoose.Schema({
-    titulo: String,
-    fecha: String,
-    area: String,
-    notasLista: { type: Array, default: [] }
+    titulo: { type: String, required: true },
+    fecha: { type: String, required: true },
+    area: { type: String, default: 'General' },
+    notasLista: [{
+        texto: String,
+        responsable: String,
+        prioridad: String,
+        completado: { type: Boolean, default: false }
+    }]
 });
 const NotaLibre = mongoose.model('NotaLibre', notaLibreSchema);
 
-const configuracionSchema = new mongoose.Schema({
-    clave: { type: String, unique: true },
-    areas: { type: Array, default: [] }
-});
-const Configuracion = mongoose.model('Configuracion', configuracionSchema);
 
-async function generarYEnviarReporteTelegram(esManual = false) {
-    const pendientesActivos = await Pendiente.find({ finalizado: false });
-    const reuniones = pendientesActivos.filter(p => p.tipo === 'Reunión');
-    const actividades = pendientesActivos.filter(p => p.tipo !== 'Reunión');
+// ==========================================
+// RUTAS API: PENDIENTES / AGENDA / ACTIVIDADES
+// ==========================================
 
-    const horaActual = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-    const fechaReporteDMA = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const fechaActualTexto = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
-    const urlAplicacion = "https://control-asistencias-63ws.onrender.com/"; 
-
-    if (pendientesActivos.length === 0) {
-        await enviarNotificacionTelegram(`🟢 <b>Estado del Sistema: Al Día</b>\nNo hay reuniones ni actividades pendientes en este momento.\n<i>Actualizado a las ${horaActual} (${fechaReporteDMA})</i>\n\n🗓️ <b>Fecha:</b> ${fechaReporteDMA}\n🔗 <b>Acceso al Sistema:</b> <a href="${urlAplicacion}">Ir a la Aplicación</a>`);
-        return;
-    }
-
-    let textoAgenda = "";
-    if (reuniones.length === 0) {
-        textoAgenda = "<i>No hay reuniones activas.</i>\n";
-    } else {
-        reuniones.forEach((r, index) => {
-            const totalNotas = r.notasLista ? r.notasLista.length : 0;
-            const fechaDMA = formatearFechaDMA(r.vencimiento);
-            const fechaHora = `${fechaDMA}${r.horaReunion ? ' a las ' + r.horaReunion + 'h' : ''}`;
-            textoAgenda += `${index + 1}. <b>[${r.folio}]</b> — ${fechaHora}\n<i>${r.incidente}</i>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
-        });
-    }
-
-    const actAltas = actividades.filter(a => a.prioridad === 'Alta');
-    const actMedias = actividades.filter(a => a.prioridad === 'Media');
-    const actBajas = actividades.filter(a => a.prioridad === 'Baja');
-
-    let textoActividades = "";
-
-    textoActividades += `<b>Prioridad ALTA:</b>\n\n`;
-    if (actAltas.length === 0) {
-        textoActividades += `<i>Sin actividades de alta prioridad.</i>\n\n`;
-    } else {
-        actAltas.forEach((a, index) => {
-            const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. <b>[${a.folio}]</b> — Turnado a: <b>${a.turnado}</b>\n<i>${a.incidente}</i>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
-        });
-    }
-
-    textoActividades += `<b>Prioridad MEDIA:</b>\n\n`;
-    if (actMedias.length === 0) {
-        textoActividades += `<i>Sin actividades de prioridad media.</i>\n\n`;
-    } else {
-        actMedias.forEach((a, index) => {
-            const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. <b>[${a.folio}]</b> — Turnado a: <b>${a.turnado}</b>\n<i>${a.incidente}</i>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
-        });
-    }
-
-    if (actBajas.length > 0) {
-        textoActividades += `<b>Prioridad BAJA:</b>\n\n`;
-        actBajas.forEach((a, index) => {
-            const totalNotas = a.notasLista ? a.notasLista.length : 0;
-            textoActividades += `${index + 1}. <b>[${a.folio}]</b> — Turnado a: <b>${a.turnado}</b>\n<i>${a.incidente}</i>\nCantidad de notas: <b>${totalNotas}</b>\n\n`;
-        });
-    }
-
-    const tituloReporte = esManual ? `🕹️ <b>REPORTE MANUAL SOLICITADO</b>` : `📋 <b>REPORTE PROGRAMADO DE ACTIVIDADES</b>`;
-    const mensajeFinal = `${tituloReporte}\n📊 <b>Resumen Operativo — ${horaActual} (${fechaReporteDMA})</b>\n\n📅 <b>AGENDA</b>\n\n${textoAgenda}⚡ <b>ACTIVIDADES</b>\n\n${textoActividades}<i>Control de Oficina • ${fechaActualTexto}</i>\n🗓️ <b>Fecha:</b> ${fechaReporteDMA}\n🔗 <b>Acceso al Sistema:</b> <a href="${urlAplicacion}">Ir a la Aplicación</a>`;
-
-    await enviarNotificacionTelegram(mensajeFinal);
-}
-
-async function verificarYNotificarReunionesProximas() {
-    try {
-        const ahora = new Date();
-        const fechaHoyStr = obtenerFechaLocalStr(ahora);
-
-        const reunionesHoy = await Pendiente.find({
-            tipo: 'Reunión',
-            finalizado: false,
-            vencimiento: fechaHoyStr,
-            notificadoDosHoras: { $ne: true }
-        });
-
-        for (const reunion of reunionesHoy) {
-            if (!reunion.horaReunion) continue;
-
-            const [horasReu, minutosReu] = reunion.horaReunion.split(':').map(Number);
-            const fechaHoraReunion = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), horasReu, minutosReu, 0);
-            
-            const diferenciaMs = fechaHoraReunion.getTime() - ahora.getTime();
-            const diferenciaMinutos = diferenciaMs / (1000 * 60);
-
-            if (diferenciaMinutos >= 118 && diferenciaMinutos <= 122) {
-                const mensajeAlerta = `⏰ <b>¡RECORDATORIO DE REUNIÓN PRÓXIMA!</b>\n\n` +
-                                      `La reunión <b>[${reunion.folio}]</b> comenzará en <b>2 horas</b> (${reunion.horaReunion} hrs).\n\n` +
-                                      `📝 <b>Detalle:</b> ${reunion.incidente}\n` +
-                                      `📌 <b>Observaciones:</b> ${reunion.observaciones || 'Ninguna'}`;
-
-                await enviarNotificacionTelegram(mensajeAlerta);
-                
-                reunion.notificadoDosHoras = true;
-                await reunion.save();
-
-                console.log(`[RECORDATORIO] Alerta de reunión ${reunion.folio} enviada exitosamente a Telegram.`);
-            }
-        }
-    } catch (error) {
-        console.error("Error en la verificación de reuniones próximas:", error);
-    }
-}
-
+// Obtener todos los pendientes
 app.get('/api/pendientes', async (req, res) => {
     try {
-        const pendientes = await Pendiente.find();
-        res.json(pendientes);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        const items = await Pendiente.find();
+        res.json(items);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
+// Crear nuevo pendiente con generación automática de folio
 app.post('/api/pendientes', async (req, res) => {
     try {
-        const { tipo, incidente, turnado, vencimiento, horaReunion, notasLista, observaciones, prioridad } = req.body;
+        const { tipo, incidente, turnado, vencimiento, horaReunion, observaciones, prioridad } = req.body;
         
-        const prefijo = tipo === 'Reunión' ? 'REU-' : 'ACT-';
-        const ultimo = await Pendiente.findOne({ folio: new RegExp(`^${prefijo}`) }).sort({ _id: -1 });
+        // Generar folio correlativo (REU-001 o ACT-001)
+        const prefijo = tipo === 'Reunión' ? 'REU' : 'ACT';
+        const ultimo = await Pendiente.findOne({ tipo: tipo === 'Reunión' ? 'Reunión' : { $ne: 'Reunión' } }).sort({ _id: -1 });
         
-        let siguienteNumero = 1;
-        if (ultimo && ultimo.folio && ultimo.folio.startsWith(prefijo)) {
-            const numeroStr = ultimo.folio.split('-')[1];
-            const num = parseInt(numeroStr);
-            if (!isNaN(num)) siguienteNumero = num + 1;
+        let siguienteNum = 1;
+        if (ultimo && ultimo.folio) {
+            const partes = ultimo.folio.split('-');
+            if (partes.length === 2) {
+                const num = parseInt(partes[1]);
+                if (!isNaN(num)) siguienteNum = num + 1;
+            }
         }
-        const folioGenerado = `${prefijo}${String(siguienteNumero).padStart(3, '0')}`;
-        
-        const fechaActual = obtenerFechaLocalStr(new Date());
+        const folioGenerado = `${prefijo}-${String(siguienteNum).padStart(3, '0')}`;
 
         const nuevoPendiente = new Pendiente({
             folio: folioGenerado,
-            tipo,
-            prioridad: prioridad || 'Media',
+            tipo: tipo === 'Reunión' ? 'Reunión' : 'Actividad',
             incidente,
-            turnado: turnado || 'N/A',
-            vencimiento: vencimiento || fechaActual,
+            turnado: turnado || '',
+            vencimiento: vencimiento || '',
             horaReunion: horaReunion || '',
-            notasLista: notasLista || [],
             observaciones: observaciones || '',
-            finalizado: false,
-            fecha: fechaActual,
-            notificadoDosHoras: false
+            prioridad: prioridad || 'Media',
+            finalizado: false
         });
 
         await nuevoPendiente.save();
-
-        if (nuevoPendiente.prioridad === 'Alta') {
-            const alertaAlta = `🚨 <b>¡NUEVO REGISTRO URGENTE (${nuevoPendiente.folio})!</b>\n\n` +
-                               `• <b>Tipo:</b> ${nuevoPendiente.tipo}\n` +
-                               `• <b>Asignado a:</b> ${nuevoPendiente.turnado || 'General'}\n` +
-                               `• <b>Fecha:</b> ${formatearFechaDMA(nuevoPendiente.vencimiento)}\n` +
-                               `• <b>Detalle:</b> ${nuevoPendiente.incidente}`;
-            await enviarNotificacionTelegram(alertaAlta);
-        }
-
-        res.status(201).json(nuevoPendiente);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.json(nuevoPendiente);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
+// Actualizar pendiente completo (PUT)
 app.put('/api/pendientes/:folio', async (req, res) => {
     try {
-        const { tipo, incidente, turnado, vencimiento, horaReunion, notasLista, observaciones, prioridad } = req.body;
-        const pendienteActualizado = await Pendiente.findOneAndUpdate(
+        const { tipo, incidente, turnado, vencimiento, horaReunion, observaciones, prioridad, notasLista } = req.body;
+        const updateData = {
+            tipo,
+            incidente,
+            turnado,
+            vencimiento: vencimiento || '',
+            horaReunion: horaReunion || '',
+            observaciones,
+            prioridad
+        };
+        if (notasLista) updateData.notasLista = notasLista;
+
+        const actualizado = await Pendiente.findOneAndUpdate(
             { folio: req.params.folio },
-            { tipo, incidente, turnado, vencimiento, horaReunion, notasLista, observaciones, prioridad },
+            updateData,
             { new: true }
         );
-        res.json(pendienteActualizado);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.json(actualizado);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
-// Ruta para actualizar las notas internas de un pendiente o reunión por su folio
+// Cambiar estatus de finalizado (PATCH) - Registra la fecha de finalización exacta
+app.patch('/api/pendientes/:folio', async (req, res) => {
+    try {
+        const { finalizado } = req.body;
+        const updateData = { finalizado };
+
+        if (finalizado) {
+            updateData.fechaFinalizacion = new Date();
+        } else {
+            updateData.fechaFinalizacion = null;
+        }
+
+        const actualizado = await Pendiente.findOneAndUpdate(
+            { folio: req.params.folio },
+            updateData,
+            { new: true }
+        );
+        res.json(actualizado);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Actualizar únicamente las notas de un pendiente
 app.put('/api/pendientes/:folio/notas', async (req, res) => {
     try {
         const { notasLista } = req.body;
-        const pendienteActualizado = await Pendiente.findOneAndUpdate(
+        const actualizado = await Pendiente.findOneAndUpdate(
             { folio: req.params.folio },
             { notasLista },
             { new: true }
         );
-        if (!pendienteActualizado) {
-            return res.status(404).json({ error: 'Registro no encontrado' });
-        }
-        res.json({ exito: true, pendiente: pendienteActualizado });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.json(actualizado);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
-app.patch('/api/pendientes/:folio', async (req, res) => {
-    try {
-        const { finalizado } = req.body;
-        const pendienteActualizado = await Pendiente.findOneAndUpdate(
-            { folio: req.params.folio },
-            { finalizado },
-            { new: true }
-        );
-        res.json(pendienteActualizado);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
+// Eliminar un pendiente individual
 app.delete('/api/pendientes/:folio', async (req, res) => {
     try {
         await Pendiente.findOneAndDelete({ folio: req.params.folio });
-        res.json({ mensaje: 'Registro eliminado correctamente' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.json({ exito: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
-app.post('/api/forzar-telegram', async (req, res) => {
+// Vaciar (eliminar masivamente) registros finalizados por tipo ('Reunión' o 'Actividad')
+app.delete('/api/pendientes/vaciar-finalizados/:tipo', async (req, res) => {
     try {
-        await generarYEnviarReporteTelegram(true);
+        const tipoReq = req.params.tipo;
+        await Pendiente.deleteMany({ tipo: tipoReq, finalizado: true });
         res.json({ exito: true });
-    } catch (error) {
-        console.error("Error al forzar envío a Telegram:", error);
-        res.status(500).json({ exito: false, error: error.message });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
+
+
+// ==========================================
+// RUTAS API: ASISTENCIAS
+// ==========================================
 
 app.get('/api/asistencias', async (req, res) => {
     try {
-        const asistencias = await Asistencia.find();
-        res.json(asistencias);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        const registros = await Asistencia.find();
+        res.json(registros);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
 app.post('/api/asistencias', async (req, res) => {
     try {
         const { personal, fecha, estatus } = req.body;
-        let asistencia = await Asistencia.findOne({ personal, fecha });
-        if (asistencia) {
-            asistencia.estatus = estatus;
-            await asistencia.save();
+        let reg = await Asistencia.findOne({ personal, fecha });
+        if (reg) {
+            reg.estatus = estatus;
+            await reg.save();
         } else {
-            asistencia = new Asistencia({ personal, fecha, estatus });
-            await asistencia.save();
+            reg = new Asistencia({ personal, fecha, estatus });
+            await reg.save();
         }
-        res.status(200).json(asistencia);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.json(reg);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
+
+// ==========================================
+// RUTAS API: VACACIONES
+// ==========================================
+
 app.get('/api/vacaciones', async (req, res) => {
     try {
-        const vacaciones = await Vacacion.find();
-        res.json(vacaciones);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        const vacs = await Vacaciones.find();
+        res.json(vacs);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -375,10 +278,23 @@ app.post('/api/vacaciones', async (req, res) => {
     try {
         const { personal, periodoAnual, tipoPeriodo, diasSolicitados, fechaInicio } = req.body;
         
-        let registro = await Vacacion.findOne({ personal, periodoAnual, tipoPeriodo });
-        
-        if (!registro) {
-            registro = new Vacacion({
+        // Calcular los días hábiles (lunes a viernes) solicitados a partir de la fecha de inicio
+        let fechaObj = new Date(fechaInicio + 'T00:00:00');
+        let fechasArray = [];
+        let diasAgregados = 0;
+
+        while (diasAgregados < diasSolicitados) {
+            let diaSemana = fechaObj.getDay(); // 0: Dom, 6: Sáb
+            if (diaSemana !== 0 && diaSemana !== 6) {
+                fechasArray.push(fechaObj.toISOString().split('T')[0]);
+                diasAgregados++;
+            }
+            fechaObj.setDate(fechaObj.getDate() + 1);
+        }
+
+        let registroVac = await Vacaciones.findOne({ personal, periodoAnual, tipoPeriodo });
+        if (!registroVac) {
+            registroVac = new Vacaciones({
                 personal,
                 periodoAnual,
                 tipoPeriodo,
@@ -387,75 +303,80 @@ app.post('/api/vacaciones', async (req, res) => {
             });
         }
 
-        if (registro.diasTomados >= 10) {
-            return res.status(400).json({ error: `El personal ${personal} ya ha completado los 10 días autorizados para el Periodo ${tipoPeriodo}.` });
+        const totalActual = registroVac.diasTomados + diasSolicitados;
+        if (totalActual > 10) {
+            return.status(400).json({ error: `El periodo ${tipoPeriodo} excede el límite de 10 días (actuales: ${registroVac.diasTomados}, solicitados: ${diasSolicitados}).` });
         }
 
-        if (registro.diasTomados + diasSolicitados > 10) {
-            return res.status(400).json({ error: `No se pueden autorizar ${diasSolicitados} días. Solo le quedan ${10 - registro.diasTomados} días disponibles en este periodo.` });
-        }
+        registroVac.diasTomados = totalActual;
+        registroVac.fechasSolicitadas.push({
+            inicio: fechaInicio,
+            dias: diasSolicitados,
+            fechas: fechasArray
+        });
 
-        let current = new Date(fechaInicio + 'T00:00:00');
-        let addedDays = 0;
-        let fechasAgregadas = [];
+        await registroVac.save();
 
-        while (addedDays < diasSolicitados) {
-            let dayOfWeek = current.getDay();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                let fechaStr = obtenerFechaLocalStr(current);
-                fechasAgregadas.push(fechaStr);
-                
-                await Asistencia.findOneAndUpdate(
-                    { personal, fecha: fechaStr },
-                    { estatus: 'Vacaciones' },
-                    { upsert: true, new: true }
-                );
-                addedDays++;
+        // Registrar automáticamente como 'Vacaciones' en la matriz de asistencias para los días hábiles calculados
+        for (const fStr of fechasArray) {
+            let asistReg = await Asistencia.findOne({ personal, fecha: fStr });
+            if (asistReg) {
+                asistReg.estatus = 'Vacaciones';
+                await asistReg.save();
+            } else {
+                await new Asistencia({ personal, fecha: fStr, estatus: 'Vacaciones' }).save();
             }
-            current.setDate(current.getDate() + 1);
         }
 
-        registro.diasTomados += diasSolicitados;
-        registro.fechasSolicitadas.push({ inicio: fechaInicio, dias: diasSolicitados, fechas: fechasAgregadas });
-
-        await registro.save();
-        res.status(201).json({ mensaje: 'Vacaciones registradas y reflejadas en asistencias', registro });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.json(registroVac);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
 app.delete('/api/vacaciones/:id', async (req, res) => {
     try {
-        const vacacion = await Vacacion.findById(req.params.id);
-        if (vacacion) {
-            if (vacacion.fechasSolicitadas && vacacion.fechasSolicitadas.length > 0) {
-                for (let sol of vacacion.fechasSolicitadas) {
-                    if (sol.fechas && sol.fechas.length > 0) {
-                        for (let fechaStr of sol.fechas) {
-                            await Asistencia.findOneAndDelete({
-                                personal: vacacion.personal,
-                                fecha: fechaStr,
-                                estatus: 'Vacaciones'
-                            });
-                        }
-                    }
-                }
-            }
-            await Vacacion.findByIdAndDelete(req.params.id);
+        await Vacaciones.findByIdAndDelete(req.params.id);
+        res.json({ exito: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+// ==========================================
+// RUTAS API: ÁREAS Y NOTAS LIBRES
+// ==========================================
+
+app.get('/api/areas', async (req, res) => {
+    try {
+        const areas = await Area.find();
+        res.json(areas.map(a => a.nombre));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/areas', async (req, res) => {
+    try {
+        const { nombre } = req.body;
+        const existe = await Area.findOne({ nombre });
+        if (!existe) {
+            await new Area({ nombre }).save();
         }
-        res.json({ mensaje: 'Registro de vacaciones eliminado y asistencias restablecidas' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        const areas = await Area.find();
+        res.json({ areas: areas.map(a => a.nombre) });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
 app.get('/api/notas-libres', async (req, res) => {
     try {
-        const notas = await NotaLibre.find().sort({ fecha: -1 });
+        const notas = await NotaLibre.find();
         res.json(notas);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -463,33 +384,33 @@ app.get('/api/notas-libres/:id', async (req, res) => {
     try {
         const nota = await NotaLibre.findById(req.params.id);
         res.json(nota);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
 app.post('/api/notas-libres', async (req, res) => {
     try {
         const { titulo, fecha, area, notasLista } = req.body;
-        const nuevaNota = new NotaLibre({ titulo, fecha, area, notasLista: notasLista || [] });
+        const nuevaNota = new NotaLibre({ titulo, fecha, area, notasLista });
         await nuevaNota.save();
-        res.status(201).json(nuevaNota);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.json(nuevaNota);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
 app.put('/api/notas-libres/:id', async (req, res) => {
     try {
         const { titulo, fecha, area, notasLista } = req.body;
-        const notaActualizada = await NotaLibre.findByIdAndUpdate(
+        const actualizada = await NotaLibre.findByIdAndUpdate(
             req.params.id,
             { titulo, fecha, area, notasLista },
             { new: true }
         );
-        res.json(notaActualizada);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.json(actualizada);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -497,97 +418,32 @@ app.patch('/api/notas-libres/:id/punto/:index', async (req, res) => {
     try {
         const { completado } = req.body;
         const nota = await NotaLibre.findById(req.params.id);
-        if (!nota) return res.status(404).json({ error: 'Nota no encontrada' });
-
-        const index = parseInt(req.params.index);
-        if (nota.notasLista && nota.notasLista[index]) {
-            nota.notasLista[index].completado = completado;
+        if (nota && nota.notasLista && nota.notasLista[req.params.index]) {
+            nota.notasLista[req.params.index].completado = completado;
             await nota.save();
-            res.json({ exito: true, nota });
-        } else {
-            res.status(400).json({ error: 'Índice de punto inválido' });
+            return res.json(nota);
         }
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(404).json({ error: "Punto no encontrado" });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
 app.delete('/api/notas-libres/:id', async (req, res) => {
     try {
         await NotaLibre.findByIdAndDelete(req.params.id);
-        res.json({ mensaje: 'Nota eliminada correctamente' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.json({ exito: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
-app.get('/api/areas', async (req, res) => {
-    try {
-        let config = await Configuracion.findOne({ clave: 'config_global' });
-        if (!config) {
-            config = new Configuracion({
-                clave: 'config_global',
-                areas: ["Dirección Gral de Administración", "Academia de Policía", "Recursos Humanos"]
-            });
-            await config.save();
-        }
-        res.json(config.areas);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+// Ruta comodín para frontend SPA
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.post('/api/areas', async (req, res) => {
-    try {
-        const { nombre } = req.body;
-        let config = await Configuracion.findOne({ clave: 'config_global' });
-        if (!config) {
-            config = new Configuracion({
-                clave: 'config_global',
-                areas: ["Dirección Gral de Administración", "Academia de Policía", "Recursos Humanos"]
-            });
-        }
-        if (!config.areas.includes(nombre)) {
-            config.areas.push(nombre);
-            await config.save();
-        }
-        res.json({ exito: true, areas: config.areas });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-cron.schedule('0 8-21 * * *', async () => {
-    try {
-        await generarYEnviarReporteTelegram(false);
-        console.log(`[CRON] Reporte automático enviado a Telegram.`);
-    } catch (error) {
-        console.error("Error en cron programado:", error);
-    }
-});
-
-cron.schedule('* * * * *', () => {
-    verificarYNotificarReunionesProximas();
-});
-
-cron.schedule('0 3 * * *', async () => {
-    try {
-        const fechaLimite = new Date();
-        fechaLimite.setDate(fechaLimite.getDate() - 15);
-        const fechaStr = obtenerFechaLocalStr(fechaLimite);
-
-        const resultado = await Pendiente.deleteMany({
-            finalizado: true,
-            tipo: { $ne: 'Reunión' },
-            vencimiento: { $lte: fechaStr }
-        });
-
-        console.log(`[CRON LIMPIEZA] Se eliminaron ${resultado.deletedCount} actividades finalizadas con más de 15 días.`);
-    } catch (error) {
-        console.error("Error en cron de limpieza de actividades:", error);
-    }
-});
-
+// Iniciar servidor
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
