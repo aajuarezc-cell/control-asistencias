@@ -103,8 +103,10 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     const fechaReporteDMA = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const fechaActualTexto = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
+    const urlAplicacion = "https://tu-dominio.com"; 
+
     if (pendientesActivos.length === 0) {
-        await enviarNotificacionTelegram(`🟢 <b>Estado del Sistema: Al Día</b>\nNo hay reuniones ni actividades pendientes en este momento.\n<i>Actualizado a las ${horaActual} (${fechaReporteDMA})</i>\n\n🔗 <b>Sistema:</b> <a href="https://tu-dominio.com">Abrir Control de Oficina</a>`);
+        await enviarNotificacionTelegram(`🟢 <b>Estado del Sistema: Al Día</b>\nNo hay reuniones ni actividades pendientes en este momento.\n<i>Actualizado a las ${horaActual} (${fechaReporteDMA})</i>\n\n🗓️ <b>Fecha:</b> ${fechaReporteDMA}\n🔗 <b>Acceso al Sistema:</b> <a href="${urlAplicacion}">Ir a la Aplicación</a>`);
         return;
     }
 
@@ -155,13 +157,39 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     }
 
     const tituloReporte = esManual ? `🕹️ <b>REPORTE MANUAL SOLICITADO</b>` : `📋 <b>REPORTE PROGRAMADO DE ACTIVIDADES</b>`;
-    
-    // URL de tu aplicación (puedes cambiarla por tu dominio o IP pública real)
-    const urlAplicacion = "https://control-asistencias-63ws.onrender.com/"; 
-
     const mensajeFinal = `${tituloReporte}\n📊 <b>Resumen Operativo — ${horaActual} (${fechaReporteDMA})</b>\n\n📅 <b>AGENDA</b>\n\n${textoAgenda}⚡ <b>ACTIVIDADES</b>\n\n${textoActividades}<i>Control de Oficina • ${fechaActualTexto}</i>\n🗓️ <b>Fecha:</b> ${fechaReporteDMA}\n🔗 <b>Acceso al Sistema:</b> <a href="${urlAplicacion}">Ir a la Aplicación</a>`;
 
     await enviarNotificacionTelegram(mensajeFinal);
+}
+
+// Función para verificar y notificar reuniones programadas con 2 horas de anticipación
+async function verificarYNotificarReunionesProximas() {
+    try {
+        const ahora = new Date();
+        const dosHorasDespues = new Date(ahora.getTime() + (2 * 60 * 60 * 1000));
+        
+        const fechaObjetivoStr = dosHorasDespues.toISOString().split('T')[0]; 
+        const horaObjetivoStr = String(dosHorasDespues.getHours()).padStart(2, '0') + ':' + String(dosHorasDespues.getMinutes()).padStart(2, '0');
+
+        const reunionesProximas = await Pendiente.find({
+            tipo: 'Reunión',
+            finalizado: false,
+            vencimiento: fechaObjetivoStr,
+            horaReunion: horaObjetivoStr
+        });
+
+        for (const reunion of reunionesProximas) {
+            const mensajeAlerta = `⏰ <b>¡RECORDATORIO DE REUNIÓN PRÓXIMA!</b>\n\n` +
+                                  `La reunión <b>[${reunion.folio}]</b> comenzará en <b>2 horas</b> (${reunion.horaReunion} hrs).\n\n` +
+                                  `📝 <b>Detalle:</b> ${reunion.incidente}\n` +
+                                  `📌 <b>Observaciones:</b> ${reunion.observaciones || 'Ninguna'}`;
+
+            await enviarNotificacionTelegram(mensajeAlerta);
+            console.log(`[RECORDATORIO] Alerta de reunión ${reunion.folio} enviada a Telegram.`);
+        }
+    } catch (error) {
+        console.error("Error en la verificación de reuniones próximas:", error);
+    }
 }
 
 app.get('/api/pendientes', async (req, res) => {
@@ -470,7 +498,7 @@ app.post('/api/areas', async (req, res) => {
     }
 });
 
-// Tarea programada: Cada hora de 8:00 a 21:00 hrs
+// Tarea programada: Reporte periódico cada hora de 8:00 a 21:00 hrs
 cron.schedule('0 8-21 * * *', async () => {
     try {
         await generarYEnviarReporteTelegram(false);
@@ -478,6 +506,11 @@ cron.schedule('0 8-21 * * *', async () => {
     } catch (error) {
         console.error("Error en cron programado:", error);
     }
+});
+
+// Tarea programada: Revisión minuto a minuto para reuniones próximas a 2 horas
+cron.schedule('* * * * *', () => {
+    verificarYNotificarReunionesProximas();
 });
 
 cron.schedule('0 3 * * *', async () => {
