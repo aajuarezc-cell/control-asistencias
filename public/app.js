@@ -473,9 +473,9 @@ async function abrirNotaEnNuevaVentana(id) {
                 
                 puntosHtml += `
                     <div id="punto-container-${idx}" style="margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #eaeaea; display: flex; align-items: flex-start; gap: 12px;">
-                        <input type="checkbox" style="width: 20px; height: 20px; margin-top: 3px; cursor: pointer;" 
+                        <input type="checkbox" id="check-pto-${idx}" style="width: 20px; height: 20px; margin-top: 3px; cursor: pointer;" 
                             ${pto.completado ? 'checked' : ''} 
-                            onchange="togglePuntoNotaLibre('${item._id}', ${idx}, this.checked)">
+                            onchange="actualizarEstadoPuntoLocal(${idx}, this.checked)">
                         <div style="flex-grow: 1;">
                             <div style="font-weight: bold; color: #0071e3; margin-bottom: 6px; font-size: 15px;">
                                 ${idx + 1}. <span style="color: #1d1d1f;">${pto.responsable || 'General'}</span> <span style="font-size: 11px; font-weight: normal; color: #666;">(${badgePri})</span>
@@ -548,33 +548,46 @@ async function abrirNotaEnNuevaVentana(id) {
                     }
                 </style>
                 <script>
-                    async function togglePuntoNotaLibre(notaId, index, completado) {
-                        try {
-                            const res = await fetch(\`/api/notas-libres/\${notaId}/punto/\${index}\`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ completado })
-                            });
-                            if (res.ok) {
-                                const textEl = document.getElementById('texto-pto-' + index);
-                                if (completado) {
-                                    textEl.style.textDecoration = 'line-through';
-                                    textEl.style.color = '#86868b';
-                                } else {
-                                    textEl.style.textDecoration = 'none';
-                                    textEl.style.color = '#333';
-                                }
+                    let puntosLocales = ${JSON.stringify(item.notasLista || [])};
+
+                    function actualizarEstadoPuntoLocal(index, completado) {
+                        if (puntosLocales[index]) {
+                            puntosLocales[index].completado = completado;
+                            const textEl = document.getElementById('texto-pto-' + index);
+                            if (completado) {
+                                textEl.style.textDecoration = 'line-through';
+                                textEl.style.color = '#86868b';
+                            } else {
+                                textEl.style.textDecoration = 'none';
+                                textEl.style.color = '#333';
                             }
-                        } catch (e) {
-                            console.error("Error al actualizar estado del punto:", e);
                         }
                     }
 
-                    function guardarCambiosVentana() {
-                        if (window.opener && typeof window.opener.cargarNotasLibres === 'function') {
-                            window.opener.cargarNotasLibres();
+                    async function guardarCambiosVentana() {
+                        try {
+                            const res = await fetch('/api/notas-libres/${item._id}', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    titulo: \`${item.titulo.replace(/`/g, '\\`')}\`,
+                                    fecha: '${item.fecha}',
+                                    area: \`${(item.area || '').replace(/`/g, '\\`')}\`,
+                                    notasLista: puntosLocales
+                                })
+                            });
+                            if (res.ok) {
+                                if (window.opener && typeof window.opener.cargarNotasLibres === 'function') {
+                                    window.opener.cargarNotasLibres();
+                                }
+                                alert("Cambios guardados correctamente.");
+                            } else {
+                                alert("Error al guardar los cambios.");
+                            }
+                        } catch (e) {
+                            console.error("Error al guardar nota:", e);
+                            alert("Error de conexión al guardar.");
                         }
-                        alert("Cambios guardados correctamente.");
                     }
 
                     function cerrarVentana() {
