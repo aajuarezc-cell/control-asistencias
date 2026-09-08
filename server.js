@@ -62,7 +62,8 @@ const pendienteSchema = new mongoose.Schema({
     notasLista: { type: Array, default: [] },
     observaciones: String,
     finalizado: { type: Boolean, default: false },
-    fecha: String
+    fecha: String,
+    notificadoDosHoras: { type: Boolean, default: false } // Bandera para evitar duplicados
 });
 const Pendiente = mongoose.model('Pendiente', pendienteSchema);
 
@@ -165,30 +166,47 @@ async function generarYEnviarReporteTelegram(esManual = false) {
     await enviarNotificacionTelegram(mensajeFinal);
 }
 
-// Función para verificar y notificar reuniones programadas con 2 horas de anticipación
+// Función robusta para verificar y notificar reuniones exactamente a 2 horas de su inicio
 async function verificarYNotificarReunionesProximas() {
     try {
         const ahora = new Date();
-        const dosHorasDespues = new Date(ahora.getTime() + (2 * 60 * 60 * 1000));
-        
-        const fechaObjetivoStr = dosHorasDespues.toISOString().split('T')[0]; 
-        const horaObjetivoStr = String(dosHorasDespues.getHours()).padStart(2, '0') + ':' + String(dosHorasDespues.getMinutes()).padStart(2, '0');
+        const fechaHoyStr = ahora.toISOString().split('T')[0];
 
-        const reunionesProximas = await Pendiente.find({
+        // Buscamos todas las reuniones activas del día actual que aún no hayan sido notificadas
+        const reunionesHoy = await Pendiente.find({
             tipo: 'Reunión',
             finalizado: false,
-            vencimiento: fechaObjetivoStr,
-            horaReunion: horaObjetivoStr
+            vencimiento: fechaHoyStr,
+            notificadoDosHoras: { $ne: true }
         });
 
-        for (const reunion of reunionesProximas) {
-            const mensajeAlerta = `⏰ <b>¡RECORDATORIO DE REUNIÓN PRÓXIMA!</b>\n\n` +
-                                  `La reunión <b>[${reunion.folio}]</b> comenzará en <b>2 horas</b> (${reunion.horaReunion} hrs).\n\n` +
-                                  `📝 <b>Detalle:</b> ${reunion.incidente}\n` +
-                                  `📌 <b>Observaciones:</b> ${reunion.observaciones || 'Ninguna'}`;
+        for (const reunion of reunionesHoy) {
+            if (!reunion.horaReunion) continue;
 
-            await enviarNotificacionTelegram(mensajeAlerta);
-            console.log(`[RECORDATORIO] Alerta de reunión ${reunion.folio} enviada a Telegram.`);
+            const [horasReu, minutosReu] = reunion.horaReunion.split(':').map(Number);
+            
+            // Creamos un objeto Date para la hora exacta de la reunión de hoy
+            const fechaHoraReunion = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), horasReu, minutosReu, 0);
+            
+            // Diferencia en milisegundos entre la reunión y el momento actual
+            const diferenciaMs = fechaHoraReunion.getTime() - ahora.getTime();
+            const diferenciaMinutos = diferenciaMs / (1000 * 60);
+
+            // Si faltan entre 119 y 121 minutos (es decir, exactamente alrededor de 2 horas con un pequeño margen de tolerancia)
+            if (diferenciaMinutos >= 118 && diferenciaMinutos <= 122) {
+                const mensajeAlerta = `⏰ <b>¡RECORDATORIO DE REUNIÓN PRÓXIMA!</b>\n\n` +
+                                      `La reunión <b>[${reunion.folio}]</b> comenzará en <b>2 horas</b> (${reunion.horaReunion} hrs).\n\n` +
+                                      `📝 <b>Detalle:</b> ${reunion.incidente}\n` +
+                                      `📌 <b>Observaciones:</b> ${reunion.observaciones || 'Ninguna'}`;
+
+                await enviarNotificacionTelegram(mensajeAlerta);
+                
+                // Marcamos la reunión como notificada para que no vuelva a mandar alerta repetida
+                reunion.notificadoDosHoras = true;
+                await reunion.save();
+
+                console.log(`[RECORDATORIO] Alerta de reunión ${reunion.folio} enviada exitosamente a Telegram.`);
+            }
         }
     } catch (error) {
         console.error("Error en la verificación de reuniones próximas:", error);
@@ -232,7 +250,8 @@ app.post('/api/pendientes', async (req, res) => {
             notasLista: notasLista || [],
             observaciones: observaciones || '',
             finalizado: false,
-            fecha: fechaActual
+            fecha: fechaActual,
+            notificadoDosHoras: false
         });
 
         await nuevoPendiente.save();
@@ -442,7 +461,7 @@ app.post('/api/notas-libres', async (req, res) => {
     }
 });
 
-app.put('/api/notas-libres/:id', async (req, res) => {
+app.put('/api/notas-libres/:id', async (err, res) => {
     try {
         const { titulo, fecha, area, notasLista } = req.body;
         const notaActualizada = await NotaLibre.findByIdAndUpdate(
@@ -511,7 +530,7 @@ cron.schedule('0 8-21 * * *', async () => {
     }
 });
 
-// Tarea programada: Revisión minuto a minuto para reuniones próximas a 2 horas
+// Tarea programada: Revisión minuto a minuto de reuniones próximas (con margen de tolerancia)
 cron.schedule('* * * * *', () => {
     verificarYNotificarReunionesProximas();
 });
