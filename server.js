@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 const path = require('path');
 const cron = require('node-cron');
 
+// Forzar la zona horaria local para que Render no use UTC por defecto
+process.env.TZ = 'America/Mexico_City';
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
