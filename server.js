@@ -2,7 +2,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const fetch = require('node-fetch'); // O usa el fetch nativo de Node si usas versiones recientes
 
 const app = express();
 const PORT = process.env.PORT || 10000;
