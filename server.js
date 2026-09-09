@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
+const cron = require('node-cron');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -274,13 +275,12 @@ app.post('/api/vacaciones', async (req, res) => {
     try {
         const { personal, periodoAnual, tipoPeriodo, diasSolicitados, fechaInicio } = req.body;
         
-        // Calcular los días hábiles (lunes a viernes) solicitados a partir de la fecha de inicio
         let fechaObj = new Date(fechaInicio + 'T00:00:00');
         let fechasArray = [];
         let diasAgregados = 0;
 
         while (diasAgregados < diasSolicitados) {
-            let diaSemana = fechaObj.getDay(); // 0: Dom, 6: Sáb
+            let diaSemana = fechaObj.getDay();
             if (diaSemana !== 0 && diaSemana !== 6) {
                 fechasArray.push(fechaObj.toISOString().split('T')[0]);
                 diasAgregados++;
@@ -313,7 +313,6 @@ app.post('/api/vacaciones', async (req, res) => {
 
         await registroVac.save();
 
-        // Registrar automáticamente como 'Vacaciones' en la matriz de asistencias para los días hábiles calculados
         for (const fStr of fechasArray) {
             let asistReg = await Asistencia.findOne({ personal, fecha: fStr });
             if (asistReg) {
@@ -434,12 +433,69 @@ app.delete('/api/notas-libres/:id', async (req, res) => {
     }
 });
 
-// Ruta comodín para frontend SPA
+// ==========================================
+// TELEGRAM: ENVÍO AUTOMÁTICO Y MANUAL
+// ==========================================
+
+async function enviarNotificacionTelegramAutomatica() {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+
+    if (!botToken || !chatId) {
+        console.log("⚠️ Faltan las variables de entorno TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID");
+        return;
+    }
+
+    try {
+        const pendientes = await Pendiente.find({ finalizado: false });
+        const mensaje = `🔔 *Reporte Horario de Actividades Activas*\nTotal pendientes: ${pendientes.length}`;
+
+        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: mensaje,
+                parse_mode: 'Markdown'
+            })
+        });
+
+        const data = await response.json();
+        if (data.ok) {
+            console.log("✅ Notificación automática de Telegram enviada con éxito.");
+        } else {
+            console.error("🔴 Error al enviar mensaje por Telegram:", data);
+        }
+    } catch (e) {
+        console.error("🔴 Error ejecutando la notificación automática:", e);
+    }
+}
+
+// Ruta manual para forzar el envío desde el botón de la interfaz
+app.post('/api/forzar-telegram', async (req, res) => {
+    try {
+        await enviarNotificacionTelegramAutomatica();
+        res.json({ exito: true, mensaje: "Envío de Telegram ejecutado manualmente." });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Programar tarea con node-cron: De lunes a viernes (1-5) en el minuto 0 de cada hora (*)
+cron.schedule('0 * * * 1-5', () => {
+    console.log("⏰ Ejecutando tarea programada: Notificación de Telegram (Lunes a Viernes)");
+    enviarNotificacionTelegramAutomatica();
+});
+
+// ==========================================
+// RUTA COMODÍN Y ARRANQUE
+// ==========================================
+
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Iniciar servidor
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
