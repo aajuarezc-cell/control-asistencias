@@ -1,91 +1,192 @@
-// ==========================================
-// ESTADO GLOBAL Y VARIABLES
-// ==========================================
-let areasListaInicial = [
-    'Dirección Gral de Administración',
-    'Academia de Policía',
-    'Recursos Humanos',
-    'Repuve'
+const personalLista = [
+    "Titular", "Israel", "Nohemi", "Joel", "Nelson", "Rafael", 
+    "Itzel", "Ricardo", "Javier", "Christian", "Rosa Angeles", "Martin", "Emanuel", "Roberto"
 ];
+
+let areasListaInicial = [
+    "Dirección Gral de Administración",
+    "Academia de Policía",
+    "Recursos Humanos"
+];
+
+let folioNotaActual = null;
+let tipoItemActual = null;
+let notasTemporalesModal = [];
+let filtroPrioridadActiva = null;
+let globalVacacionesData = [];
+let tipoItemEnEdicion = null;
+
 let puntosFormularioLibre = [];
-let indicePuntoEnEdicion = null;
 
-// ==========================================
-// INICIALIZACIÓN Y RELOJ
-// ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-    setInterval(actualizarReloj, 1000);
-    actualizarReloj();
-    cargarAreasYSelects();
-    cargarPendientes();
-    cargarNotasLibres();
-    cargarMatrizAsistencias();
-    cargarListaPersonalVacaciones();
-    cargarResumenVacaciones();
+function formatearFechaVista(fechaStr) {
+    if (!fechaStr) return '';
+    const partes = fechaStr.split('-');
+    if (partes.length === 3) {
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+    return fechaStr;
+}
 
-    // Establecer fecha por defecto en los inputs de fecha
-    const hoy = new Date().toISOString().split('T')[0];
-    const libreFecha = document.getElementById('libreFecha');
-    if (libreFecha) libreFecha.value = hoy;
-    const asistFecha = document.getElementById('asistFechaCalendario');
-    if (asistFecha) asistFecha.value = hoy;
-    const vacFecha = document.getElementById('vacFecha');
-    if (vacFecha) vacFecha.value = hoy;
-});
-
-function actualizarReloj() {
-    const reloj = document.getElementById('relojWidget');
-    if (reloj) {
-        const ahora = new Date();
-        reloj.textContent = ahora.toLocaleTimeString();
+async function forzarEnvioTelegram() {
+    try {
+        await fetch('/api/forzar-telegram', { method: 'POST' });
+    } catch (e) {
+        console.error(e);
     }
 }
 
 function irAlHome() {
-    cambiarModulo('moduloNuevoRegistro', document.querySelector('.btn-modulo'));
+    filtroPrioridadActiva = null;
+    cambiarModulo('moduloNuevoRegistro', document.querySelector('.nav-modulos button:first-child'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ==========================================
-// NAVEGACIÓN DE MÓDULOS Y SUBMÓDULOS
-// ==========================================
-function cambiarModulo(idModulo, btn) {
+function cambiarModulo(idModulo, btnElement) {
     document.querySelectorAll('.modulo-vista').forEach(v => v.classList.remove('activo'));
     document.querySelectorAll('.btn-modulo').forEach(b => b.classList.remove('activo'));
+    document.getElementById(idModulo).classList.add('activo');
+    if (btnElement) btnElement.classList.add('activo');
 
-    const vista = document.getElementById(idModulo);
-    if (vista) vista.classList.add('activo');
-    if (btn) btn.classList.add('activo');
-
-    if (idModulo === 'moduloAgenda') cargarPendientes();
-    if (idModulo === 'moduloNotasLibres') cargarNotasLibres();
-    if (idModulo === 'moduloPendientes') cargarPendientes();
-    if (idModulo === 'moduloAsistencias') cargarMatrizAsistencias();
-    if (idModulo === 'moduloVacaciones') {
-        cargarListaPersonalVacaciones();
+    if (idModulo === 'moduloAgenda' || idModulo === 'moduloPendientes') {
+        cargarPendientes();
+    } else if (idModulo === 'moduloAsistencias') {
+        cargarMatrizAsistencias();
+    } else if (idModulo === 'moduloVacaciones') {
         cargarResumenVacaciones();
+    } else if (idModulo === 'moduloNotasLibres') {
+        poblarSelectAreas();
+        cargarNotasLibres();
     }
 }
 
-function cambiarSubmodulo(idSubmodulo, btn) {
-    const contenedor = btn.closest('.modulo-vista');
-    if (!contenedor) return;
-
-    contenedor.querySelectorAll('.submodulo-vista').forEach(v => v.classList.remove('activo'));
-    contenedor.querySelectorAll('.btn-submodulo').forEach(b => b.classList.remove('activo'));
-
-    const vista = document.getElementById(idSubmodulo);
-    if (vista) vista.classList.add('activo');
-    if (btn) btn.classList.add('activo');
+function cambiarSubmodulo(idSubmodulo, btnElement) {
+    document.querySelectorAll('.submodulo-vista').forEach(v => v.classList.remove('activo'));
+    document.querySelectorAll('.btn-submodulo').forEach(b => b.classList.remove('activo'));
+    document.getElementById(idSubmodulo).classList.add('activo');
+    btnElement.classList.add('activo');
 }
 
+function clickKpiActividadesAlta() {
+    filtroPrioridadActiva = 'Alta';
+    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
+    cargarPendientes();
+}
 
-// ==========================================
-// GESTIÓN DE ÁREAS Y SELECTORES DE PERSONAL
-// ==========================================
-async function cargarAreasYSelects() {
+function clickKpiActividadesMedia() {
+    filtroPrioridadActiva = 'Media';
+    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
+    cargarPendientes();
+}
+
+function clickKpiActividadesBaja() {
+    filtroPrioridadActiva = 'Baja';
+    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
+    cargarPendientes();
+}
+
+function clickKpiReunionesActivas() {
+    filtroPrioridadActiva = null;
+    cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
+    cargarPendientes();
+}
+
+function actualizarReloj() {
+    const relojEl = document.getElementById('relojWidget');
+    if (!relojEl) return;
+    const ahora = new Date();
+    const horas = String(ahora.getHours()).padStart(2, '0');
+    const minutos = String(ahora.getMinutes()).padStart(2, '0');
+    const segundos = String(ahora.getSeconds()).padStart(2, '0');
+    relojEl.innerText = `${horas}:${minutos}:${segundos}`;
+}
+setInterval(actualizarReloj, 1000);
+actualizarReloj();
+
+const fechaHoy = new Date().toISOString().split('T')[0];
+const mesHoy = fechaHoy.substring(0, 7);
+
+if (document.getElementById('asistFechaCalendario')) document.getElementById('asistFechaCalendario').value = fechaHoy;
+if (document.getElementById('filtroSemana')) document.getElementById('filtroSemana').value = fechaHoy;
+if (document.getElementById('filtroMes')) document.getElementById('filtroMes').value = mesHoy;
+if (document.getElementById('vacFecha')) document.getElementById('vacFecha').value = fechaHoy;
+const inputLibreFecha = document.getElementById('libreFecha');
+if (inputLibreFecha) inputLibreFecha.value = fechaHoy;
+
+const selectPersonaRep = document.getElementById('filtroPersonaReporte');
+if (selectPersonaRep) {
+    selectPersonaRep.innerHTML = '<option value="TODOS">-- Todos --</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        selectPersonaRep.appendChild(opt);
+    });
+}
+
+const selectPersonaMensual = document.getElementById('filtroPersonaMensual');
+if (selectPersonaMensual) {
+    selectPersonaMensual.innerHTML = '<option value="TODOS">-- Todos --</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        selectPersonaMensual.appendChild(opt);
+    });
+}
+
+const selectVacPersonal = document.getElementById('vacPersonal');
+if (selectVacPersonal) {
+    selectVacPersonal.innerHTML = '<option value="">Seleccionar personal...</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        selectVacPersonal.appendChild(opt);
+    });
+}
+
+const selectFiltroCalVac = document.getElementById('filtroCalendarioVacaciones');
+if (selectFiltroCalVac) {
+    selectFiltroCalVac.innerHTML = '<option value="">-- Seleccionar personal --</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        selectFiltroCalVac.appendChild(opt);
+    });
+}
+
+const selectTurnado = document.getElementById('turnado');
+if (selectTurnado) {
+    selectTurnado.innerHTML = '<option value="">Seleccionar personal...</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        selectTurnado.appendChild(opt);
+    });
+}
+
+const selectNotaResp = document.getElementById('inputNotaResponsable');
+if (selectNotaResp) {
+    selectNotaResp.innerHTML = '<option value="">Sin asignar</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        selectNotaResp.appendChild(opt);
+    });
+}
+
+const selectLibreResp = document.getElementById('inputLibreNotaResponsable');
+if (selectLibreResp) {
+    selectLibreResp.innerHTML = '<option value="">Sin asignar</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        selectLibreResp.appendChild(opt);
+    });
+}
+
+async function poblarSelectAreas() {
     try {
         const res = await fetch('/api/areas');
         const data = await res.json();
+        // Solo fusionamos si el servidor responde con un arreglo válido de elementos
         if (data && Array.isArray(data) && data.length > 0) {
             const setAreas = new Set([...areasListaInicial, ...data]);
             areasListaInicial = Array.from(setAreas);
@@ -94,11 +195,6 @@ async function cargarAreasYSelects() {
         console.error("Error al cargar áreas:", e);
     }
 
-    poblarSelectoresArea();
-    poblarSelectoresPersonal();
-}
-
-function poblarSelectoresArea() {
     const selectArea = document.getElementById('libreArea');
     if (selectArea) {
         const valorActual = selectArea.value;
@@ -123,141 +219,66 @@ function poblarSelectoresArea() {
         if (filtroActual) selectFiltroArea.value = filtroActual;
     }
 }
-
-function poblarSelectoresPersonal() {
-    const listaPersonal = [
-        "Itzel", "Juan Pérez", "María López", "Carlos Ruiz", 
-        "Ana Gómez", "Sofía Torres", "Roberto Díaz", "Sin asignar"
-    ];
-
-    ['turnado', 'inputLibreNotaResponsable', 'inputNotaResponsable', 'filtroPersonaReporte', 'filtroPersonaMensual', 'vacPersonal', 'filtroCalendarioVacaciones'].forEach(id => {
-        const sel = document.getElementById(id);
-        if (sel) {
-            const valActual = sel.value;
-            sel.innerHTML = id.includes('filtro') ? '<option value="TODOS">-- Todo el Personal --</option>' : '';
-            listaPersonal.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p === "Sin asignar" && id !== 'turnado' ? '' : p;
-                opt.textContent = p;
-                sel.appendChild(opt);
-            });
-            if (valActual) sel.value = valActual;
-        }
-    });
-}
+poblarSelectAreas();
 
 async function agregarNuevaAreaPrompt() {
-    const nuevaArea = prompt("Ingrese el nombre del nuevo Área o Departamento:");
+    const nuevaArea = prompt("Escribe el nombre de la nueva Área o Departamento:");
     if (!nuevaArea || !nuevaArea.trim()) return;
+    const areaTrim = nuevaArea.trim();
+    if (areasListaInicial.includes(areaTrim)) return;
 
     try {
         const res = await fetch('/api/areas', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre: nuevaArea.trim() })
+            body: JSON.stringify({ nombre: areaTrim })
         });
         const data = await res.json();
         if (data.areas) {
             areasListaInicial = data.areas;
-            poblarSelectoresArea();
-            document.getElementById('libreArea').value = nuevaArea.trim();
+        } else {
+            areasListaInicial.push(areaTrim);
         }
+        poblarSelectAreas();
+        document.getElementById('libreArea').value = areaTrim;
     } catch (e) {
-        mostrarAlerta("Error", "No se pudo guardar la nueva área.");
+        console.error("Error guardando área:", e);
     }
 }
 
-
-// ==========================================
-// MÓDULO 1: NUEVO REGISTRO / EDICIÓN
-// ==========================================
-function toggleCamposTipo() {
-    const tipo = document.getElementById('tipo').value;
-    const grupoHora = document.getElementById('grupoHoraReunion');
-    const grupoTitulo = document.getElementById('grupoTituloNota');
-    const grupoFechaNota = document.getElementById('grupoFechaNota');
-    const grupoAreaNota = document.getElementById('grupoAreaNota');
-    const grupoPuntosNota = document.getElementById('grupoPuntosNota');
-    const grupoPrioridad = document.getElementById('grupoPrioridad');
-    const grupoVencimiento = document.getElementById('grupoVencimiento');
-    const grupoIncidente = document.getElementById('grupoIncidente');
-    const grupoObservaciones = document.getElementById('grupoObservaciones');
-    const grupoTurnado = document.getElementById('grupoTurnado');
-
-    // Ocultar todo primero
-    [grupoHora, grupoTitulo, grupoFechaNota, grupoAreaNota, grupoPuntosNota, grupoPrioridad, grupoVencimiento, grupoIncidente, grupoObservaciones, grupoTurnado].forEach(el => el.classList.add('oculto'));
-
-    if (tipo === 'Actividad') {
-        grupoTurnado.classList.remove('oculto');
-        grupoPrioridad.classList.remove('oculto');
-        grupoVencimiento.classList.remove('oculto');
-        grupoIncidente.classList.remove('oculto');
-        grupoObservaciones.classList.remove('oculto');
-    } else if (tipo === 'Reunión') {
-        grupoHora.classList.remove('oculto');
-        grupoTurnado.classList.remove('oculto');
-        grupoPrioridad.classList.remove('oculto');
-        grupoVencimiento.classList.remove('oculto');
-        grupoIncidente.classList.remove('oculto');
-        grupoObservaciones.classList.remove('oculto');
-    } else if (tipo === 'Nota') {
-        grupoTitulo.classList.remove('oculto');
-        grupoFechaNota.classList.remove('oculto');
-        grupoAreaNota.classList.remove('oculto');
-        grupoPuntosNota.classList.remove('oculto');
-        document.getElementById('libreFecha').value = new Date().toISOString().split('T')[0];
-    }
+function mostrarIncidenteCompleto(tituloFolio, texto) {
+    document.getElementById('modalIncidenteTitulo').innerText = `Detalle - ${tituloFolio}`;
+    document.getElementById('modalIncidenteTexto').innerText = texto || 'Sin descripción';
+    document.getElementById('modalIncidente').style.display = 'flex';
 }
 
-function handleLibreTextAreaKeyDown(event) {
-    if (event.key === 'Enter' && event.ctrlKey) {
-        event.preventDefault();
-        agregarPuntoFormularioLibre();
-    }
+function cerrarModalIncidente() {
+    document.getElementById('modalIncidente').style.display = 'none';
 }
 
 function agregarPuntoFormularioLibre() {
     const texto = document.getElementById('inputLibreNotaTexto').value.trim();
     const responsable = document.getElementById('inputLibreNotaResponsable').value;
     const prioridad = document.getElementById('inputLibreNotaPrioridad').value;
-
+    
     if (!texto) return;
 
-    if (indicePuntoEnEdicion !== null) {
-        puntosFormularioLibre[indicePuntoEnEdicion] = {
-            ...puntosFormularioLibre[indicePuntoEnEdicion],
-            texto,
-            responsable: responsable || 'General',
-            prioridad
-        };
-        indicePuntoEnEdicion = null;
-        const btnAgregar = document.querySelector('.btn-add-punto-verde');
-        if (btnAgregar) {
-            btnAgregar.style.background = '#34c759';
-            btnAgregar.title = "Agregar punto";
-        }
-    } else {
-        puntosFormularioLibre.push({ texto, responsable: responsable || 'General', prioridad, completado: false });
-    }
+    puntosFormularioLibre.push({ 
+        texto, 
+        responsable: responsable || 'General', 
+        prioridad, 
+        completado: false 
+    });
 
     document.getElementById('inputLibreNotaTexto').value = '';
     document.getElementById('inputLibreNotaResponsable').value = '';
     renderizarTablaPuntosFormularioLibre();
 }
 
-function prepararEdicionPuntoLibre(index) {
-    const pto = puntosFormularioLibre[index];
-    if (!pto) return;
-
-    document.getElementById('inputLibreNotaTexto').value = pto.texto;
-    document.getElementById('inputLibreNotaResponsable').value = pto.responsable || '';
-    document.getElementById('inputLibreNotaPrioridad').value = pto.prioridad || 'Media';
-    indicePuntoEnEdicion = index;
-
-    const btnAgregar = document.querySelector('.btn-add-punto-verde');
-    if (btnAgregar) {
-        btnAgregar.style.background = '#ff9500';
-        btnAgregar.title = "Actualizar punto";
+function handleLibreTextAreaKeyDown(event) {
+    if (event.ctrlKey && event.key === 'Enter') {
+        event.preventDefault();
+        agregarPuntoFormularioLibre();
     }
 }
 
@@ -280,16 +301,14 @@ function renderizarTablaPuntosFormularioLibre() {
         let badgePri = pto.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (pto.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
         const tr = document.createElement('tr');
         if (pto.completado) tr.classList.add('completado');
+        const textoHtml = pto.texto.replace(/\n/g, '<br>');
 
         tr.innerHTML = `
             <td class="text-center">${idx + 1}</td>
-            <td style="white-space: pre-line;">${pto.texto.replace(/\n/g, '<br>')}</td>
+            <td style="white-space: pre-line;">${textoHtml}</td>
             <td><b>${pto.responsable}</b></td>
             <td class="text-center">${badgePri}</td>
-            <td class="text-center" style="display: flex; gap: 4px; justify-content: center;">
-                <button type="button" class="btn-accion btn-editar" onclick="prepararEdicionPuntoLibre(${idx})" style="padding: 4px 8px; font-size: 11px;">Editar</button>
-                <button type="button" class="btn-eliminar-item" onclick="eliminarPuntoFormularioLibre(${idx})">Eliminar</button>
-            </td>
+            <td class="text-center"><button type="button" class="btn-eliminar-item" onclick="eliminarPuntoFormularioLibre(${idx})">Eliminar</button></td>
         `;
         tbody.appendChild(tr);
     });
@@ -298,564 +317,843 @@ function renderizarTablaPuntosFormularioLibre() {
 async function guardarRegistroGeneral(e) {
     e.preventDefault();
     const tipo = document.getElementById('tipo').value;
-    const editFolio = document.getElementById('editFolio').value;
-    const editNotaId = document.getElementById('editNotaLibreId').value;
 
     if (tipo === 'Nota') {
-        const titulo = document.getElementById('libreTitulo').value.trim();
+        const idEdit = document.getElementById('editNotaLibreId').value;
+        const titulo = document.getElementById('libreTitulo').value;
         const fecha = document.getElementById('libreFecha').value;
-        const area = document.getElementById('libreArea').value || 'General';
+        const area = document.getElementById('libreArea').value;
 
-        if (!titulo || !fecha) {
-            mostrarAlerta("Campos requeridos", "Complete el título y la fecha de la nota.");
-            return;
-        }
+        if (!area) return;
 
-        const payload = { titulo, fecha, area, notasLista: puntosFormularioLibre };
+        const payload = {
+            titulo,
+            fecha,
+            area,
+            notasLista: puntosFormularioLibre
+        };
+
         try {
-            let url = '/api/notas-libres';
-            let method = 'POST';
-            if (editNotaId) {
-                url += `/${editNotaId}`;
-                method = 'PUT';
+            if (idEdit) {
+                await fetch(`/api/notas-libres/${idEdit}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } else {
+                await fetch('/api/notas-libres', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
             }
 
-            const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (res.ok) {
-                mostrarAlerta("Éxito", "Nota guardada correctamente.");
-                cancelarEdicionFormulario();
-                cambiarModulo('moduloNotasLibres', document.querySelectorAll('.btn-modulo')[2]);
-            }
+            cancelarEdicionFormulario();
+            poblarSelectAreas();
+            cargarNotasLibres();
+            cambiarModulo('moduloNotasLibres', document.querySelectorAll('.btn-modulo')[2]);
         } catch (err) {
-            mostrarAlerta("Error", "No se pudo guardar la nota.");
+            console.error("Error al guardar nota libre:", err);
         }
     } else {
-        const incidente = document.getElementById('incidente').value.trim();
-        const turnado = document.getElementById('turnado').value;
-        const vencimiento = document.getElementById('vencimiento').value;
-        const horaReunion = document.getElementById('horaReunion').value;
-        const observaciones = document.getElementById('observaciones').value.trim();
-        const prioridad = document.getElementById('prioridad').value;
+        const editFolio = document.getElementById('editFolio').value;
+        const payload = {
+            tipo,
+            incidente: document.getElementById('incidente').value,
+            turnado: document.getElementById('turnado').value,
+            vencimiento: tipo === 'Reunión' ? document.getElementById('vencimiento').value : null,
+            horaReunion: tipo === 'Reunión' ? document.getElementById('horaReunion').value : null,
+            observaciones: document.getElementById('observaciones').value,
+            prioridad: document.getElementById('prioridad').value
+        };
 
-        if (!incidente) {
-            mostrarAlerta("Campo requerido", "La descripción o incidente es obligatoria.");
-            return;
+        if (editFolio) {
+            await fetch(`/api/pendientes/${editFolio}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        } else {
+            await fetch('/api/pendientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         }
 
-        const payload = { tipo, incidente, turnado, vencimiento, horaReunion, observaciones, prioridad };
-        try {
-            let url = '/api/pendientes';
-            let method = 'POST';
-            if (editFolio) {
-                url += `/${editFolio}`;
-                method = 'PUT';
-            }
-
-            const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (res.ok) {
-                mostrarAlerta("Éxito", "Registro guardado exitosamente.");
-                cancelarEdicionFormulario();
-                cambiarModulo(tipo === 'Reunión' ? 'moduloAgenda' : 'moduloPendientes', document.querySelectorAll('.btn-modulo')[tipo === 'Reunión' ? 1 : 3]);
-            }
-        } catch (err) {
-            mostrarAlerta("Error", "No se pudo guardar el registro.");
-        }
-    }
-}
-
-function cancelarEdicionFormulario() {
-    document.getElementById('formPendiente').reset();
-    document.getElementById('editFolio').value = '';
-    document.getElementById('editNotaLibreId').value = '';
-    puntosFormularioLibre = [];
-    indicePuntoEnEdicion = null;
-    document.getElementById('btnSubmitText').textContent = 'Guardar Registro';
-    document.getElementById('btnCancelarEdicion').classList.add('oculto');
-    toggleCamposTipo();
-    renderizarTablaPuntosFormularioLibre();
-}
-
-
-// ==========================================
-// MÓDULOS 2 y 4: AGENDA Y ACTIVIDADES (PENDIENTES)
-// ==========================================
-async function cargarPendientes() {
-    try {
-        const res = await fetch('/api/pendientes');
-        const items = await res.json();
-        
-        const filtroFecha = document.getElementById('filtroFechaAgenda')?.value || document.getElementById('filtroFechaPendientes')?.value;
-
-        let filtrados = items;
-        if (filtroFecha) {
-            filtrados = items.filter(i => i.vencimiento === filtroFecha || i.fecha === filtroFecha);
-        }
-
-        renderizarTablaPendientes(filtrados.filter(i => i.tipo === 'Reunión' && !i.finalizado), 'tablaReuniones');
-        renderizarTablaPendientes(filtrados.filter(i => i.tipo === 'Reunión' && i.finalizado), 'tablaReunionesFinalizadas', true);
-        renderizarTablaPendientes(filtrados.filter(i => i.tipo === 'Actividad' && !i.finalizado), 'tablaPendientes');
-        renderizarTablaPendientes(filtrados.filter(i => i.tipo === 'Actividad' && i.finalizado), 'tablaPendientesFinalizadas', true);
-
-        actualizarKpis(items);
-    } catch (e) {
-        console.error("Error cargando pendientes:", e);
-    }
-}
-
-function renderizarTablaPendientes(lista, idTbody, esFinalizado = false) {
-    const tbody = document.getElementById(idTbody);
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    if (lista.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay registros disponibles.</td></tr>`;
-        return;
-    }
-
-    lista.forEach(item => {
-        let badgePri = item.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (item.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
-        
-        const totalNotas = item.notasLista ? item.notasLista.length : 0;
-        const notasPendientes = item.notasLista ? item.notasLista.filter(n => !n.completado).length : 0;
-        const badgeNotas = totalNotas > 0 ? `<span class="badge badge-pen">${notasPendientes} / ${totalNotas} Pend.</span>` : '<span style="color:var(--text-muted)">Sin notas</span>';
-
-        const asignadosSet = new Set(item.notasLista ? item.notasLista.map(n => n.responsable).filter(Boolean) : []);
-        const asignadosStr = asignadosSet.size > 0 ? Array.from(asignadosSet).join(', ') : (item.turnado || 'Sin asignar');
-
-        const tr = document.createElement('tr');
-        if (item.finalizado) tr.classList.add('completado');
-
-        tr.innerHTML = `
-            <td><b>${item.folio}</b></td>
-            <td class="text-center">${badgePri}</td>
-            <td>${item.fecha}</td>
-            <td style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" onclick="verIncidenteAmpliado('${item.folio}', \`${item.incidente.replace(/`/g, '\\`')}\`)" title="Ver detalle">${item.incidente}</td>
-            <td class="text-center">${item.turnado || '-'}</td>
-            <td class="text-center">${badgeNotas}</td>
-            <td>${asignadosStr}</td>
-            <td class="text-center"><span class="badge ${item.tipo === 'Reunión' ? 'badge-reu' : 'badge-pen'}">${item.estatus || item.tipo}</span></td>
-            <td>${item.observaciones || '-'}</td>
-            <td class="text-center">
-                <input type="checkbox" ${item.finalizado ? 'checked' : ''} onchange="toggleFinalizado('${item.folio}', this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
-            </td>
-            <td class="text-center">
-                <div class="acciones-container">
-                    <button class="btn-accion btn-notas" onclick="abrirModalNotas('${item.folio}')" title="Notas/Acuerdos">📝</button>
-                    <button class="btn-accion btn-editar" onclick="editarPendiente('${item.folio}')" title="Editar">✏️</button>
-                    <button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${item.folio}')" title="Eliminar">🗑️</button>
-                </div>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-async function toggleFinalizado(folio, estado) {
-    try {
-        await fetch(`/api/pendientes/${folio}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ finalizado: estado })
-        });
+        cancelarEdicionFormulario();
         cargarPendientes();
-    } catch (e) {
-        mostrarAlerta("Error", "No se pudo actualizar el estatus.");
     }
 }
 
-async function eliminarPendiente(folio) {
-    if (!confirm(`¿Está seguro de eliminar el registro ${folio}?`)) return;
-    try {
-        await fetch(`/api/pendientes/${folio}`, { method: 'DELETE' });
-        cargarPendientes();
-    } catch (e) {
-        mostrarAlerta("Error", "No se pudo eliminar el registro.");
-    }
-}
-
-async function editarPendiente(folio) {
-    try {
-        const res = await fetch('/api/pendientes');
-        const items = await res.json();
-        const item = items.find(i => i.folio === folio);
-        if (!item) return;
-
-        cambiarModulo('moduloNuevoRegistro', document.querySelectorAll('.btn-modulo')[0]);
-
-        document.getElementById('tipo').value = item.tipo;
-        toggleCamposTipo();
-
-        document.getElementById('editFolio').value = item.folio;
-        document.getElementById('incidente').value = item.incidente;
-        document.getElementById('turnado').value = item.turnado || '';
-        document.getElementById('vencimiento').value = item.vencimiento || '';
-        document.getElementById('horaReunion').value = item.horaReunion || '';
-        document.getElementById('observaciones').value = item.observaciones || '';
-        document.getElementById('prioridad').value = item.prioridad || 'Media';
-
-        document.getElementById('btnSubmitText').textContent = 'Actualizar Registro';
-        document.getElementById('btnCancelarEdicion').classList.remove('oculto');
-    } catch (e) {
-        mostrarAlerta("Error", "No se pudo cargar el registro para edición.");
-    }
-}
-
-function actualizarKpis(items) {
-    const activas = items.filter(i => !i.finalizado);
-    const alta = activas.filter(i => i.tipo === 'Actividad' && i.prioridad === 'Alta').length;
-    const media = activas.filter(i => i.tipo === 'Actividad' && i.prioridad === 'Media').length;
-    const baja = activas.filter(i => i.tipo === 'Actividad' && i.prioridad === 'Baja').length;
-    const reuniones = activas.filter(i => i.tipo === 'Reunión').length;
-
-    document.getElementById('kpiActividadesAlta').textContent = alta;
-    document.getElementById('kpiActividadesMedia').textContent = media;
-    document.getElementById('kpiActividadesBaja').textContent = baja;
-    document.getElementById('kpiReunionesActivas').textContent = reuniones;
-}
-
-function clickKpiActividadesAlta() {
-    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
-}
-function clickKpiActividadesMedia() {
-    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
-}
-function clickKpiActividadesBaja() {
-    cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
-}
-function clickKpiReunionesActivas() {
-    cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
-}
-
-function limpiarFiltroAgenda() {
-    document.getElementById('filtroFechaAgenda').value = '';
-    cargarPendientes();
-}
-function limpiarFiltroPendientes() {
-    document.getElementById('filtroFechaPendientes').value = '';
-    cargarPendientes();
-}
-
-
-// ==========================================
-// MODAL DE NOTAS / ACUERDOS (PENDIENTES Y NOTAS LIBRES)
-// ==========================================
-let notaActualModalFolio = null;
-
-async function abrirModalNotas(folio) {
-    try {
-        const res = await fetch('/api/pendientes');
-        const items = await res.json();
-        const item = items.find(i => i.folio === folio);
-        if (!item) return;
-
-        notaActualModalFolio = folio;
-        document.getElementById('modalNotasFolio').textContent = `Folio: ${item.folio}`;
-        document.getElementById('modalNotasDesc').textContent = item.incidente;
-
-        renderizarTablaNotasModal(item.notasLista || []);
-        document.getElementById('modalNotas').style.display = 'flex';
-    } catch (e) {
-        mostrarAlerta("Error", "No se pudieron cargar las notas.");
-    }
-}
-
-function cerrarModalSimple() {
-    document.getElementById('modalNotas').style.display = 'none';
-    cargarPendientes();
-}
-
-function handleTextAreaKeyDown(event) {
-    if (event.key === 'Enter' && event.ctrlKey) {
-        event.preventDefault();
-        agregarNotaModal();
-    }
-}
-
-async function agregarNotaModal() {
-    const texto = document.getElementById('inputNotaTexto').value.trim();
-    const responsable = document.getElementById('inputNotaResponsable').value;
-    const prioridad = document.getElementById('inputNotaPrioridad').value;
-
-    if (!texto) return;
-
-    try {
-        const res = await fetch('/api/pendientes');
-        const items = await res.json();
-        const item = items.find(i => i.folio === notaActualModalFolio);
-        if (!item) return;
-
-        if (!item.notasLista) item.notasLista = [];
-        item.notasLista.push({ texto, responsable: responsable || 'General', prioridad, completado: false });
-
-        await fetch(`/api/pendientes/${notaActualModalFolio}/notas`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notasLista: item.notasLista })
-        });
-
-        document.getElementById('inputNotaTexto').value = '';
-        document.getElementById('inputNotaResponsable').value = '';
-        renderizarTablaNotasModal(item.notasLista);
-    } catch (e) {
-        mostrarAlerta("Error", "No se pudo agregar la nota.");
-    }
-}
-
-function renderizarTablaNotasModal(lista) {
-    const tbody = document.getElementById('tablaNotasModal');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    if (lista.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas agregadas.</td></tr>`;
-        return;
-    }
-
-    lista.forEach((nota, idx) => {
-        let badgePri = nota.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (nota.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
-        const tr = document.createElement('tr');
-        if (nota.completado) tr.classList.add('completado');
-
-        tr.innerHTML = `
-            <td class="text-center"><input type="checkbox" ${nota.completado ? 'checked' : ''} onchange="toggleNotaCompletada(${idx}, this.checked)" style="width: 18px; height: 18px; cursor: pointer;"></td>
-            <td style="white-space: pre-line;">${nota.texto.replace(/\n/g, '<br>')}</td>
-            <td><b>${nota.responsable}</b></td>
-            <td class="text-center">${badgePri}</td>
-            <td class="text-center"><button class="btn-eliminar-item" onclick="eliminarNotaModal(${idx})">Eliminar</button></td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-async function toggleNotaCompletada(index, estado) {
-    try {
-        const res = await fetch('/api/pendientes');
-        const items = await res.json();
-        const item = items.find(i => i.folio === notaActualModalFolio);
-        if (!item || !item.notasLista[index]) return;
-
-        item.notasLista[index].completado = estado;
-
-        await fetch(`/api/pendientes/${notaActualModalFolio}/notas`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notasLista: item.notasLista })
-        });
-
-        renderizarTablaNotasModal(item.notasLista);
-    } catch (e) {
-        mostrarAlerta("Error", "No se pudo actualizar el estatus de la nota.");
-    }
-}
-
-async function eliminarNotaModal(index) {
-    try {
-        const res = await fetch('/api/pendientes');
-        const items = await res.json();
-        const item = items.find(i => i.folio === notaActualModalFolio);
-        if (!item) return;
-
-        item.notasLista.splice(index, 1);
-
-        await fetch(`/api/pendientes/${notaActualModalFolio}/notas`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notasLista: item.notasLista })
-        });
-
-        renderizarTablaNotasModal(item.notasLista);
-    } catch (e) {
-        mostrarAlerta("Error", "No se pudo eliminar la nota.");
-    }
-}
-
-
-// ==========================================
-// MÓDULO 3: NOTAS / REUNIONES INTERNAS
-// ==========================================
 async function cargarNotasLibres() {
     try {
         const res = await fetch('/api/notas-libres');
-        const notas = await res.json();
-        const filtroArea = document.getElementById('filtroAreaNotas')?.value;
-
-        let filtradas = notas;
-        if (filtroArea && filtroArea !== 'TODOS') {
-            filtradas = notas.filter(n => n.area === filtroArea);
+        let data = await res.json();
+        
+        const filtroArea = document.getElementById('filtroAreaNotas');
+        if (filtroArea && filtroArea.value && filtroArea.value !== 'TODOS') {
+            data = data.filter(item => item.area === filtroArea.value);
         }
 
         const tbody = document.getElementById('tablaNotasLibres');
         if (!tbody) return;
         tbody.innerHTML = '';
 
-        if (filtradas.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas internas registradas.</td></tr>`;
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay notas registradas para esta área.</td></tr>`;
             return;
         }
 
-        filtradas.forEach(nota => {
-            const total = nota.notasLista ? nota.notasLista.length : 0;
-            const pendientes = nota.notasLista ? nota.notasLista.filter(n => !n.completado).length : 0;
+        data.forEach(item => {
+            const totalNotas = item.notasLista ? item.notasLista.length : 0;
+            const puntosPendientesCount = item.notasLista ? item.notasLista.filter(nt => !nt.completado).length : 0;
+            
+            const badgePendientes = puntosPendientesCount > 0 
+                ? `<span class="badge" style="background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${puntosPendientesCount} PEND.</span>` 
+                : `<span class="badge" style="background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-weight: bold;">AL DÍA</span>`;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${nota.fecha}</td>
-                <td><b>${nota.titulo}</b></td>
-                <td><span class="badge badge-reu">${nota.area}</span></td>
-                <td class="text-center">${total}</td>
-                <td class="text-center"><span class="badge badge-pen">${pendientes} PEND.</span></td>
+                <td>${formatearFechaVista(item.fecha)}</td>
+                <td><b>${item.titulo}</b></td>
+                <td><span class="badge badge-libre">${item.area || 'General'}</span></td>
+                <td class="text-center"><b>${totalNotas}</b></td>
+                <td class="text-center">${badgePendientes}</td>
                 <td class="text-center">
-                    <div class="acciones-container" style="justify-content: center;">
-                        <button class="btn-accion btn-notas" onclick="verNotaLibreModal('${nota._id}')" title="Ver">Ver</button>
-                        <button class="btn-accion btn-editar" onclick="editarNotaLibre('${nota._id}')" title="Editar">Editar</button>
-                        <button class="btn-accion btn-eliminar" onclick="eliminarNotaLibre('${nota._id}')" title="Eliminar">Eliminar</button>
+                    <div class="acciones-container">
+                        <button class="btn-accion btn-notas" onclick="abrirNotaEnNuevaVentana('${item._id}')" title="Ver Nota">Ver</button>
+                        <button class="btn-accion btn-editar" onclick="cargarEdicionNotaLibre('${item._id}')">Editar</button>
+                        <button class="btn-accion btn-eliminar" onclick="eliminarNotaLibrePrincipal('${item._id}')">Eliminar</button>
                     </div>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     } catch (e) {
-        console.error("Error cargando notas libres:", e);
-    }
-}
-
-async function verNotaLibreModal(id) {
-    try {
-        const res = await fetch(`/api/notas-libres/${id}`);
-        const nota = await res.json();
-        if (!nota) return;
-
-        let contenidoHtml = `
-            <div style="background: white; width: 100%; max-width: 700px; padding: 30px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid var(--border-color); box-sizing: border-box; max-height: 85vh; overflow-y: auto;">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 15px;">
-                    <h3 style="margin: 0; font-size: 20px; color: var(--text-main);">📝 ${nota.titulo}</h3>
-                    <button type="button" onclick="document.getElementById('modalIncidente').style.display='none'" style="background: #e5e5ea; border: none; width: 30px; height: 30px; border-radius: 50%; font-weight: bold; cursor: pointer;">✕</button>
-                </div>
-                <p style="margin: 0 0 15px 0; color: var(--text-muted); font-size: 13px;">Fecha: <b>${nota.fecha}</b> | Área: <b>${nota.area}</b> | Total Puntos: <b>${nota.notasLista.length}</b></p>
-                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-        `;
-
-        nota.notasLista.forEach((pto, idx) => {
-            let badgePri = pto.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (pto.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
-            contenidoHtml += `
-                <div style="background: #fbfbfd; border: 1px solid var(--border-color); padding: 12px 16px; border-radius: 12px; display: flex; align-items: flex-start; gap: 12px;">
-                    <input type="checkbox" ${pto.completado ? 'checked' : ''} onchange="togglePuntoNotaLibreModal('${nota._id}', ${idx}, this.checked)" style="margin-top: 3px; width: 18px; height: 18px; cursor: pointer;">
-                    <div style="flex: 1; ${pto.completado ? 'text-decoration: line-through; opacity: 0.6;' : ''}">
-                        <div style="font-weight: 600; font-size: 13px; color: var(--text-main); margin-bottom: 4px;">${idx + 1}. ${pto.responsable} (${badgePri})</div>
-                        <div style="font-size: 13px; color: var(--text-main); white-space: pre-line;">${pto.texto}</div>
-                    </div>
-                </div>
-            `;
-        });
-
-        contenidoHtml += `
-                </div>
-                <div style="text-align: right;">
-                    <button type="button" class="btn-cerrar" onclick="document.getElementById('modalIncidente').style.display='none'" style="width: auto; padding: 8px 20px;">Cerrar</button>
-                </div>
-            </div>
-        `;
-
-        document.getElementById('modalIncidenteTexto').innerHTML = '';
-        document.getElementById('modalIncidenteTitulo').textContent = '';
-        const modalContainer = document.querySelector('#modalIncidente > div');
-        modalContainer.innerHTML = contenidoHtml;
-        document.getElementById('modalIncidente').style.display = 'flex';
-    } catch (e) {
-        mostrarAlerta("Error", "No se pudo abrir la nota.");
-    }
-}
-
-async function togglePuntoNotaLibreModal(idNota, indexPunto, estado) {
-    try {
-        await fetch(`/api/notas-libres/${idNota}/punto/${indexPunto}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ completado: estado })
-        });
-        verNotaLibreModal(idNota);
-        cargarNotasLibres();
-    } catch (e) {
-        mostrarAlerta("Error", "No se pudo actualizar el punto.");
-    }
-}
-
-async function editarNotaLibre(id) {
-    try {
-        const res = await fetch(`/api/notas-libres/${id}`);
-        const nota = await res.json();
-        if (!nota) return;
-
-        cambiarModulo('moduloNuevoRegistro', document.querySelectorAll('.btn-modulo')[0]);
-
-        document.getElementById('tipo').value = 'Nota';
-        toggleCamposTipo();
-
-        document.getElementById('editNotaLibreId').value = nota._id;
-        document.getElementById('libreTitulo').value = nota.titulo;
-        document.getElementById('libreFecha').value = nota.fecha;
-        document.getElementById('libreArea').value = nota.area;
-        puntosFormularioLibre = nota.notasLista || [];
-
-        renderizarTablaPuntosFormularioLibre();
-        document.getElementById('btnSubmitText').textContent = 'Actualizar Nota de Reunión';
-        document.getElementById('btnCancelarEdicion').classList.remove('oculto');
-    } catch (e) {
-        mostrarAlerta("Error", "No se pudo cargar la nota para edición.");
-    }
-}
-
-async function eliminarNotaLibre(id) {
-    if (!confirm("¿Está seguro de eliminar esta nota interna?")) return;
-    try {
-        await fetch(`/api/notas-libres/${id}`, { method: 'DELETE' });
-        cargarNotasLibres();
-    } catch (e) {
-        mostrarAlerta("Error", "No se pudo eliminar la nota.");
+        console.error("Error al cargar notas libres:", e);
     }
 }
 
 function limpiarFiltroAreaNotas() {
-    document.getElementById('filtroAreaNotas').value = 'TODOS';
+    const filtroArea = document.getElementById('filtroAreaNotas');
+    if (filtroArea) filtroArea.value = 'TODOS';
     cargarNotasLibres();
 }
 
-
-// ==========================================
-// MÓDULO 5: ASISTENCIAS
-// ==========================================
-async function cargarMatrizAsistencias() {
-    const fecha = document.getElementById('asistFechaCalendario').value || new Date().toISOString().split('T')[0];
-    const listaPersonal = [
-        "Itzel", "Juan Pérez", "María López", "Carlos Ruiz", 
-        "Ana Gómez", "Sofía Torres", "Roberto Díaz"
-    ];
-
+async function abrirNotaEnNuevaVentana(id) {
     try {
+        const res = await fetch(`/api/notas-libres/${id}`);
+        const item = await res.json();
+        if (!item) return;
+
+        let puntosHtml = '';
+        if (item.notasLista && item.notasLista.length > 0) {
+            item.notasLista.forEach((pto, idx) => {
+                const badgePri = pto.prioridad === 'Alta' ? '🔴 ALTA' : (pto.prioridad === 'Baja' ? '🟢 BAJA' : '🟡 MEDIA');
+                const estiloTachado = pto.completado ? 'text-decoration: line-through; color: #86868b;' : '';
+                
+                puntosHtml += `
+                    <div id="punto-container-${idx}" style="margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #eaeaea; display: flex; align-items: flex-start; gap: 12px;">
+                        <input type="checkbox" style="width: 20px; height: 20px; margin-top: 3px; cursor: pointer;" 
+                            ${pto.completado ? 'checked' : ''} 
+                            onchange="togglePuntoNotaLibre('${item._id}', ${idx}, this.checked)">
+                        <div style="flex-grow: 1;">
+                            <div style="font-weight: bold; color: #0071e3; margin-bottom: 6px; font-size: 15px;">
+                                ${idx + 1}. <span style="color: #1d1d1f;">${pto.responsable || 'General'}</span> <span style="font-size: 11px; font-weight: normal; color: #666;">(${badgePri})</span>
+                            </div>
+                            <div id="texto-pto-${idx}" style="padding-left: 5px; white-space: pre-line; color: #333; font-size: 14px; line-height: 1.5; ${estiloTachado}">
+                                ${pto.texto}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            puntosHtml = '<p style="color: #86868b; font-style: italic;">No hay puntos registrados en esta nota.</p>';
+        }
+
+        const nuevaVentana = window.open('', '_blank', 'width=850,height=750,scrollbars=yes');
+        nuevaVentana.document.write(`
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>Nota: ${item.titulo}</title>
+                <style>
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                        padding: 40px;
+                        background: #f5f5f7;
+                        color: #1d1d1f;
+                        max-width: 800px;
+                        margin: auto;
+                    }
+                    .documento-card {
+                        background: #ffffff;
+                        padding: 40px;
+                        border-radius: 16px;
+                        box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+                        border: 1px solid #d2d2d7;
+                    }
+                    h1 { font-size: 24px; margin-top: 0; color: #1d1d1f; border-bottom: 2px solid #0071e3; padding-bottom: 12px; }
+                    .meta-info { font-size: 13px; color: #6e6e73; margin-bottom: 25px; display: flex; gap: 25px; flex-wrap: wrap; }
+                    .meta-info div { font-weight: 500; }
+                    .meta-info span { font-weight: 600; color: #1d1d1f; }
+                    .botones-accion-container {
+                        margin-top: 25px;
+                        display: flex;
+                        gap: 12px;
+                        align-items: center;
+                        flex-wrap: wrap;
+                    }
+                    .btn-accion-ventana {
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 10px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        font-size: 14px;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 8px;
+                    }
+                    .btn-imprimir { background: #0071e3; color: white; }
+                    .btn-guardar { background: #34c759; color: white; }
+                    .btn-cerrar { background: #8e8e93; color: white; }
+                    .btn-accion-ventana:hover { opacity: 0.9; }
+                    @media print {
+                        body { background: white; padding: 0; }
+                        .documento-card { border: none; box-shadow: none; padding: 0; }
+                        .botones-accion-container { display: none; }
+                        input[type="checkbox"] { display: none; }
+                    }
+                </style>
+                <script>
+                    async function togglePuntoNotaLibre(notaId, index, completado) {
+                        try {
+                            await fetch(\`/api/notas-libres/\${notaId}/punto/\${index}\`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ completado })
+                            });
+                            const textEl = document.getElementById('texto-pto-' + index);
+                            if (completado) {
+                                textEl.style.textDecoration = 'line-through';
+                                textEl.style.color = '#86868b';
+                            } else {
+                                textEl.style.textDecoration = 'none';
+                                textEl.style.color = '#333';
+                            }
+                        } catch (e) {
+                            console.error("Error al actualizar estado del punto:", e);
+                        }
+                    }
+
+                    function guardarCambiosVentana() {
+                        if (window.opener && typeof window.opener.cargarNotasLibres === 'function') {
+                            window.opener.cargarNotasLibres();
+                        }
+                    }
+
+                    function cerrarVentana() {
+                        if (window.opener && typeof window.opener.cargarNotasLibres === 'function') {
+                            window.opener.cargarNotasLibres();
+                        }
+                        window.close();
+                    }
+                </script>
+            </head>
+            <body>
+                <div class="documento-card">
+                    <h1>📝 ${item.titulo}</h1>
+                    <div class="meta-info">
+                        <div>Fecha: <span>${formatearFechaVista(item.fecha)}</span></div>
+                        <div>Área / Depto: <span>${item.area || 'General'}</span></div>
+                        <div>Total Puntos: <span>${item.notasLista ? item.notasLista.length : 0}</span></div>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        ${puntosHtml}
+                    </div>
+                    <div class="botones-accion-container">
+                        <button class="btn-accion-ventana btn-imprimir" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
+                        <button class="btn-accion-ventana btn-guardar" onclick="guardarCambiosVentana()">💾 Guardar</button>
+                        <button class="btn-accion-ventana btn-cerrar" onclick="cerrarVentana()">❌ Cerrar</button>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `);
+        nuevaVentana.document.close();
+    } catch (e) {
+        console.error("Error al abrir la nota en nueva ventana:", e);
+    }
+}
+
+async function abrirModalNotas(folio) {
+    folioNotaActual = folio;
+    try {
+        const res = await fetch('/api/pendientes');
+        const data = await res.json();
+        const p = data.find(item => item.folio === folio);
+        if (!p) return;
+
+        tipoItemActual = p.tipo;
+        notasTemporalesModal = p.notasLista ? JSON.parse(JSON.stringify(p.notasLista)) : [];
+
+        let opcionesPersonalHtml = '<option value="">Sin asignar</option>';
+        personalLista.forEach(pers => {
+            opcionesPersonalHtml += `<option value="${pers}">${pers}</option>`;
+        });
+
+        const modalContainer = document.getElementById('modalNotas').querySelector('.modal-contenido') || document.getElementById('modalNotas').firstElementChild;
+        if (modalContainer) {
+            modalContainer.innerHTML = `
+                <div style="background: #ffffff; padding: 30px; border-radius: 16px; max-width: 850px; margin: auto; max-height: 90vh; overflow-y: auto;">
+                    <h2 style="font-size: 22px; margin-top: 0; color: #1d1d1f; border-bottom: 2px solid #0071e3; padding-bottom: 10px;">
+                        📋 [${p.folio}] ${p.incidente}
+                    </h2>
+                    <div style="font-size: 13px; color: #6e6e73; margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap;">
+                        <div>Tipo: <span>${p.tipo}</span></div>
+                        <div>Turnado/Asignado: <span>${p.turnado || 'N/A'}</span></div>
+                        <div>Total Puntos: <span id="modalTotalPuntosCount">${notasTemporalesModal.length}</span></div>
+                    </div>
+
+                    <div style="background: #fbfbfd; border: 1px solid #d2d2d7; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <textarea id="inputModalNotaTexto" placeholder="Escribe los puntos tratados... (Ctrl + Enter para agregar)" style="width: 100%; height: 80px; padding: 12px; border: 1px solid #d2d2d7; border-radius: 8px; resize: vertical; font-family: inherit; font-size: 14px; margin-bottom: 12px;" onkeydown="handleModalTextAreaKeyDown(event)"></textarea>
+                        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                            <select id="inputModalNotaResponsable" style="flex: 2; padding: 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; background: white;">
+                                ${opcionesPersonalHtml}
+                            </select>
+                            <select id="inputModalNotaPrioridad" style="flex: 2; padding: 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; background: white;">
+                                <option value="Media">Prioridad Media</option>
+                                <option value="Alta">Prioridad Alta</option>
+                                <option value="Baja">Prioridad Baja</option>
+                            </select>
+                            <button type="button" onclick="agregarNotaModalDesdeUI()" style="background: #34c759; color: white; border: none; width: 45px; height: 40px; border-radius: 8px; font-size: 20px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;">+</button>
+                        </div>
+                    </div>
+
+                    <div id="contenedorListaNotasModal" style="margin-top: 15px;"></div>
+
+                    <div style="margin-top: 25px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border-top: 1px solid #eaeaea; padding-top: 20px;">
+                        <button class="btn-accion-ventana" style="background: #0071e3; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
+                        <button class="btn-accion-ventana" style="background: #34c759; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="guardarYActualizarModalNotas()">💾 Guardar</button>
+                        <button class="btn-accion-ventana" style="background: #8e8e93; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;" onclick="cerrarModalSimple()">❌ Cerrar</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        renderizarListaNotasModalInteractiva();
+        document.getElementById('modalNotas').style.display = 'flex';
+    } catch (e) {
+        console.error("Error al abrir notas:", e);
+    }
+}
+
+function renderizarListaNotasModalInteractiva() {
+    const contenedor = document.getElementById('contenedorListaNotasModal');
+    const spanTotal = document.getElementById('modalTotalPuntosCount');
+    if (!contenedor) return;
+
+    if (spanTotal) spanTotal.innerText = notasTemporalesModal.length;
+
+    if (!notasTemporalesModal || notasTemporalesModal.length === 0) {
+        contenedor.innerHTML = `<p style="color: #86868b; font-style: italic; text-align: center; padding: 15px;">No hay puntos registrados.</p>`;
+        return;
+    }
+
+    let html = '';
+    notasTemporalesModal.forEach((pto, idx) => {
+        const badgePri = pto.prioridad === 'Alta' ? '🔴 ALTA' : (pto.prioridad === 'Baja' ? '🟢 BAJA' : '🟡 MEDIA');
+        const estiloTachado = pto.completado ? 'text-decoration: line-through; color: #86868b;' : '';
+        
+        html += `
+            <div style="margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #eaeaea; display: flex; align-items: flex-start; gap: 12px;">
+                <input type="checkbox" style="width: 20px; height: 20px; margin-top: 3px; cursor: pointer;" 
+                    ${pto.completado ? 'checked' : ''} 
+                    onchange="toggleNotaRealizadaModal(${idx}, this.checked)">
+                <div style="flex-grow: 1;">
+                    <div style="font-weight: bold; color: #0071e3; margin-bottom: 6px; font-size: 15px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>${idx + 1}. <span style="color: #1d1d1f;">${pto.responsable || 'General'}</span> <span style="font-size: 11px; font-weight: normal; color: #666;">(${badgePri})</span></span>
+                        <button type="button" onclick="eliminarNotaModalUI(${idx})" style="background: #ff3b30; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;">Eliminar</button>
+                    </div>
+                    <div id="texto-modal-pto-${idx}" style="padding-left: 5px; white-space: pre-line; color: #333; font-size: 14px; line-height: 1.5; ${estiloTachado}">
+                        ${pto.texto}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    contenedor.innerHTML = html;
+}
+
+function agregarNotaModalDesdeUI() {
+    const texto = document.getElementById('inputModalNotaTexto').value.trim();
+    const responsable = document.getElementById('inputModalNotaResponsable').value;
+    const prioridad = document.getElementById('inputModalNotaPrioridad').value;
+    
+    if (!texto) return;
+
+    notasTemporalesModal.push({ 
+        texto, 
+        responsable: responsable || 'General', 
+        prioridad, 
+        completado: false 
+    });
+
+    document.getElementById('inputModalNotaTexto').value = '';
+    document.getElementById('inputModalNotaResponsable').value = '';
+    document.getElementById('inputModalNotaPrioridad').value = 'Media';
+    renderizarListaNotasModalInteractiva();
+}
+
+function handleModalTextAreaKeyDown(event) {
+    if (event.ctrlKey && event.key === 'Enter') {
+        event.preventDefault();
+        agregarNotaModalDesdeUI();
+    }
+}
+
+function toggleNotaRealizadaModal(indexNota, completado) {
+    if (notasTemporalesModal[indexNota]) {
+        notasTemporalesModal[indexNota].completado = completado;
+        const textEl = document.getElementById('texto-modal-pto-' + indexNota);
+        if (textEl) {
+            if (completado) {
+                textEl.style.textDecoration = 'line-through';
+                textEl.style.color = '#86868b';
+            } else {
+                textEl.style.textDecoration = 'none';
+                textEl.style.color = '#333';
+            }
+        }
+    }
+}
+
+function eliminarNotaModalUI(indexNota) {
+    notasTemporalesModal.splice(indexNota, 1);
+    renderizarListaNotasModalInteractiva();
+}
+
+async function guardarYActualizarModalNotas() {
+    if (folioNotaActual) {
+        try {
+            await fetch(`/api/pendientes/${folioNotaActual}/notas`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notasLista: notasTemporalesModal })
+            });
+            cargarPendientes();
+        } catch (e) {
+            console.error("Error al guardar notas en el servidor:", e);
+        }
+    }
+}
+
+async function cerrarModalSimple() {
+    if (folioNotaActual) {
+        try {
+            await fetch(`/api/pendientes/${folioNotaActual}/notas`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notasLista: notasTemporalesModal })
+            });
+        } catch (e) {
+            console.error("Error al guardar notas en el servidor:", e);
+        }
+    }
+
+    document.getElementById('modalNotas').style.display = 'none';
+    folioNotaActual = null;
+    tipoItemActual = null;
+    cargarPendientes();
+}
+
+async function cargarEdicionNotaLibre(id) {
+    try {
+        const res = await fetch(`/api/notas-libres/${id}`);
+        const item = await res.json();
+        if (!item) return;
+
+        tipoItemEnEdicion = 'Nota';
+        document.getElementById('editNotaLibreId').value = item._id;
+        document.getElementById('tipo').value = 'Nota';
+        toggleCamposTipo();
+
+        document.getElementById('libreTitulo').value = item.titulo;
+        document.getElementById('libreFecha').value = item.fecha;
+        document.getElementById('libreArea').value = item.area || '';
+        
+        puntosFormularioLibre = item.notasLista ? JSON.parse(JSON.stringify(item.notasLista)) : [];
+        renderizarTablaPuntosFormularioLibre();
+        document.getElementById('btnSubmitText').innerText = 'Actualizar Nota de Reunión';
+        document.getElementById('btnCancelarEdicion').classList.remove('oculto');
+        
+        cambiarModulo('moduloNuevoRegistro', document.querySelector('.nav-modulos button:first-child'));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+        console.error("Error al cargar nota para edición:", e);
+    }
+}
+
+async function eliminarNotaLibrePrincipal(id) {
+    await fetch(`/api/notas-libres/${id}`, { method: 'DELETE' });
+    cargarNotasLibres();
+}
+
+function toggleCamposTipo() {
+    const tipo = document.getElementById('tipo').value;
+    const grupoHora = document.getElementById('grupoHoraReunion');
+    const inputHora = document.getElementById('horaReunion');
+    const grupoTurnado = document.getElementById('grupoTurnado');
+    const selectTurnadoElem = document.getElementById('turnado');
+    
+    const grupoPrioridad = document.getElementById('grupoPrioridad');
+    const grupoVencimiento = document.getElementById('grupoVencimiento');
+    const grupoIncidente = document.getElementById('grupoIncidente');
+    const grupoObservaciones = document.getElementById('grupoObservaciones');
+
+    const grupoTituloNota = document.getElementById('grupoTituloNota');
+    const grupoFechaNota = document.getElementById('grupoFechaNota');
+    const grupoAreaNota = document.getElementById('grupoAreaNota');
+    const grupoPuntosNota = document.getElementById('grupoPuntosNota');
+    
+    if (tipo === 'Reunión') {
+        grupoHora.classList.remove('oculto'); inputHora.required = true;
+        grupoTurnado.classList.add('oculto'); selectTurnadoElem.required = false; selectTurnadoElem.value = '';
+        grupoPrioridad.classList.remove('oculto'); document.getElementById('prioridad').required = true;
+        grupoVencimiento.classList.remove('oculto'); document.getElementById('vencimiento').required = true;
+        grupoIncidente.classList.remove('oculto'); document.getElementById('incidente').required = true;
+        grupoObservaciones.classList.remove('oculto');
+
+        grupoTituloNota.classList.add('oculto'); document.getElementById('libreTitulo').required = false;
+        grupoFechaNota.classList.add('oculto'); document.getElementById('libreFecha').required = false;
+        grupoAreaNota.classList.add('oculto'); document.getElementById('libreArea').required = false;
+        grupoPuntosNota.classList.add('oculto');
+    } else if (tipo === 'Nota') {
+        grupoHora.classList.add('oculto'); inputHora.required = false; inputHora.value = '';
+        grupoTurnado.classList.add('oculto'); selectTurnadoElem.required = false; selectTurnadoElem.value = '';
+        grupoPrioridad.classList.add('oculto'); document.getElementById('prioridad').required = false;
+        grupoVencimiento.classList.add('oculto'); document.getElementById('vencimiento').required = false;
+        grupoIncidente.classList.add('oculto'); document.getElementById('incidente').required = false;
+        grupoObservaciones.classList.add('oculto');
+
+        grupoTituloNota.classList.remove('oculto'); document.getElementById('libreTitulo').required = true;
+        grupoFechaNota.classList.remove('oculto'); document.getElementById('libreFecha').required = true;
+        if (!document.getElementById('libreFecha').value) document.getElementById('libreFecha').value = fechaHoy;
+        grupoAreaNota.classList.remove('oculto'); document.getElementById('libreArea').required = true;
+        grupoPuntosNota.classList.remove('oculto');
+    } else { // Actividad (Sin fecha de vencimiento)
+        grupoHora.classList.add('oculto'); inputHora.required = false; inputHora.value = '';
+        grupoTurnado.classList.remove('oculto'); selectTurnadoElem.required = true;
+        grupoPrioridad.classList.remove('oculto'); document.getElementById('prioridad').required = true;
+        grupoVencimiento.classList.add('oculto'); document.getElementById('vencimiento').required = false; document.getElementById('vencimiento').value = '';
+        grupoIncidente.classList.remove('oculto'); document.getElementById('incidente').required = true;
+        grupoObservaciones.classList.remove('oculto');
+
+        grupoTituloNota.classList.add('oculto'); document.getElementById('libreTitulo').required = false;
+        grupoFechaNota.classList.add('oculto'); document.getElementById('libreFecha').required = false;
+        grupoAreaNota.classList.add('oculto'); document.getElementById('libreArea').required = false;
+        grupoPuntosNota.classList.add('oculto');
+    }
+}
+
+async function actualizarDashboardKPIs(dataPendientes) {
+    try {
+        const actAlta = dataPendientes.filter(p => p.tipo !== 'Reunión' && !p.finalizado && p.prioridad === 'Alta').length;
+        if (document.getElementById('kpiActividadesAlta')) document.getElementById('kpiActividadesAlta').innerText = actAlta;
+
+        const actMedia = dataPendientes.filter(p => p.tipo !== 'Reunión' && !p.finalizado && p.prioridad === 'Media').length;
+        if (document.getElementById('kpiActividadesMedia')) document.getElementById('kpiActividadesMedia').innerText = actMedia;
+
+        const actBaja = dataPendientes.filter(p => p.tipo !== 'Reunión' && !p.finalizado && p.prioridad === 'Baja').length;
+        if (document.getElementById('kpiActividadesBaja')) document.getElementById('kpiActividadesBaja').innerText = actBaja;
+
+        const resAsist = await fetch('/api/asistencias');
+        const dataAsist = await resAsist.json();
+        const enVacacionesHoy = dataAsist.filter(a => a.fecha === fechaHoy && a.estatus === 'Vacaciones');
+        
+        const spanNombresQuick = document.getElementById('quickVacacionesNombres');
+        if (spanNombresQuick) {
+            spanNombresQuick.innerText = enVacacionesHoy.length > 0 ? enVacacionesHoy.map(v => v.personal).join(', ') : 'Ninguno';
+        }
+
+        const reunionesActivas = dataPendientes.filter(p => p.tipo === 'Reunión' && !p.finalizado).length;
+        if (document.getElementById('kpiReunionesActivas')) document.getElementById('kpiReunionesActivas').innerText = reunionesActivas;
+    } catch (e) {
+        console.error("Error al actualizar KPIs:", e);
+    }
+}
+
+function calcularDiasTranscurridos(fechaFinStr) {
+    if (!fechaFinStr) return 0;
+    const fechaFin = new Date(fechaFinStr);
+    const hoy = new Date();
+    const diferenciaMs = hoy - fechaFin;
+    return Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
+}
+
+async function vaciarFinalizados(tipo) {
+    try {
+        await fetch(`/api/pendientes/vaciar-finalizados/${tipo}`, { method: 'DELETE' });
+        cargarPendientes();
+    } catch (e) {
+        console.error("Error al vaciar finalizados:", e);
+    }
+}
+
+async function cargarPendientes() {
+    try {
+        const res = await fetch('/api/pendientes');
+        let data = await res.json();
+        
+        const pesoPrioridad = { 'Alta': 1, 'Media': 2, 'Baja': 3 };
+        data.sort((a, b) => (pesoPrioridad[a.prioridad || 'Media'] - pesoPrioridad[b.prioridad || 'Media']));
+
+        actualizarDashboardKPIs(data);
+        
+        const fechaAgenda = document.getElementById('filtroFechaAgenda')?.value;
+        const fechaPendientes = document.getElementById('filtroFechaPendientes')?.value;
+        
+        let dataReuniones = data.filter(p => p.tipo === 'Reunión');
+        let dataPendientes = data.filter(p => p.tipo !== 'Reunión');
+
+        if (fechaAgenda) dataReuniones = dataReuniones.filter(p => p.vencimiento === fechaAgenda);
+        if (fechaPendientes) dataPendientes = dataPendientes.filter(p => p.vencimiento === fechaPendientes);
+
+        if (filtroPrioridadActiva) {
+            dataPendientes = dataPendientes.filter(p => p.prioridad === filtroPrioridadActiva);
+        }
+        
+        const tbodyReuniones = document.getElementById('tablaReuniones');
+        const tbodyReunionesFinalizadas = document.getElementById('tablaReunionesFinalizadas');
+        const tbodyPendientes = document.getElementById('tablaPendientes');
+        const tbodyPendientesFinalizados = document.getElementById('tablaPendientesFinalizadas');
+        
+        if (!tbodyReuniones || !tbodyPendientes) return;
+
+        tbodyReuniones.innerHTML = '';
+        if (tbodyReunionesFinalizadas) tbodyReunionesFinalizadas.innerHTML = '';
+        tbodyPendientes.innerHTML = '';
+        if (tbodyPendientesFinalizados) tbodyPendientesFinalizados.innerHTML = '';
+        
+        const reunionesActivas = dataReuniones.filter(p => !p.finalizado);
+        const reunionesFinalizadas = dataReuniones.filter(p => p.finalizado);
+
+        let headerReunionesFin = document.getElementById('headerReunionesFinalizadasContainer');
+        if (!headerReunionesFin && tbodyReunionesFinalizadas && tbodyReunionesFinalizadas.parentElement) {
+            headerReunionesFin = document.createElement('div');
+            headerReunionesFin.id = 'headerReunionesFinalizadasContainer';
+            headerReunionesFin.style.marginBottom = '10px';
+            tbodyReunionesFinalizadas.parentElement.before(headerReunionesFin);
+        }
+        if (headerReunionesFin) {
+            headerReunionesFin.innerHTML = reunionesFinalizadas.length > 0 
+                ? `<button onclick="vaciarFinalizados('Reunión')" style="background: #ff3b30; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">🗑️ Vaciar Reuniones Finalizadas</button>` 
+                : '';
+        }
+
+        if (reunionesActivas.length === 0) {
+            tbodyReuniones.innerHTML = `<tr><td colspan="11" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay reuniones activas.</td></tr>`;
+        } else {
+            reunionesActivas.forEach(p => {
+                const tr = document.createElement('tr');
+                let badgePri = p.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (p.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
+                const totalNotas = p.notasLista ? p.notasLista.length : 0;
+                let notasPendientesCount = p.notasLista ? p.notasLista.filter(nt => !nt.completado).length : 0;
+
+                let asignadosSet = new Set();
+                if (p.notasLista) {
+                    p.notasLista.forEach(nt => {
+                        if (nt.responsable && nt.responsable !== 'Sin asignar' && nt.responsable !== 'General') asignadosSet.add(nt.responsable);
+                    });
+                }
+                const asignadosStr = asignadosSet.size > 0 ? Array.from(asignadosSet).join(', ') : '-';
+                const badgePendientes = notasPendientesCount > 0 ? `<span class="badge" style="background: #fee2e2; color: #991b1b;">${notasPendientesCount} Pend.</span>` : `<span class="badge" style="background: #d1fae5; color: #065f46;">Al día</span>`;
+                const incidenteTextoSeguro = (p.incidente || '').replace(/`/g, '\\`').replace(/'/g, "\\'");
+
+                tr.innerHTML = `
+                    <td><span class="badge badge-reu">${p.folio}</span></td>
+                    <td class="text-center">${badgePri}</td>
+                    <td>${formatearFechaVista(p.fecha)}</td>
+                    <td><div style="cursor: pointer; color: var(--primary);" onclick="mostrarIncidenteCompleto('${p.folio}', \`${incidenteTextoSeguro}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
+                    <td class="text-center">${formatearFechaVista(p.vencimiento)} - ${p.horaReunion || ''}h</td>
+                    <td class="text-center"><b>${totalNotas}</b></td>
+                    <td>${asignadosStr}</td>
+                    <td class="text-center">${badgePendientes}</td>
+                    <td>${p.observaciones || '-'}</td>
+                    <td class="text-center"><input type="checkbox" onclick="toggleEstado('${p.folio}', this.checked)"></td>
+                    <td class="text-center">
+                        <div class="acciones-container">
+                            <button class="btn-accion btn-notas" onclick="abrirModalNotas('${p.folio}')">Notas</button>
+                            <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}')">Editar</button>
+                            <button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${p.folio}')">Eliminar</button>
+                        </div>
+                    </td>
+                `;
+                tbodyReuniones.appendChild(tr);
+            });
+        }
+
+        if (reunionesFinalizadas.length > 0 && tbodyReunionesFinalizadas) {
+            reunionesFinalizadas.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.classList.add('completado');
+                let badgePri = p.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (p.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
+                const incidenteTextoSeguro = (p.incidente || '').replace(/`/g, '\\`').replace(/'/g, "\\'");
+                
+                const diasFin = calcularDiasTranscurridos(p.fechaFinalizacion);
+                const alerta30Dias = diasFin >= 30 ? `<span style="background: #ff9500; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 6px;" title="Finalizada hace ${diasFin} días">⚠️ +30 días</span>` : '';
+
+                tr.innerHTML = `
+                    <td><span class="badge badge-reu">${p.folio}</span> ${alerta30Dias}</td>
+                    <td class="text-center">${badgePri}</td>
+                    <td>${formatearFechaVista(p.fecha)}</td>
+                    <td><div style="cursor: pointer;" onclick="mostrarIncidenteCompleto('${p.folio}', \`${incidenteTextoSeguro}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
+                    <td class="text-center">${formatearFechaVista(p.vencimiento)} - ${p.horaReunion || ''}h</td>
+                    <td class="text-center"><b>${p.notasLista ? p.notasLista.length : 0}</b></td>
+                    <td>-</td>
+                    <td class="text-center">-</td>
+                    <td>${p.observaciones || '-'}</td>
+                    <td class="text-center"><input type="checkbox" checked onclick="toggleEstado('${p.folio}', this.checked)"></td>
+                    <td class="text-center">
+                        <div class="acciones-container">
+                            <button class="btn-accion btn-notas" onclick="abrirModalNotas('${p.folio}')">Notas</button>
+                            <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}')">Editar</button>
+                            <button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${p.folio}')">Eliminar</button>
+                        </div>
+                    </td>
+                `;
+                tbodyReunionesFinalizadas.appendChild(tr);
+            });
+        } else if (tbodyReunionesFinalizadas) {
+            tbodyReunionesFinalizadas.innerHTML = `<tr><td colspan="11" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay reuniones finalizadas.</td></tr>`;
+        }
+
+        const actividadesActivas = dataPendientes.filter(p => !p.finalizado);
+        const actividadesFinalizadas = dataPendientes.filter(p => p.finalizado);
+
+        let headerActividadesFin = document.getElementById('headerActividadesFinalizadasContainer');
+        const tbodyPendientesFinElem = document.getElementById('tablaPendientesFinalizadas');
+        if (!headerActividadesFin && tbodyPendientesFinElem && tbodyPendientesFinElem.parentElement) {
+            headerActividadesFin = document.createElement('div');
+            headerActividadesFin.id = 'headerActividadesFinalizadasContainer';
+            headerActividadesFin.style.marginBottom = '10px';
+            tbodyPendientesFinElem.parentElement.before(headerActividadesFin);
+        }
+
+        if (actividadesActivas.length === 0) {
+            tbodyPendientes.innerHTML = `<tr><td colspan="10" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay actividades activas.</td></tr>`;
+        } else {
+            actividadesActivas.forEach(p => {
+                const textoWs = encodeURIComponent(`Hola ${p.turnado}, actividad asignada (${p.folio}):\n\n"${p.incidente}"`);
+                const tr = document.createElement('tr');
+                let badgePri = p.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (p.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
+                
+                const totalNotas = p.notasLista ? p.notasLista.length : 0;
+                let notasPendientesCount = p.notasLista ? p.notasLista.filter(nt => !nt.completado).length : 0;
+                let asignadosSet = new Set();
+                if (p.notasLista) {
+                    p.notasLista.forEach(nt => {
+                        if (nt.responsable && nt.responsable !== 'Sin asignar' && nt.responsable !== 'General') asignadosSet.add(nt.responsable);
+                    });
+                }
+                const asignadosStr = asignadosSet.size > 0 ? Array.from(asignadosSet).join(', ') : '-';
+                const badgePendientes = notasPendientesCount > 0 ? `<span class="badge" style="background: #fee2e2; color: #991b1b;">${notasPendientesCount} Pend.</span>` : `<span class="badge" style="background: #d1fae5; color: #065f46;">Al día</span>`;
+
+                const esDerivadaDeNota = p.observaciones && p.observaciones.includes('[Origen:');
+                const botonEliminarHtml = esDerivadaDeNota 
+                    ? `<button class="btn-accion btn-eliminar" style="opacity: 0.5; cursor: not-allowed;" title="Derivada de reunión" disabled>Eliminar</button>` 
+                    : `<button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${p.folio}')">Eliminar</button>`;
+
+                const incidenteTextoSeguro = (p.incidente || '').replace(/`/g, '\\`').replace(/'/g, "\\'");
+
+                tr.innerHTML = `
+                    <td><span class="badge badge-pen">${p.folio}</span></td>
+                    <td class="text-center">${badgePri}</td>
+                    <td>${formatearFechaVista(p.fecha)}</td>
+                    <td><div style="cursor: pointer; color: var(--primary);" onclick="mostrarIncidenteCompleto('${p.folio}', \`${incidenteTextoSeguro}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
+                    <td class="text-center"><b>${p.turnado}</b></td>
+                    <td class="text-center"><b>${totalNotas}</b></td>
+                    <td>${asignadosStr}</td>
+                    <td class="text-center">${badgePendientes}</td>
+                    <td>${p.observaciones || '-'}</td>
+                    <td class="text-center"><input type="checkbox" onclick="toggleEstado('${p.folio}', this.checked)"></td>
+                    <td class="text-center">
+                        <div class="acciones-container">
+                            <a href="https://wa.me/?text=${textoWs}" target="_blank" class="btn-accion btn-whatsapp" title="WhatsApp">WA</a>
+                            <button class="btn-accion btn-notas" onclick="abrirModalNotas('${p.folio}')">Notas</button>
+                            <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}')">Editar</button>
+                            ${botonEliminarHtml}
+                        </div>
+                    </td>
+                `;
+                tbodyPendientes.appendChild(tr);
+            });
+        }
+
+        if (headerActividadesFin) {
+            headerActividadesFin.innerHTML = actividadesFinalizadas.length > 0 
+                ? `<button onclick="vaciarFinalizados('Actividad')" style="background: #ff3b30; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">🗑️ Vaciar Actividades Finalizadas</button>` 
+                : '';
+        }
+
+        if (actividadesFinalizadas.length > 0 && tbodyPendientesFinElem) {
+            actividadesFinalizadas.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.classList.add('completado');
+                let badgePri = p.prioridad === 'Alta' ? '<span class="prioridad-alta">ALTA</span>' : (p.prioridad === 'Baja' ? '<span class="prioridad-baja">BAJA</span>' : '<span class="prioridad-media">MEDIA</span>');
+                const incidenteTextoSeguro = (p.incidente || '').replace(/`/g, '\\`').replace(/'/g, "\\'");
+                
+                const diasFin = calcularDiasTranscurridos(p.fechaFinalizacion);
+                const alerta30Dias = diasFin >= 30 ? `<span style="background: #ff9500; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 6px;" title="Finalizada hace ${diasFin} días">⚠️ +30 días</span>` : '';
+
+                tr.innerHTML = `
+                    <td><span class="badge badge-pen">${p.folio}</span> ${alerta30Dias}</td>
+                    <td class="text-center">${badgePri}</td>
+                    <td>${formatearFechaVista(p.fecha)}</td>
+                    <td><div style="cursor: pointer;" onclick="mostrarIncidenteCompleto('${p.folio}', \`${incidenteTextoSeguro}\`)" title="Haz clic para ver completo">${p.incidente}</div></td>
+                    <td class="text-center"><b>${p.turnado}</b></td>
+                    <td class="text-center"><b>${p.notasLista ? p.notasLista.length : 0}</b></td>
+                    <td>-</td>
+                    <td class="text-center">-</td>
+                    <td>${p.observaciones || '-'}</td>
+                    <td class="text-center"><input type="checkbox" checked onclick="toggleEstado('${p.folio}', this.checked)"></td>
+                    <td class="text-center">
+                        <div class="acciones-container">
+                            <button class="btn-accion btn-notas" onclick="abrirModalNotas('${p.folio}')">Notas</button>
+                            <button class="btn-accion btn-editar" onclick="prepararEdicion('${p.folio}')">Editar</button>
+                            <button class="btn-accion btn-eliminar" onclick="eliminarPendiente('${p.folio}')">Eliminar</button>
+                        </div>
+                    </td>
+                `;
+                tbodyPendientesFinElem.appendChild(tr);
+            });
+        } else if (tbodyPendientesFinElem) {
+            tbodyPendientesFinElem.innerHTML = `<tr><td colspan="10" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay actividades finalizadas.</td></tr>`;
+        }
+    } catch (e) {
+        console.error("Error al cargar pendientes:", e);
+    }
+}
+
+async function cargarMatrizAsistencias() {
+    try {
+        const fechaSeleccionada = document.getElementById('asistFechaCalendario').value;
         const res = await fetch('/api/asistencias');
-        const registros = await res.json();
+        const data = await res.json();
+        const registrosDia = {};
+        data.filter(a => a.fecha === fechaSeleccionada).forEach(a => {
+            registrosDia[a.personal.trim().toLowerCase()] = a.estatus;
+        });
 
         const tbody = document.getElementById('tablaMatrizAsistencias');
         if (!tbody) return;
         tbody.innerHTML = '';
 
-        listaPersonal.forEach(persona => {
-            const reg = registros.find(r => r.personal === persona && r.fecha === fecha);
-            const estatusActual = reg ? reg.estatus : 'Asistencia';
+        personalLista.forEach(persona => {
+            const estatusActual = registrosDia[persona.trim().toLowerCase()] || 'Asistencia';
+            let claseSelect = estatusActual === 'Retardo' ? 'estatus-retardo' : (estatusActual === 'Falta' ? 'estatus-falta' : (estatusActual === 'Vacaciones' ? 'estatus-vacaciones' : 'estatus-asistencia'));
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b>${persona}</b></td>
                 <td class="text-center">
-                    <select class="asistencia-select" data-personal="${persona}">
+                    <select class="asistencia-select ${claseSelect}" data-persona="${persona}" onchange="actualizarColorSelect(this)">
                         <option value="Asistencia" ${estatusActual === 'Asistencia' ? 'selected' : ''}>Asistencia</option>
                         <option value="Retardo" ${estatusActual === 'Retardo' ? 'selected' : ''}>Retardo</option>
                         <option value="Falta" ${estatusActual === 'Falta' ? 'selected' : ''}>Falta</option>
@@ -866,207 +1164,382 @@ async function cargarMatrizAsistencias() {
             tbody.appendChild(tr);
         });
     } catch (e) {
-        console.error("Error cargando asistencias:", e);
+        console.error("Error asistencias:", e);
     }
+}
+
+function actualizarColorSelect(selectElement) {
+    const estatus = selectElement.value;
+    selectElement.className = 'asistencia-select';
+    if (estatus === 'Asistencia') selectElement.classList.add('estatus-asistencia');
+    if (estatus === 'Retardo') selectElement.classList.add('estatus-retardo');
+    if (estatus === 'Falta') selectElement.classList.add('estatus-falta');
+    if (estatus === 'Vacaciones') selectElement.classList.add('estatus-vacaciones');
 }
 
 async function guardarCambiosAsistencias() {
     const fecha = document.getElementById('asistFechaCalendario').value;
     const selects = document.querySelectorAll('.asistencia-select');
-
-    try {
-        for (const sel of selects) {
-            const personal = sel.getAttribute('data-personal');
-            const estatus = sel.value;
-
-            await fetch('/api/asistencias', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ personal, fecha, estatus })
-            });
-        }
-        mostrarAlerta("Éxito", "Asistencias guardadas correctamente.");
-    } catch (e) {
-        mostrarAlerta("Error", "No se pudieron guardar las asistencias.");
-    }
+    let promesas = [];
+    selects.forEach(sel => {
+        promesas.push(fetch('/api/asistencias', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ personal: sel.getAttribute('data-persona'), fecha, estatus: sel.value })
+        }));
+    });
+    await Promise.all(promesas);
+    cargarReporteSemanal();
+    cargarReporteMensual();
+    cargarPendientes();
 }
 
+function obtenerDiasSemana(fechaStr) {
+    const curr = new Date(fechaStr + 'T00:00:00');
+    const first = curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1);
+    let dias = [];
+    for (let i = 0; i < 5; i++) {
+        let d = new Date(curr);
+        d.setDate(first + i);
+        dias.push(d.toISOString().split('T')[0]);
+    }
+    return dias;
+}
 
-// ==========================================
-// MÓDULO 6: VACACIONES
-// ==========================================
-async function cargarListaPersonalVacaciones() {
-    const listaPersonal = [
-        "Itzel", "Juan Pérez", "María López", "Carlos Ruiz", 
-        "Ana Gómez", "Sofía Torres", "Roberto Díaz"
-    ];
-    ['vacPersonal', 'filtroCalendarioVacaciones'].forEach(id => {
-        const sel = document.getElementById(id);
-        if (sel) {
-            const val = sel.value;
-            sel.innerHTML = '';
-            listaPersonal.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p; opt.textContent = p;
-                sel.appendChild(opt);
-            });
-            if (val) sel.value = val;
+async function cargarReporteSemanal() {
+    try {
+        const fechaRef = document.getElementById('filtroSemana').value || fechaHoy;
+        const personaSel = document.getElementById('filtroPersonaReporte').value;
+        const diasSemana = obtenerDiasSemana(fechaRef);
+        const nombresDias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
+
+        for (let i = 0; i < 5; i++) {
+            const thElem = document.getElementById(`th${['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'][i]}`);
+            if (thElem) thElem.innerText = `${nombresDias[i]} (${formatearFechaVista(diasSemana[i]).substring(0, 5)})`;
         }
-    });
-    renderizarCalendarioVacaciones();
+
+        const res = await fetch('/api/asistencias');
+        const data = await res.json();
+        const tbody = document.getElementById('tablaReporteSemanal');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        let listaMostrar = personaSel !== 'TODOS' ? [personaSel] : personalLista;
+
+        listaMostrar.forEach(persona => {
+            const pLower = persona.trim().toLowerCase();
+            let totalRetardos = 0, totalFaltas = 0, celdasHtml = '';
+
+            diasSemana.forEach(fechaDia => {
+                const reg = data.find(a => a.fecha === fechaDia && a.personal.trim().toLowerCase() === pLower);
+                let estatus = reg ? reg.estatus : 'Asistencia';
+                if (estatus === 'Retardo') { totalRetardos++; celdasHtml += `<td class="dia-celda"><span class="tag-retardo">Ret</span></td>`; }
+                else if (estatus === 'Falta') { totalFaltas++; celdasHtml += `<td class="dia-celda"><span class="tag-falta">Fal</span></td>`; }
+                else if (estatus === 'Vacaciones') { celdasHtml += `<td class="dia-celda"><span class="tag-vacaciones">Vac</span></td>`; }
+                else { celdasHtml += `<td class="dia-celda"><span class="tag-ok">OK</span></td>`; }
+            });
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${persona}</b></td>
+                ${celdasHtml}
+                <td class="text-center ${totalRetardos > 0 ? 'alerta-retardo' : ''}">${totalRetardos}</td>
+                <td class="text-center ${totalFaltas > 0 ? 'alerta-falta' : ''}">${totalFaltas}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) { console.error("Error semanal:", e); }
+}
+
+async function cargarReporteMensual() {
+    try {
+        const mesSel = document.getElementById('filtroMes').value || mesHoy;
+        const personaSel = document.getElementById('filtroPersonaMensual').value;
+        const res = await fetch('/api/asistencias');
+        const data = await res.json();
+        const registrosMes = data.filter(a => a.fecha.startsWith(mesSel));
+
+        const conteo = {};
+        personalLista.forEach(p => conteo[p.trim().toLowerCase()] = { retardos: 0, faltas: 0 });
+        registrosMes.forEach(a => {
+            const n = a.personal.trim().toLowerCase();
+            if (conteo[n]) {
+                if (a.estatus === 'Retardo') conteo[n].retardos++;
+                if (a.estatus === 'Falta') conteo[n].faltas++;
+            }
+        });
+
+        const tbody = document.getElementById('tablaReporteMensual');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        let listaMostrar = personaSel !== 'TODOS' ? [personaSel] : personalLista;
+
+        listaMostrar.forEach(persona => {
+            const stats = conteo[persona.trim().toLowerCase()] || { retardos: 0, faltas: 0 };
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${persona}</b></td>
+                <td class="text-center ${stats.retardos > 0 ? 'alerta-retardo' : ''}">${stats.retardos}</td>
+                <td class="text-center ${stats.faltas > 0 ? 'alerta-falta' : ''}">${stats.faltas}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) { console.error("Error mensual:", e); }
 }
 
 async function guardarVacaciones(e) {
     e.preventDefault();
-    const personal = document.getElementById('vacPersonal').value;
-    const periodoAnual = parseInt(document.getElementById('vacAnio').value);
-    const tipoPeriodo = parseInt(document.getElementById('vacPeriodo').value);
-    const diasSolicitados = parseInt(document.getElementById('vacDiasCount').value);
-    const fechaInicio = document.getElementById('vacFecha').value;
+    const payload = {
+        personal: document.getElementById('vacPersonal').value,
+        periodoAnual: parseInt(document.getElementById('vacAnio').value),
+        tipoPeriodo: parseInt(document.getElementById('vacPeriodo').value),
+        diasSolicitados: parseInt(document.getElementById('vacDiasCount').value),
+        fechaInicio: document.getElementById('vacFecha').value
+    };
 
     try {
         const res = await fetch('/api/vacaciones', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ personal, periodoAnual, tipoPeriodo, diasSolicitados, fechaInicio })
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (res.ok) {
-            mostrarAlerta("Éxito", "Vacaciones registradas correctamente.");
+            document.getElementById('formVacaciones').reset();
+            document.getElementById('vacFecha').value = fechaHoy;
+            document.getElementById('vacAnio').value = "2026";
             cargarResumenVacaciones();
+            cargarMatrizAsistencias();
+            cargarReporteSemanal();
+            cargarReporteMensual();
             renderizarCalendarioVacaciones();
-        } else {
-            mostrarAlerta("Aviso", data.error || "No se pudieron registrar las vacaciones.");
+            cargarPendientes();
         }
-    } catch (e) {
-        mostrarAlerta("Error", "Ocurrió un error al registrar las vacaciones.");
+    } catch (err) {
+        console.error("Error al registrar vacaciones:", err);
     }
 }
 
 async function cargarResumenVacaciones() {
     try {
         const res = await fetch('/api/vacaciones');
-        const vacs = await res.json();
-        const listaPersonal = [
-            "Itzel", "Juan Pérez", "María López", "Carlos Ruiz", 
-            "Ana Gómez", "Sofía Torres", "Roberto Díaz"
-        ];
-
+        const data = await res.json();
+        globalVacacionesData = data;
         const tbody = document.getElementById('tablaResumenVacaciones');
         if (!tbody) return;
         tbody.innerHTML = '';
 
-        let hoyStr = new Date().toISOString().split('T')[0];
-        let personalHoy = [];
+        const anioActual = 2026;
+        let resumen = {};
+        personalLista.forEach(p => {
+            resumen[p] = { p1: 0, p2: 0, ids: { p1: null, p2: null } };
+        });
 
-        listaPersonal.forEach(persona => {
-            const v1 = vacs.find(v => v.personal === persona && v.tipoPeriodo === 1);
-            const v2 = vacs.find(v => v.personal === persona && v.tipoPeriodo === 2);
-
-            const dias1 = v1 ? v1.diasTomados : 0;
-            const dias2 = v2 ? v2.diasTomados : 0;
-
-            [v1, v2].forEach(reg => {
-                if (reg && reg.fechasSolicitadas) {
-                    reg.fechasSolicitadas.forEach(sol => {
-                        if (sol.fechas && sol.fechas.includes(hoyStr)) {
-                            if (!personalHoy.includes(persona)) personalHoy.push(persona);
-                        }
-                    });
+        data.filter(v => v.periodoAnual === anioActual).forEach(v => {
+            if (resumen[v.personal]) {
+                if (v.tipoPeriodo === 1) {
+                    resumen[v.personal].p1 = v.diasTomados;
+                    resumen[v.personal].ids.p1 = v._id;
                 }
-            });
+                if (v.tipoPeriodo === 2) {
+                    resumen[v.personal].p2 = v.diasTomados;
+                    resumen[v.personal].ids.p2 = v._id;
+                }
+            }
+        });
+
+        Object.keys(resumen).forEach(persona => {
+            const item = resumen[persona];
+            const badgeP1 = item.p1 >= 10 ? `<span class="badge" style="background:#fee2e2; color:#991b1b;">10 / 10 (Completado)</span>` : `${item.p1} / 10 días`;
+            const badgeP2 = item.p2 >= 10 ? `<span class="badge" style="background:#fee2e2; color:#991b1b;">10 / 10 (Completado)</span>` : `${item.p2} / 10 días`;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b>${persona}</b></td>
-                <td>2026</td>
-                <td class="text-center"><span class="badge ${dias1 > 0 ? 'badge-reu' : ''}">${dias1} / 10 días</span></td>
-                <td class="text-center"><span class="badge ${dias2 > 0 ? 'badge-reu' : ''}">${dias2} / 10 días</span></td>
-                <td class="text-center">-</td>
+                <td>${anioActual}</td>
+                <td class="text-center">${badgeP1}</td>
+                <td class="text-center">${badgeP2}</td>
+                <td class="text-center">
+                    ${item.ids.p1 ? `<button class="btn-eliminar-item" onclick="eliminarRegistroVacacion('${item.ids.p1}')">Borrar P1</button>` : ''}
+                    ${item.ids.p2 ? `<button class="btn-eliminar-item" onclick="eliminarRegistroVacacion('${item.ids.p2}')" style="background:#d97706; margin-left:4px;">Borrar P2</button>` : ''}
+                </td>
             `;
             tbody.appendChild(tr);
         });
-
-        const quickEl = document.getElementById('quickVacacionesNombres');
-        if (quickEl) {
-            quickEl.textContent = personalHoy.length > 0 ? personalHoy.join(', ') : 'Ninguno';
-        }
+        renderizarCalendarioVacaciones();
+        cargarPendientes();
     } catch (e) {
-        console.error("Error cargando resumen de vacaciones:", e);
+        console.error("Error al cargar resumen de vacaciones:", e);
     }
 }
 
 async function renderizarCalendarioVacaciones() {
-    const personalSeleccionado = document.getElementById('filtroCalendarioVacaciones')?.value;
-    try {
-        const res = await fetch('/api/vacaciones');
-        const vacs = await res.json();
-        const filtradas = vacs.filter(v => v.personal === personalSeleccionado);
+    const personaSel = document.getElementById('filtroCalendarioVacaciones')?.value;
+    const tbody = document.getElementById('tablaCalendarioVacaciones');
+    if (!tbody) return;
+    tbody.innerHTML = '';
 
-        const tbody = document.getElementById('tablaCalendarioVacaciones');
-        if (!tbody) return;
-        tbody.innerHTML = '';
+    if (!personaSel) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center" style="color: var(--text-muted); padding: 15px;">Selecciona un empleado para ver su calendario de vacaciones.</td></tr>`;
+        return;
+    }
 
-        if (filtradas.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay registros de vacaciones para este empleado.</td></tr>`;
-            return;
-        }
+    const registrosPersona = globalVacacionesData.filter(v => v.personal === personaSel && v.periodoAnual === 2026);
+    if (registrosPersona.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center" style="color: var(--text-muted); padding: 15px;">No hay registros de vacaciones para ${personaSel} en este año.</td></tr>`;
+        return;
+    }
 
-        filtradas.forEach(v => {
-            v.fechasSolicitadas.forEach(sol => {
+    const nombresDias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+    registrosPersona.forEach(reg => {
+        if (reg.fechasSolicitadas && reg.fechasSolicitadas.length > 0) {
+            reg.fechasSolicitadas.forEach(sol => {
+                let fechasSpan = '';
+                if (sol.fechas && sol.fechas.length > 0) {
+                    fechasSpan = sol.fechas.map(f => {
+                        const fechaObj = new Date(f + 'T00:00:00');
+                        const nombreDia = nombresDias[fechaObj.getDay()];
+                        return `<span class="badge" style="background:#e0f2fe; color:#0369a1; margin:2px; font-weight:600;">${nombreDia} ${formatearFechaVista(f)}</span>`;
+                    }).join(' ');
+                } else {
+                    fechasSpan = formatearFechaVista(sol.inicio) || '-';
+                }
+
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="text-center"><span class="badge badge-reu">Periodo ${v.tipoPeriodo}</span></td>
-                    <td>${sol.inicio}</td>
+                    <td class="text-center"><b>Periodo ${reg.tipoPeriodo}</b></td>
+                    <td>${formatearFechaVista(sol.inicio) || 'N/A'}</td>
                     <td class="text-center"><b>${sol.dias} días</b></td>
-                    <td>${sol.fechas ? sol.fechas.join(', ') : '-'}</td>
+                    <td>${fechasSpan}</td>
                 `;
                 tbody.appendChild(tr);
             });
-        });
-    } catch (e) {
-        console.error("Error cargando calendario de vacaciones:", e);
-    }
-}
-
-
-// ==========================================
-// UTILIDADES / MODALES GENERALES
-// ==========================================
-function verIncidenteAmpliado(folio, texto) {
-    document.getElementById('modalIncidenteTitulo').textContent = `Detalle del Folio: ${folio}`;
-    document.getElementById('modalIncidenteTexto').textContent = texto;
-    document.getElementById('modalIncidente').style.display = 'flex';
-}
-
-function cerrarModalIncidente() {
-    document.getElementById('modalIncidente').style.display = 'none';
-}
-
-function mostrarAlerta(titulo, mensaje) {
-    document.getElementById('tituloModal').textContent = titulo;
-    document.getElementById('contenidoModal').textContent = mensaje;
-    document.getElementById('modalAlerta').style.display = 'flex';
-}
-
-function cerrarAlerta() {
-    document.getElementById('modalAlerta').style.display = 'none';
-}
-
-async function forzarEnvioTelegram() {
-    try {
-        const res = await fetch('/api/forzar-telegram', { method: 'POST' });
-        const data = await res.json();
-        if (data.exito) {
-            mostrarAlerta("Telegram", "Notificación enviada con éxito por Telegram.");
-        } else {
-            mostrarAlerta("Aviso", "No se pudo enviar el reporte por Telegram.");
         }
-    } catch (e) {
-        mostrarAlerta("Error", "Error de red al intentar enviar Telegram.");
-    }
+    });
 }
 
-function exportarPDF(idSubmodulo) {
-    window.print();
+async function eliminarRegistroVacacion(id) {
+    await fetch(`/api/vacaciones/${id}`, { method: 'DELETE' });
+    cargarResumenVacaciones();
+    cargarMatrizAsistencias();
+    cargarReporteSemanal();
+    cargarReporteMensual();
 }
+
+function exportarPDF(seccionId) {
+    const contenidoOriginal = document.body.innerHTML;
+    const seccionEl = document.getElementById(seccionId);
+    if (!seccionEl) return;
+    document.body.innerHTML = seccionEl.innerHTML;
+    window.print();
+    document.body.innerHTML = contenidoOriginal;
+    window.location.reload();
+}
+
+function limpiarFiltroAgenda() { 
+    const inputAgenda = document.getElementById('filtroFechaAgenda');
+    if (inputAgenda) inputAgenda.value = ''; 
+    cargarPendientes(); 
+}
+function limpiarFiltroPendientes() { 
+    filtroPrioridadActiva = null; 
+    const inputPend = document.getElementById('filtroFechaPendientes');
+    if (inputPend) inputPend.value = ''; 
+    cargarPendientes(); 
+}
+function limpiarFiltroSemana() { 
+    if (document.getElementById('filtroSemana')) document.getElementById('filtroSemana').value = fechaHoy; 
+    if (document.getElementById('filtroPersonaReporte')) document.getElementById('filtroPersonaReporte').value = 'TODOS'; 
+    cargarReporteSemanal(); 
+}
+function limpiarFiltroMensual() { 
+    if (document.getElementById('filtroMes')) document.getElementById('filtroMes').value = mesHoy; 
+    if (document.getElementById('filtroPersonaMensual')) document.getElementById('filtroPersonaMensual').value = 'TODOS'; 
+    cargarReporteMensual(); 
+}
+
+async function prepararEdicion(folio) {
+    try {
+        const res = await fetch('/api/pendientes');
+        const data = await res.json();
+        const p = data.find(item => item.folio === folio);
+        if (!p) return;
+
+        tipoItemEnEdicion = p.tipo;
+        document.getElementById('editFolio').value = p.folio;
+        document.getElementById('editNotaLibreId').value = '';
+        document.getElementById('tipo').value = p.tipo;
+        toggleCamposTipo();
+        document.getElementById('horaReunion').value = p.horaReunion || '';
+        document.getElementById('prioridad').value = p.prioridad || 'Media';
+        document.getElementById('incidente').value = p.incidente || '';
+        document.getElementById('turnado').value = p.turnado || '';
+        document.getElementById('vencimiento').value = p.vencimiento || '';
+        document.getElementById('observaciones').value = p.observaciones || '';
+        document.getElementById('btnSubmitText').innerText = `Actualizar (${p.folio})`;
+        document.getElementById('btnCancelarEdicion').classList.remove('oculto');
+        
+        cambiarModulo('moduloNuevoRegistro', document.querySelector('.nav-modulos button:first-child'));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) { console.error("Error edición:", e); }
+}
+
+function cancelarEdicionFormulario() {
+    const tipoTemp = tipoItemEnEdicion;
+    document.getElementById('formPendiente').reset();
+    document.getElementById('editFolio').value = '';
+    document.getElementById('editNotaLibreId').value = '';
+    document.getElementById('btnSubmitText').innerText = 'Guardar Registro';
+    document.getElementById('btnCancelarEdicion').classList.add('oculto');
+    puntosFormularioLibre = [];
+    renderizarTablaPuntosFormularioLibre();
+    tipoItemEnEdicion = null;
+    toggleCamposTipo();
+
+    if (tipoTemp === 'Reunión') {
+        cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
+    } else if (tipoTemp === 'Nota') {
+        cambiarModulo('moduloNotasLibres', document.querySelectorAll('.btn-modulo')[2]);
+    } else {
+        cambiarModulo('moduloPendientes', document.querySelectorAll('.btn-modulo')[3]);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function eliminarPendiente(folio) {
+    await fetch(`/api/pendientes/${folio}`, { method: 'DELETE' });
+    cargarPendientes();
+}
+
+async function toggleEstado(folio, finalizado) {
+    try {
+        const resReg = await fetch(`/api/pendientes/${folio}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ finalizado })
+        });
+        const regAct = await resReg.json();
+
+        if (regAct.tipo !== 'Reunión' && regAct.observaciones && regAct.observaciones.includes('[Origen:')) {
+            const match = regAct.observaciones.match(/\[Origen:\s*(.+?)-nota-(\d+)\]/);
+            if (match && match.length >= 3) {
+                const padreFolio = match[1].trim();
+                const idxNota = parseInt(match[2]);
+                const resPadre = await fetch('/api/pendientes');
+                const todas = await resPadre.json();
+                const padre = todas.find(item => item.folio === padreFolio);
+                if (padre && padre.notasLista && padre.notasLista[idxNota]) {
+                    padre.notasLista[idxNota].completado = finalizado;
+                    await fetch(`/api/pendientes/${padreFolio}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(padre) });
+                }
+            }
+        }
+        cargarPendientes();
+    } catch (e) { cargarPendientes(); }
+}
+
+window.onload = () => {
+    cargarPendientes();
+    poblarSelectAreas();
+};
