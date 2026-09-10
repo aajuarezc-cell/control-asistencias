@@ -17,6 +17,7 @@ let globalVacacionesData = [];
 let tipoItemEnEdicion = null;
 
 let puntosFormularioLibre = [];
+let indicePuntoEnEdicion = null;
 
 function formatearFechaVista(fechaStr) {
     if (!fechaStr) return '';
@@ -186,7 +187,6 @@ async function poblarSelectAreas() {
     try {
         const res = await fetch('/api/areas');
         const data = await res.json();
-        // Solo fusionamos si el servidor responde con un arreglo válido de elementos
         if (data && Array.isArray(data) && data.length > 0) {
             const setAreas = new Set([...areasListaInicial, ...data]);
             areasListaInicial = Array.from(setAreas);
@@ -263,16 +263,48 @@ function agregarPuntoFormularioLibre() {
     
     if (!texto) return;
 
-    puntosFormularioLibre.push({ 
-        texto, 
-        responsable: responsable || 'General', 
-        prioridad, 
-        completado: false 
-    });
+    if (indicePuntoEnEdicion !== null) {
+        puntosFormularioLibre[indicePuntoEnEdicion] = {
+            ...puntosFormularioLibre[indicePuntoEnEdicion],
+            texto,
+            responsable: responsable || 'General',
+            prioridad
+        };
+        indicePuntoEnEdicion = null;
+        const btnAgregar = document.querySelector('.btn-add-punto-verde');
+        if (btnAgregar) {
+            btnAgregar.style.background = '#34c759';
+            btnAgregar.title = "Agregar punto";
+        }
+    } else {
+        puntosFormularioLibre.push({ 
+            texto, 
+            responsable: responsable || 'General', 
+            prioridad, 
+            completado: false 
+        });
+    }
 
     document.getElementById('inputLibreNotaTexto').value = '';
     document.getElementById('inputLibreNotaResponsable').value = '';
+    document.getElementById('inputLibreNotaPrioridad').value = 'Media';
     renderizarTablaPuntosFormularioLibre();
+}
+
+function prepararEdicionPuntoLibre(index) {
+    const pto = puntosFormularioLibre[index];
+    if (!pto) return;
+
+    document.getElementById('inputLibreNotaTexto').value = pto.texto;
+    document.getElementById('inputLibreNotaResponsable').value = pto.responsable || '';
+    document.getElementById('inputLibreNotaPrioridad').value = pto.prioridad || 'Media';
+    indicePuntoEnEdicion = index;
+
+    const btnAgregar = document.querySelector('.btn-add-punto-verde');
+    if (btnAgregar) {
+        btnAgregar.style.background = '#ff9500';
+        btnAgregar.title = "Actualizar punto";
+    }
 }
 
 function handleLibreTextAreaKeyDown(event) {
@@ -308,7 +340,10 @@ function renderizarTablaPuntosFormularioLibre() {
             <td style="white-space: pre-line;">${textoHtml}</td>
             <td><b>${pto.responsable}</b></td>
             <td class="text-center">${badgePri}</td>
-            <td class="text-center"><button type="button" class="btn-eliminar-item" onclick="eliminarPuntoFormularioLibre(${idx})">Eliminar</button></td>
+            <td class="text-center" style="display: flex; gap: 4px; justify-content: center;">
+                <button type="button" class="btn-accion btn-editar" onclick="prepararEdicionPuntoLibre(${idx})" style="padding: 4px 8px; font-size: 11px;">Editar</button>
+                <button type="button" class="btn-eliminar-item" onclick="eliminarPuntoFormularioLibre(${idx})">Eliminar</button>
+            </td>
         `;
         tbody.appendChild(tr);
     });
@@ -837,7 +872,7 @@ function toggleCamposTipo() {
         if (!document.getElementById('libreFecha').value) document.getElementById('libreFecha').value = fechaHoy;
         grupoAreaNota.classList.remove('oculto'); document.getElementById('libreArea').required = true;
         grupoPuntosNota.classList.remove('oculto');
-    } else { // Actividad (Sin fecha de vencimiento)
+    } else { 
         grupoHora.classList.add('oculto'); inputHora.required = false; inputHora.value = '';
         grupoTurnado.classList.remove('oculto'); selectTurnadoElem.required = true;
         grupoPrioridad.classList.remove('oculto'); document.getElementById('prioridad').required = true;
@@ -1493,9 +1528,16 @@ function cancelarEdicionFormulario() {
     document.getElementById('btnSubmitText').innerText = 'Guardar Registro';
     document.getElementById('btnCancelarEdicion').classList.add('oculto');
     puntosFormularioLibre = [];
+    indicePuntoEnEdicion = null;
     renderizarTablaPuntosFormularioLibre();
     tipoItemEnEdicion = null;
     toggleCamposTipo();
+
+    const btnAgregar = document.querySelector('.btn-add-punto-verde');
+    if (btnAgregar) {
+        btnAgregar.style.background = '#34c759';
+        btnAgregar.title = "Agregar punto";
+    }
 
     if (tipoTemp === 'Reunión') {
         cambiarModulo('moduloAgenda', document.querySelectorAll('.btn-modulo')[1]);
