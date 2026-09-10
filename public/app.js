@@ -6,7 +6,10 @@ const personalLista = [
 let areasListaInicial = [
     "Dirección Gral de Administración",
     "Academia de Policía",
-    "Recursos Humanos"
+    "Recursos Humanos",
+    "UTIC",
+    "Repuve",
+    "Desarrollo Corporativo"
 ];
 
 let folioNotaActual = null;
@@ -1276,6 +1279,7 @@ async function cargarReporteSemanal() {
         tbody.innerHTML = '';
 
         let listaMostrar = personaSel !== 'TODOS' ? [personaSel] : personalLista;
+        let sumaRetardos = 0, sumaFaltas = 0, sumaPermisos = 0;
 
         listaMostrar.forEach(persona => {
             const pLower = persona.trim().toLowerCase();
@@ -1291,6 +1295,10 @@ async function cargarReporteSemanal() {
                 else { celdasHtml += `<td class="dia-celda"><span class="tag-ok">OK</span></td>`; }
             });
 
+            sumaRetardos += totalRetardos;
+            sumaFaltas += totalFaltas;
+            sumaPermisos += totalPermisos;
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b>${persona}</b></td>
@@ -1301,6 +1309,19 @@ async function cargarReporteSemanal() {
             `;
             tbody.appendChild(tr);
         });
+
+        const trTotales = document.createElement('tr');
+        trTotales.style.background = '#f8f9fa';
+        trTotales.style.fontWeight = 'bold';
+        trTotales.innerHTML = `
+            <td>TOTALES</td>
+            <td colspan="5"></td>
+            <td class="text-center">${sumaRetardos}</td>
+            <td class="text-center">${sumaFaltas}</td>
+            <td class="text-center">${sumaPermisos}</td>
+        `;
+        tbody.appendChild(trTotales);
+
     } catch (e) { 
         console.error("Error semanal:", e); 
     }
@@ -1341,8 +1362,14 @@ async function cargarReporteMensual() {
         tbody.innerHTML = '';
         let listaMostrar = personaSel !== 'TODOS' ? [personaSel] : personalLista;
 
+        let sumaRetardos = 0, sumaFaltas = 0, sumaPermisos = 0;
+
         listaMostrar.forEach(persona => {
             const stats = conteo[persona.trim().toLowerCase()] || { retardos: 0, faltas: 0, permisos: 0 };
+            sumaRetardos += stats.retardos;
+            sumaFaltas += stats.faltas;
+            sumaPermisos += stats.permisos;
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b>${persona}</b></td>
@@ -1352,6 +1379,18 @@ async function cargarReporteMensual() {
             `;
             tbody.appendChild(tr);
         });
+
+        const trTotales = document.createElement('tr');
+        trTotales.style.background = '#f8f9fa';
+        trTotales.style.fontWeight = 'bold';
+        trTotales.innerHTML = `
+            <td>TOTALES</td>
+            <td class="text-center">${sumaRetardos}</td>
+            <td class="text-center">${sumaFaltas}</td>
+            <td class="text-center">${sumaPermisos}</td>
+        `;
+        tbody.appendChild(trTotales);
+
     } catch (e) { console.error("Error mensual:", e); }
 }
 
@@ -1381,9 +1420,14 @@ async function cargarReporteAnual() {
         tbody.innerHTML = '';
         
         let listaMostrar = personaSel !== 'TODOS' ? [personaSel] : personalLista;
+        let sumaRetardos = 0, sumaFaltas = 0, sumaPermisos = 0;
 
         listaMostrar.forEach(persona => {
             const stats = conteo[persona.trim().toLowerCase()] || { retardos: 0, faltas: 0, permisos: 0 };
+            sumaRetardos += stats.retardos;
+            sumaFaltas += stats.faltas;
+            sumaPermisos += stats.permisos;
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b>${persona}</b></td>
@@ -1393,6 +1437,18 @@ async function cargarReporteAnual() {
             `;
             tbody.appendChild(tr);
         });
+
+        const trTotales = document.createElement('tr');
+        trTotales.style.background = '#f8f9fa';
+        trTotales.style.fontWeight = 'bold';
+        trTotales.innerHTML = `
+            <td>TOTALES</td>
+            <td class="text-center">${sumaRetardos}</td>
+            <td class="text-center">${sumaFaltas}</td>
+            <td class="text-center">${sumaPermisos}</td>
+        `;
+        tbody.appendChild(trTotales);
+
     } catch (e) {
         console.error("Error al cargar reporte anual:", e);
     }
