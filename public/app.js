@@ -1316,9 +1316,9 @@ async function cargarReporteSemanal() {
         trTotales.innerHTML = `
             <td>TOTALES</td>
             <td colspan="5"></td>
-            <td class="text-center">${sumaRetardos}</td>
-            <td class="text-center">${sumaFaltas}</td>
-            <td class="text-center">${sumaPermisos}</td>
+            <td class="text-center ${sumaRetardos > 0 ? 'alerta-retardo' : ''}">${sumaRetardos}</td>
+            <td class="text-center ${sumaFaltas > 0 ? 'alerta-falta' : ''}">${sumaFaltas}</td>
+            <td class="text-center ${sumaPermisos > 0 ? 'alerta-permiso' : ''}">${sumaPermisos}</td>
         `;
         tbody.appendChild(trTotales);
 
@@ -1385,9 +1385,9 @@ async function cargarReporteMensual() {
         trTotales.style.fontWeight = 'bold';
         trTotales.innerHTML = `
             <td>TOTALES</td>
-            <td class="text-center">${sumaRetardos}</td>
-            <td class="text-center">${sumaFaltas}</td>
-            <td class="text-center">${sumaPermisos}</td>
+            <td class="text-center ${sumaRetardos > 0 ? 'alerta-retardo' : ''}">${sumaRetardos}</td>
+            <td class="text-center ${sumaFaltas > 0 ? 'alerta-falta' : ''}">${sumaFaltas}</td>
+            <td class="text-center ${sumaPermisos > 0 ? 'alerta-permiso' : ''}">${sumaPermisos}</td>
         `;
         tbody.appendChild(trTotales);
 
@@ -1443,9 +1443,9 @@ async function cargarReporteAnual() {
         trTotales.style.fontWeight = 'bold';
         trTotales.innerHTML = `
             <td>TOTALES</td>
-            <td class="text-center">${sumaRetardos}</td>
-            <td class="text-center">${sumaFaltas}</td>
-            <td class="text-center">${sumaPermisos}</td>
+            <td class="text-center ${sumaRetardos > 0 ? 'alerta-retardo' : ''}">${sumaRetardos}</td>
+            <td class="text-center ${sumaFaltas > 0 ? 'alerta-falta' : ''}">${sumaFaltas}</td>
+            <td class="text-center ${sumaPermisos > 0 ? 'alerta-permiso' : ''}">${sumaPermisos}</td>
         `;
         tbody.appendChild(trTotales);
 
