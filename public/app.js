@@ -1366,27 +1366,33 @@ async function cargarReporteMensual() {
         const personaSel = document.getElementById('filtroPersonaMensual').value;
         const res = await fetch('/api/asistencias');
         const data = await res.json();
-        const registrosMes = data.filter(a => a.fecha.startsWith(mesSel));
-
-        const headerRow = document.querySelector('#moduloAsistencias #ReporteMensual table thead tr') || document.querySelector('#ReporteMensual thead tr');
-        if (headerRow && headerRow.children.length === 3) {
-            if (!document.getElementById('thTotalPermisosMensual')) {
-                const thPermisos = document.createElement('th');
-                thPermisos.id = 'thTotalPermisosMensual';
-                thPermisos.className = 'text-center';
-                thPermisos.innerText = 'TOTAL PERMISOS';
-                headerRow.appendChild(thPermisos);
-            }
-        }
+        
+        // Filtrar los registros del mes seleccionado que tengan algún estatus con motivo o conteo
+        const registrosMes = data.filter(a => a.fecha && a.fecha.startsWith(mesSel));
 
         const conteo = {};
-        personalLista.forEach(p => conteo[p.trim().toLowerCase()] = { retardos: 0, faltas: 0, permisos: 0 });
+        personalLista.forEach(p => {
+            conteo[p.trim().toLowerCase()] = { 
+                retardos: 0, faltas: 0, permisos: 0,
+                detalles: [] // Guardaremos los registros detallados para el modal
+            };
+        });
+
         registrosMes.forEach(a => {
             const n = a.personal.trim().toLowerCase();
             if (conteo[n]) {
-                if (a.estatus === 'Retardo') conteo[n].retardos++;
-                if (a.estatus === 'Falta') conteo[n].faltas++;
-                if (a.estatus === 'Permiso') conteo[n].permisos++;
+                if (a.estatus === 'Retardo') {
+                    conteo[n].retardos++;
+                    conteo[n].detalles.push({ fecha: a.fecha, estatus: 'Retardo', motivo: a.motivo });
+                }
+                if (a.estatus === 'Falta') {
+                    conteo[n].faltas++;
+                    conteo[n].detalles.push({ fecha: a.fecha, estatus: 'Falta', motivo: a.motivo });
+                }
+                if (a.estatus === 'Permiso') {
+                    conteo[n].permisos++;
+                    conteo[n].detalles.push({ fecha: a.fecha, estatus: 'Permiso', motivo: a.motivo });
+                }
             }
         });
 
@@ -1398,17 +1404,34 @@ async function cargarReporteMensual() {
         let sumaRetardos = 0, sumaFaltas = 0, sumaPermisos = 0;
 
         listaMostrar.forEach(persona => {
-            const stats = conteo[persona.trim().toLowerCase()] || { retardos: 0, faltas: 0, permisos: 0 };
+            const pKey = persona.trim().toLowerCase();
+            const stats = conteo[pKey] || { retardos: 0, faltas: 0, permisos: 0, detalles: [] };
             sumaRetardos += stats.retardos;
             sumaFaltas += stats.faltas;
             sumaPermisos += stats.permisos;
 
+            // Codificar los detalles en formato JSON seguro para pasarlos a la función del modal
+            const detallesJson = encodeURIComponent(JSON.stringify(stats.detalles));
+
+            // Generar botones interactivos si hay incidencias para poder consultarlas
+            const htmlRetardos = stats.retardos > 0 
+                ? `<span class="alerta-retardo" style="padding: 4px 8px; border-radius: 4px; cursor: pointer;" onclick="abrirModalMotivos('${persona}', 'Retardo', '${detallesJson}')" title="Ver motivos">${stats.retardos} 🔍</span>` 
+                : `0`;
+
+            const htmlFaltas = stats.faltas > 0 
+                ? `<span class="alerta-falta" style="padding: 4px 8px; border-radius: 4px; cursor: pointer;" onclick="abrirModalMotivos('${persona}', 'Falta', '${detallesJson}')" title="Ver motivos">${stats.faltas} 🔍</span>` 
+                : `0`;
+
+            const htmlPermisos = stats.permisos > 0 
+                ? `<span class="alerta-permiso" style="padding: 4px 8px; border-radius: 4px; cursor: pointer;" onclick="abrirModalMotivos('${persona}', 'Permiso', '${detallesJson}')" title="Ver motivos">${stats.permisos} 🔍</span>` 
+                : `0`;
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b>${persona}</b></td>
-                <td class="text-center ${stats.retardos > 0 ? 'alerta-retardo' : ''}">${stats.retardos}</td>
-                <td class="text-center ${stats.faltas > 0 ? 'alerta-falta' : ''}">${stats.faltas}</td>
-                <td class="text-center ${stats.permisos > 0 ? 'alerta-permiso' : ''}">${stats.permisos}</td>
+                <td class="text-center">${htmlRetardos}</td>
+                <td class="text-center">${htmlFaltas}</td>
+                <td class="text-center">${htmlPermisos}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -1418,13 +1441,15 @@ async function cargarReporteMensual() {
         trTotales.style.fontWeight = 'bold';
         trTotales.innerHTML = `
             <td>TOTALES</td>
-            <td class="text-center ${sumaRetardos > 0 ? 'alerta-retardo' : ''}">${sumaRetardos}</td>
-            <td class="text-center ${sumaFaltas > 0 ? 'alerta-falta' : ''}">${sumaFaltas}</td>
-            <td class="text-center ${sumaPermisos > 0 ? 'alerta-permiso' : ''}">${sumaPermisos}</td>
+            <td class="text-center">${sumaRetardos}</td>
+            <td class="text-center">${sumaFaltas}</td>
+            <td class="text-center">${sumaPermisos}</td>
         `;
         tbody.appendChild(trTotales);
 
-    } catch (e) { console.error("Error mensual:", e); }
+    } catch (e) { 
+        console.error("Error mensual:", e); 
+    }
 }
 
 async function cargarReporteAnual() {
@@ -1752,6 +1777,42 @@ async function toggleEstado(folio, finalizado) {
         }
         cargarPendientes();
     } catch (e) { cargarPendientes(); }
+}
+
+function abrirModalMotivos(persona, tipoEstatus, detallesJson) {
+    const tituloEl = document.getElementById('modalMotivosTitulo');
+    const contenidoEl = document.getElementById('modalMotivosContenido');
+    
+    tituloEl.innerText = `Motivos de ${tipoEstatus} - ${persona}`;
+    
+    try {
+        const detalles = JSON.parse(decodeURIComponent(detallesJson));
+        const filtrados = detalles.filter(d => d.estatus === tipoEstatus);
+
+        if (filtrados.length === 0) {
+            contenidoEl.innerHTML = `<p style="color: #6e6e73; font-style: italic;">No hay registros detallados.</p>`;
+        } else {
+            let html = `<ul style="padding-left: 20px; line-height: 1.6;">`;
+            filtrados.forEach(item => {
+                const motivoTexto = item.motivo ? item.motivo : '<span style="color: #8e8e93; font-style: italic;">Sin motivo especificado</span>';
+                html += `<li style="margin-bottom: 10px;">
+                    <b>Fecha:</b> ${formatearFechaVista(item.fecha)}<br>
+                    <b>Motivo:</b> ${motivoTexto}
+                </li>`;
+            });
+            html += `</ul>`;
+            contenidoEl.innerHTML = html;
+        }
+    } catch (e) {
+        console.error("Error al parsear detalles de motivos:", e);
+        contenidoEl.innerHTML = `<p style="color: red;">Error al cargar la información.</p>`;
+    }
+
+    document.getElementById('modalMotivos').style.display = 'flex';
+}
+
+function cerrarModalMotivos() {
+    document.getElementById('modalMotivos').style.display = 'none';
 }
 
 window.onload = () => {
