@@ -186,8 +186,10 @@ async function poblarSelectAreas() {
     try {
         const res = await fetch('/api/areas');
         const data = await res.json();
-        if (data && data.length > 0) {
-            areasListaInicial = data;
+        // Solo fusionamos si el servidor responde con un arreglo válido de elementos
+        if (data && Array.isArray(data) && data.length > 0) {
+            const setAreas = new Set([...areasListaInicial, ...data]);
+            areasListaInicial = Array.from(setAreas);
         }
     } catch (e) {
         console.error("Error al cargar áreas:", e);

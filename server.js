@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
+const cron = require('node-cron');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -9,6 +10,15 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Manejadores globales para evitar cierres inesperados en Render
+process.on('uncaughtException', (err) => {
+    console.error('🔴 Error no capturado:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('🔴 Promesa rechazada no manejada:', reason);
+});
 
 // ==========================================
 // CONEXIÓN A MONGODB
@@ -23,10 +33,9 @@ mongoose.connect(MONGO_URI)
 // MODELOS DE MONGOOSE
 // ==========================================
 
-// 1. Esquema de Pendientes, Reuniones y Actividades
 const pendienteSchema = new mongoose.Schema({
     folio: { type: String, required: true, unique: true },
-    tipo: { type: String, required: true }, // 'Reunión' o 'Actividad'
+    tipo: { type: String, required: true },
     incidente: { type: String, required: true },
     turnado: { type: String, default: '' },
     vencimiento: { type: String, default: '' },
@@ -34,7 +43,7 @@ const pendienteSchema = new mongoose.Schema({
     observaciones: { type: String, default: '' },
     prioridad: { type: String, default: 'Media' },
     finalizado: { type: Boolean, default: false },
-    fechaFinalizacion: { type: Date, default: null }, // Fecha exacta en que se marcó como completado
+    fechaFinalizacion: { type: Date, default: null },
     fecha: { type: String, default: () => new Date().toISOString().split('T')[0] },
     notasLista: [{
         texto: String,
@@ -45,7 +54,6 @@ const pendienteSchema = new mongoose.Schema({
 });
 const Pendiente = mongoose.model('Pendiente', pendienteSchema);
 
-// 2. Esquema de Asistencias
 const asistenciaSchema = new mongoose.Schema({
     personal: String,
     fecha: String,
@@ -53,7 +61,6 @@ const asistenciaSchema = new mongoose.Schema({
 });
 const Asistencia = mongoose.model('Asistencia', asistenciaSchema);
 
-// 3. Esquema de Vacaciones
 const vacacionesSchema = new mongoose.Schema({
     personal: String,
     periodoAnual: Number,
@@ -67,13 +74,11 @@ const vacacionesSchema = new mongoose.Schema({
 });
 const Vacaciones = mongoose.model('Vacaciones', vacacionesSchema);
 
-// 4. Esquema de Áreas
 const areaSchema = new mongoose.Schema({
     nombre: { type: String, unique: true }
 });
 const Area = mongoose.model('Area', areaSchema);
 
-// 5. Esquema de Notas Libres
 const notaLibreSchema = new mongoose.Schema({
     titulo: { type: String, required: true },
     fecha: { type: String, required: true },
@@ -92,7 +97,6 @@ const NotaLibre = mongoose.model('NotaLibre', notaLibreSchema);
 // RUTAS API: PENDIENTES / AGENDA / ACTIVIDADES
 // ==========================================
 
-// Obtener todos los pendientes
 app.get('/api/pendientes', async (req, res) => {
     try {
         const items = await Pendiente.find();
@@ -102,12 +106,10 @@ app.get('/api/pendientes', async (req, res) => {
     }
 });
 
-// Crear nuevo pendiente con generación automática de folio
 app.post('/api/pendientes', async (req, res) => {
     try {
         const { tipo, incidente, turnado, vencimiento, horaReunion, observaciones, prioridad } = req.body;
         
-        // Generar folio correlativo (REU-001 o ACT-001)
         const prefijo = tipo === 'Reunión' ? 'REU' : 'ACT';
         const ultimo = await Pendiente.findOne({ tipo: tipo === 'Reunión' ? 'Reunión' : { $ne: 'Reunión' } }).sort({ _id: -1 });
         
@@ -140,7 +142,6 @@ app.post('/api/pendientes', async (req, res) => {
     }
 });
 
-// Actualizar pendiente completo (PUT)
 app.put('/api/pendientes/:folio', async (req, res) => {
     try {
         const { tipo, incidente, turnado, vencimiento, horaReunion, observaciones, prioridad, notasLista } = req.body;
@@ -166,7 +167,6 @@ app.put('/api/pendientes/:folio', async (req, res) => {
     }
 });
 
-// Cambiar estatus de finalizado (PATCH) - Registra la fecha de finalización exacta
 app.patch('/api/pendientes/:folio', async (req, res) => {
     try {
         const { finalizado } = req.body;
@@ -189,7 +189,6 @@ app.patch('/api/pendientes/:folio', async (req, res) => {
     }
 });
 
-// Actualizar únicamente las notas de un pendiente
 app.put('/api/pendientes/:folio/notas', async (req, res) => {
     try {
         const { notasLista } = req.body;
@@ -204,7 +203,6 @@ app.put('/api/pendientes/:folio/notas', async (req, res) => {
     }
 });
 
-// Eliminar un pendiente individual
 app.delete('/api/pendientes/:folio', async (req, res) => {
     try {
         await Pendiente.findOneAndDelete({ folio: req.params.folio });
@@ -214,7 +212,6 @@ app.delete('/api/pendientes/:folio', async (req, res) => {
     }
 });
 
-// Vaciar (eliminar masivamente) registros finalizados por tipo ('Reunión' o 'Actividad')
 app.delete('/api/pendientes/vaciar-finalizados/:tipo', async (req, res) => {
     try {
         const tipoReq = req.params.tipo;
@@ -274,13 +271,12 @@ app.post('/api/vacaciones', async (req, res) => {
     try {
         const { personal, periodoAnual, tipoPeriodo, diasSolicitados, fechaInicio } = req.body;
         
-        // Calcular los días hábiles (lunes a viernes) solicitados a partir de la fecha de inicio
         let fechaObj = new Date(fechaInicio + 'T00:00:00');
         let fechasArray = [];
         let diasAgregados = 0;
 
         while (diasAgregados < diasSolicitados) {
-            let diaSemana = fechaObj.getDay(); // 0: Dom, 6: Sáb
+            let diaSemana = fechaObj.getDay();
             if (diaSemana !== 0 && diaSemana !== 6) {
                 fechasArray.push(fechaObj.toISOString().split('T')[0]);
                 diasAgregados++;
@@ -301,7 +297,7 @@ app.post('/api/vacaciones', async (req, res) => {
 
         const totalActual = registroVac.diasTomados + diasSolicitados;
         if (totalActual > 10) {
-            return res.status(400).json({ error: `El periodo ${tipoPeriodo} excede el límite de 10 días (actuales: ${registroVac.diasTomados}, solicitados: ${diasSolicitados}).` });
+            return res.status(400).json({ error: `El periodo ${tipoPeriodo} excede el límite de 10 días.` });
         }
 
         registroVac.diasTomados = totalActual;
@@ -313,7 +309,6 @@ app.post('/api/vacaciones', async (req, res) => {
 
         await registroVac.save();
 
-        // Registrar automáticamente como 'Vacaciones' en la matriz de asistencias para los días hábiles calculados
         for (const fStr of fechasArray) {
             let asistReg = await Asistencia.findOne({ personal, fecha: fStr });
             if (asistReg) {
@@ -434,12 +429,65 @@ app.delete('/api/notas-libres/:id', async (req, res) => {
     }
 });
 
-// Ruta comodín para frontend SPA
+
+// ==========================================
+// TELEGRAM: ENVÍO AUTOMÁTICO Y MANUAL
+// ==========================================
+
+async function enviarNotificacionTelegramAutomatica() {
+    const botToken = "8693041611:AAEQOOZFCDYLEALj3UY4Sh6xpunztRWt54A";
+    const chatId = "7091534524";
+
+    try {
+        const pendientes = await Pendiente.find({ finalizado: false });
+        const mensaje = `🔔 *Reporte Horario de Actividades Activas*\nTotal pendientes: ${pendientes.length}`;
+
+        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: mensaje,
+                parse_mode: 'Markdown'
+            })
+        });
+
+        const data = await response.json();
+        if (data.ok) {
+            console.log("✅ Notificación automática de Telegram enviada con éxito.");
+        } else {
+            console.error("🔴 Error al enviar mensaje por Telegram:", data);
+        }
+    } catch (e) {
+        console.error("🔴 Error ejecutando la notificación automática:", e);
+    }
+}
+
+app.post('/api/forzar-telegram', async (req, res) => {
+    try {
+        await enviarNotificacionTelegramAutomatica();
+        res.json({ exito: true, mensaje: "Envío de Telegram ejecutado manualmente." });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Programar tarea con node-cron: De lunes a viernes (1-5) en el minuto 0 de cada hora
+cron.schedule('0 * * * 1-5', () => {
+    console.log("⏰ Ejecutando tarea programada: Notificación de Telegram (Lunes a Viernes)");
+    enviarNotificacionTelegramAutomatica();
+});
+
+
+// ==========================================
+// RUTA COMODÍN Y ARRANQUE
+// ==========================================
+
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Iniciar servidor
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
