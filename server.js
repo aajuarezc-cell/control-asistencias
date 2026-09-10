@@ -440,7 +440,29 @@ async function enviarNotificacionTelegramAutomatica() {
 
     try {
         const pendientes = await Pendiente.find({ finalizado: false });
-        const mensaje = `🔔 *Reporte Horario de Actividades Activas*\nTotal pendientes: ${pendientes.length}`;
+        
+        const reunionesActivas = pendientes.filter(p => p.tipo === 'Reunión');
+        const actividadesAlta = pendientes.filter(p => p.tipo !== 'Reunión' && p.prioridad === 'Alta');
+
+        let mensaje = `🔔 *Reporte Dinámico de Actividades*\n\n`;
+
+        mensaje += `📅 *Reuniones Activas (${reunionesActivas.length}):*\n`;
+        if (reunionesActivas.length > 0) {
+            reunionesActivas.forEach(r => {
+                mensaje += `• [${r.folio}] ${r.incidente} (${r.vencimiento || 'Sin fecha'})\n`;
+            });
+        } else {
+            mensaje += `• Ninguna\n`;
+        }
+
+        mensaje += `\n🚨 *Actividades de Prioridad Alta (${actividadesAlta.length}):*\n`;
+        if (actividadesAlta.length > 0) {
+            actividadesAlta.forEach(a => {
+                mensaje += `• [${a.folio}] ${a.incidente} - Asignado a: *${a.turnado || 'General'}*\n`;
+            });
+        } else {
+            mensaje += `• Ninguna\n`;
+        }
 
         const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
         const response = await fetch(url, {
