@@ -1,6 +1,6 @@
 const personalLista = [
     "Titular", "Israel", "Nohemi", "Joel", "Nelson", "Rafael", 
-    "Itzel", "Ricardo", "Javier", "Christian", "Rosa Angeles", "Martin", "Emanuel", "Roberto"
+    "Itzel", "Ricardo", "Javier", "Christian", "Rosa Angeles", "Martin", "Emanuel", "Roberto","Raul"
 ];
 
 let areasListaInicial = [
