@@ -1462,14 +1462,30 @@ async function cargarReporteAnual() {
         const registrosAnio = data.filter(a => a.fecha && a.fecha.startsWith(anioSel));
 
         const conteo = {};
-        personalLista.forEach(p => conteo[p.trim().toLowerCase()] = { retardos: 0, faltas: 0, permisos: 0 });
+        personalLista.forEach(p => {
+            conteo[p.trim().toLowerCase()] = { 
+                retardos: 0, 
+                faltas: 0, 
+                permisos: 0, 
+                detalles: [] 
+            };
+        });
         
         registrosAnio.forEach(a => {
             const n = a.personal.trim().toLowerCase();
             if (conteo[n]) {
-                if (a.estatus === 'Retardo') conteo[n].retardos++;
-                if (a.estatus === 'Falta') conteo[n].faltas++;
-                if (a.estatus === 'Permiso') conteo[n].permisos++;
+                if (a.estatus === 'Retardo') {
+                    conteo[n].retardos++;
+                    conteo[n].detalles.push({ fecha: a.fecha, estatus: 'Retardo', motivo: a.motivo });
+                }
+                if (a.estatus === 'Falta') {
+                    conteo[n].faltas++;
+                    conteo[n].detalles.push({ fecha: a.fecha, estatus: 'Falta', motivo: a.motivo });
+                }
+                if (a.estatus === 'Permiso') {
+                    conteo[n].permisos++;
+                    conteo[n].detalles.push({ fecha: a.fecha, estatus: 'Permiso', motivo: a.motivo });
+                }
             }
         });
 
@@ -1481,17 +1497,33 @@ async function cargarReporteAnual() {
         let sumaRetardos = 0, sumaFaltas = 0, sumaPermisos = 0;
 
         listaMostrar.forEach(persona => {
-            const stats = conteo[persona.trim().toLowerCase()] || { retardos: 0, faltas: 0, permisos: 0 };
+            const pKey = persona.trim().toLowerCase();
+            const stats = conteo[pKey] || { retardos: 0, faltas: 0, permisos: 0, detalles: [] };
+            
             sumaRetardos += stats.retardos;
             sumaFaltas += stats.faltas;
             sumaPermisos += stats.permisos;
 
+            const detallesJson = encodeURIComponent(JSON.stringify(stats.detalles));
+
+            const htmlRetardos = stats.retardos > 0 
+                ? `<span class="alerta-retardo" style="padding: 4px 8px; border-radius: 4px; cursor: pointer;" onclick="abrirModalMotivos('${persona}', 'Retardo', '${detallesJson}')" title="Ver motivos">${stats.retardos} 🔍</span>` 
+                : `0`;
+
+            const htmlFaltas = stats.faltas > 0 
+                ? `<span class="alerta-falta" style="padding: 4px 8px; border-radius: 4px; cursor: pointer;" onclick="abrirModalMotivos('${persona}', 'Falta', '${detallesJson}')" title="Ver motivos">${stats.faltas} 🔍</span>` 
+                : `0`;
+
+            const htmlPermisos = stats.permisos > 0 
+                ? `<span class="alerta-permiso" style="padding: 4px 8px; border-radius: 4px; cursor: pointer;" onclick="abrirModalMotivos('${persona}', 'Permiso', '${detallesJson}')" title="Ver motivos">${stats.permisos} 🔍</span>` 
+                : `0`;
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b>${persona}</b></td>
-                <td class="text-center ${stats.retardos > 0 ? 'alerta-retardo' : ''}">${stats.retardos}</td>
-                <td class="text-center ${stats.faltas > 0 ? 'alerta-falta' : ''}">${stats.faltas}</td>
-                <td class="text-center ${stats.permisos > 0 ? 'alerta-permiso' : ''}">${stats.permisos}</td>
+                <td class="text-center">${htmlRetardos}</td>
+                <td class="text-center">${htmlFaltas}</td>
+                <td class="text-center">${htmlPermisos}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -1501,9 +1533,9 @@ async function cargarReporteAnual() {
         trTotales.style.fontWeight = 'bold';
         trTotales.innerHTML = `
             <td>TOTALES</td>
-            <td class="text-center ${sumaRetardos > 0 ? 'alerta-retardo' : ''}">${sumaRetardos}</td>
-            <td class="text-center ${sumaFaltas > 0 ? 'alerta-falta' : ''}">${sumaFaltas}</td>
-            <td class="text-center ${sumaPermisos > 0 ? 'alerta-permiso' : ''}">${sumaPermisos}</td>
+            <td class="text-center">${sumaRetardos}</td>
+            <td class="text-center">${sumaFaltas}</td>
+            <td class="text-center">${sumaPermisos}</td>
         `;
         tbody.appendChild(trTotales);
 
