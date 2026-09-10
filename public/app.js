@@ -1255,24 +1255,6 @@ async function cargarReporteSemanal() {
             if (thElem) thElem.innerText = `${nombresDias[i]} (${formatearFechaVista(diasSemana[i]).substring(0, 5)})`;
         }
 
-        // Asegurar que la cabecera de la tabla semanal incluya la columna de Permisos si no existe
-        const headerRow = document.querySelector('#moduloAsistencias .submodulo-vista:not(.oculto) table thead tr') || document.querySelector('#ReporteSemanal thead tr') || document.querySelector('#moduloAsistencias table thead tr');
-        
-        if (headerRow && !document.getElementById('thPermisosSemanal')) {
-            // Quitamos temporalmente o reinsertamos los encabezados de totales para ordenar: Retardos, Faltas, Permisos
-            headerRow.innerHTML = `
-                <th>PERSONAL</th>
-                <th id="thLunes">Lun</th>
-                <th id="thMartes">Mar</th>
-                <th id="thMiercoles">Mié</th>
-                <th id="thJueves">Jue</th>
-                <th id="thViernes">Vie</th>
-                <th class="text-center">RETARDOS</th>
-                <th class="text-center">FALTAS</th>
-                <th id="thPermisosSemanal" class="text-center">PERMISOS</th>
-            `;
-        }
-
         const res = await fetch('/api/asistencias');
         const data = await res.json();
         const tbody = document.getElementById('tablaReporteSemanal');
