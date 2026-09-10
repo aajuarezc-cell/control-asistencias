@@ -1255,6 +1255,24 @@ async function cargarReporteSemanal() {
             if (thElem) thElem.innerText = `${nombresDias[i]} (${formatearFechaVista(diasSemana[i]).substring(0, 5)})`;
         }
 
+        // Asegurar que la cabecera de la tabla semanal incluya la columna de Permisos si no existe
+        const headerRow = document.querySelector('#moduloAsistencias .submodulo-vista:not(.oculto) table thead tr') || document.querySelector('#ReporteSemanal thead tr') || document.querySelector('#moduloAsistencias table thead tr');
+        
+        if (headerRow && !document.getElementById('thPermisosSemanal')) {
+            // Quitamos temporalmente o reinsertamos los encabezados de totales para ordenar: Retardos, Faltas, Permisos
+            headerRow.innerHTML = `
+                <th>PERSONAL</th>
+                <th id="thLunes">Lun</th>
+                <th id="thMartes">Mar</th>
+                <th id="thMiercoles">Mié</th>
+                <th id="thJueves">Jue</th>
+                <th id="thViernes">Vie</th>
+                <th class="text-center">RETARDOS</th>
+                <th class="text-center">FALTAS</th>
+                <th id="thPermisosSemanal" class="text-center">PERMISOS</th>
+            `;
+        }
+
         const res = await fetch('/api/asistencias');
         const data = await res.json();
         const tbody = document.getElementById('tablaReporteSemanal');
@@ -1265,14 +1283,14 @@ async function cargarReporteSemanal() {
 
         listaMostrar.forEach(persona => {
             const pLower = persona.trim().toLowerCase();
-            let totalRetardos = 0, totalFaltas = 0, celdasHtml = '';
+            let totalRetardos = 0, totalFaltas = 0, totalPermisos = 0, celdasHtml = '';
 
             diasSemana.forEach(fechaDia => {
                 const reg = data.find(a => a.fecha === fechaDia && a.personal.trim().toLowerCase() === pLower);
                 let estatus = reg ? reg.estatus : 'Asistencia';
                 if (estatus === 'Retardo') { totalRetardos++; celdasHtml += `<td class="dia-celda"><span class="tag-retardo">Ret</span></td>`; }
                 else if (estatus === 'Falta') { totalFaltas++; celdasHtml += `<td class="dia-celda"><span class="tag-falta">Fal</span></td>`; }
-                else if (estatus === 'Permiso') { celdasHtml += `<td class="dia-celda"><span class="tag-permiso">Per</span></td>`; }
+                else if (estatus === 'Permiso') { totalPermisos++; celdasHtml += `<td class="dia-celda"><span class="tag-permiso">Per</span></td>`; }
                 else if (estatus === 'Vacaciones') { celdasHtml += `<td class="dia-celda"><span class="tag-vacaciones">Vac</span></td>`; }
                 else { celdasHtml += `<td class="dia-celda"><span class="tag-ok">OK</span></td>`; }
             });
@@ -1283,10 +1301,13 @@ async function cargarReporteSemanal() {
                 ${celdasHtml}
                 <td class="text-center ${totalRetardos > 0 ? 'alerta-retardo' : ''}">${totalRetardos}</td>
                 <td class="text-center ${totalFaltas > 0 ? 'alerta-falta' : ''}">${totalFaltas}</td>
+                <td class="text-center ${totalPermisos > 0 ? 'alerta-permiso' : ''}">${totalPermisos}</td>
             `;
             tbody.appendChild(tr);
         });
-    } catch (e) { console.error("Error semanal:", e); }
+    } catch (e) { 
+        console.error("Error semanal:", e); 
+    }
 }
 
 async function cargarReporteMensual() {
