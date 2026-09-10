@@ -1182,7 +1182,7 @@ async function cargarMatrizAsistencias() {
 
         personalLista.forEach(persona => {
             const estatusActual = registrosDia[persona.trim().toLowerCase()] || 'Asistencia';
-            let claseSelect = estatusActual === 'Retardo' ? 'estatus-retardo' : (estatusActual === 'Falta' ? 'estatus-falta' : (estatusActual === 'Vacaciones' ? 'estatus-vacaciones' : 'estatus-asistencia'));
+            let claseSelect = estatusActual === 'Retardo' ? 'estatus-retardo' : (estatusActual === 'Falta' ? 'estatus-falta' : (estatusActual === 'Permiso' ? 'estatus-permiso' : (estatusActual === 'Vacaciones' ? 'estatus-vacaciones' : 'estatus-asistencia')));
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -1192,6 +1192,7 @@ async function cargarMatrizAsistencias() {
                         <option value="Asistencia" ${estatusActual === 'Asistencia' ? 'selected' : ''}>Asistencia</option>
                         <option value="Retardo" ${estatusActual === 'Retardo' ? 'selected' : ''}>Retardo</option>
                         <option value="Falta" ${estatusActual === 'Falta' ? 'selected' : ''}>Falta</option>
+                        <option value="Permiso" ${estatusActual === 'Permiso' ? 'selected' : ''}>Permiso</option>
                         <option value="Vacaciones" ${estatusActual === 'Vacaciones' ? 'selected' : ''}>Vacaciones</option>
                     </select>
                 </td>
@@ -1209,6 +1210,7 @@ function actualizarColorSelect(selectElement) {
     if (estatus === 'Asistencia') selectElement.classList.add('estatus-asistencia');
     if (estatus === 'Retardo') selectElement.classList.add('estatus-retardo');
     if (estatus === 'Falta') selectElement.classList.add('estatus-falta');
+    if (estatus === 'Permiso') selectElement.classList.add('estatus-permiso');
     if (estatus === 'Vacaciones') selectElement.classList.add('estatus-vacaciones');
 }
 
@@ -1270,6 +1272,7 @@ async function cargarReporteSemanal() {
                 let estatus = reg ? reg.estatus : 'Asistencia';
                 if (estatus === 'Retardo') { totalRetardos++; celdasHtml += `<td class="dia-celda"><span class="tag-retardo">Ret</span></td>`; }
                 else if (estatus === 'Falta') { totalFaltas++; celdasHtml += `<td class="dia-celda"><span class="tag-falta">Fal</span></td>`; }
+                else if (estatus === 'Permiso') { celdasHtml += `<td class="dia-celda"><span class="tag-permiso">Per</span></td>`; }
                 else if (estatus === 'Vacaciones') { celdasHtml += `<td class="dia-celda"><span class="tag-vacaciones">Vac</span></td>`; }
                 else { celdasHtml += `<td class="dia-celda"><span class="tag-ok">OK</span></td>`; }
             });
@@ -1294,13 +1297,27 @@ async function cargarReporteMensual() {
         const data = await res.json();
         const registrosMes = data.filter(a => a.fecha.startsWith(mesSel));
 
+        // Actualizar la cabecera de la tabla mensual para incluir Permisos si está estática o asegurarnos de que la estructura coincida
+        const headerRow = document.querySelector('#moduloAsistencias #ReporteMensual table thead tr') || document.querySelector('#ReporteMensual thead tr');
+        if (headerRow && headerRow.children.length === 3) {
+            // Si solo tiene Personal, Retardos, Faltas, agregamos la columna de Permisos
+            if (!document.getElementById('thTotalPermisosMensual')) {
+                const thPermisos = document.createElement('th');
+                thPermisos.id = 'thTotalPermisosMensual';
+                thPermisos.className = 'text-center';
+                thPermisos.innerText = 'TOTAL PERMISOS';
+                headerRow.appendChild(thPermisos);
+            }
+        }
+
         const conteo = {};
-        personalLista.forEach(p => conteo[p.trim().toLowerCase()] = { retardos: 0, faltas: 0 });
+        personalLista.forEach(p => conteo[p.trim().toLowerCase()] = { retardos: 0, faltas: 0, permisos: 0 });
         registrosMes.forEach(a => {
             const n = a.personal.trim().toLowerCase();
             if (conteo[n]) {
                 if (a.estatus === 'Retardo') conteo[n].retardos++;
                 if (a.estatus === 'Falta') conteo[n].faltas++;
+                if (a.estatus === 'Permiso') conteo[n].permisos++;
             }
         });
 
@@ -1310,12 +1327,13 @@ async function cargarReporteMensual() {
         let listaMostrar = personaSel !== 'TODOS' ? [personaSel] : personalLista;
 
         listaMostrar.forEach(persona => {
-            const stats = conteo[persona.trim().toLowerCase()] || { retardos: 0, faltas: 0 };
+            const stats = conteo[persona.trim().toLowerCase()] || { retardos: 0, faltas: 0, permisos: 0 };
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b>${persona}</b></td>
                 <td class="text-center ${stats.retardos > 0 ? 'alerta-retardo' : ''}">${stats.retardos}</td>
                 <td class="text-center ${stats.faltas > 0 ? 'alerta-falta' : ''}">${stats.faltas}</td>
+                <td class="text-center ${stats.permisos > 0 ? 'alerta-permiso' : ''}">${stats.permisos}</td>
             `;
             tbody.appendChild(tr);
         });
