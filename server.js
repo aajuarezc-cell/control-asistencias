@@ -416,20 +416,30 @@ async function enviarNotificacionTelegramAutomatica() {
         mensaje += `📅 *Reuniones Activas (${reunionesActivas.length}):*\n`;
         if (reunionesActivas.length > 0) {
             reunionesActivas.forEach(r => {
-                const horaInfo = r.horaReunion ? ` a las ${r.horaReunion}` : '';
-                mensaje += `• [${r.folio}] ${r.incidente} (${r.vencimiento || 'Sin fecha'}${horaInfo})\n`;
+                let fechaFormateada = r.vencimiento || 'Sin fecha';
+                if (r.vencimiento) {
+                    const partes = r.vencimiento.split('-');
+                    if (partes.length === 3) {
+                        const fechaObj = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+                        const opciones = { weekday: 'long' };
+                        const diaSemana = fechaObj.toLocaleDateString('es-ES', opciones);
+                        fechaFormateada = `${diaSemana} ${r.vencimiento}`;
+                    }
+                }
+                const horaInfo = r.horaReunion ? ` a las *${r.horaReunion}*` : '';
+                mensaje += `• [${r.folio}] ${r.incidente} (${fechaFormateada}${horaInfo})\n\n`;
             });
         } else {
-            mensaje += `• Ninguna\n`;
+            mensaje += `• Ninguna\n\n`;
         }
 
-        mensaje += `\n🚨 *Actividades de Prioridad Alta (${actividadesAlta.length}):*\n`;
+        mensaje += `🚨 *Actividades de Prioridad Alta (${actividadesAlta.length}):*\n`;
         if (actividadesAlta.length > 0) {
             actividadesAlta.forEach(a => {
-                mensaje += `• [${a.folio}] ${a.incidente} - Asignado a: *${a.turnado || 'General'}*\n`;
+                mensaje += `• [${a.folio}] ${a.incidente} - Asignado a: *${a.turnado || 'General'}*\n\n`;
             });
         } else {
-            mensaje += `• Ninguna\n`;
+            mensaje += `• Ninguna\n\n`;
         }
 
         const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
