@@ -46,10 +46,12 @@ const pendienteSchema = new mongoose.Schema({
 });
 const Pendiente = mongoose.model('Pendiente', pendienteSchema);
 
+// Esquema actualizado con el campo 'motivo'
 const asistenciaSchema = new mongoose.Schema({
     personal: String,
     fecha: String,
-    estatus: String
+    estatus: String,
+    motivo: { type: String, default: '' }
 });
 const Asistencia = mongoose.model('Asistencia', asistenciaSchema);
 
@@ -220,13 +222,14 @@ app.get('/api/asistencias', async (req, res) => {
 
 app.post('/api/asistencias', async (req, res) => {
     try {
-        const { personal, fecha, estatus } = req.body;
+        const { personal, fecha, estatus, motivo } = req.body;
         let reg = await Asistencia.findOne({ personal, fecha });
         if (reg) {
             reg.estatus = estatus;
+            reg.motivo = motivo !== undefined ? motivo : reg.motivo;
             await reg.save();
         } else {
-            reg = new Asistencia({ personal, fecha, estatus });
+            reg = new Asistencia({ personal, fecha, estatus, motivo: motivo || '' });
             await reg.save();
         }
         res.json(reg);

@@ -1187,9 +1187,10 @@ async function cargarMatrizAsistencias() {
         const fechaSeleccionada = document.getElementById('asistFechaCalendario').value;
         const res = await fetch('/api/asistencias');
         const data = await res.json();
+        
         const registrosDia = {};
         data.filter(a => a.fecha === fechaSeleccionada).forEach(a => {
-            registrosDia[a.personal.trim().toLowerCase()] = a.estatus;
+            registrosDia[a.personal.trim().toLowerCase()] = { estatus: a.estatus, motivo: a.motivo || '' };
         });
 
         const tbody = document.getElementById('tablaMatrizAsistencias');
@@ -1197,20 +1198,29 @@ async function cargarMatrizAsistencias() {
         tbody.innerHTML = '';
 
         personalLista.forEach(persona => {
-            const estatusActual = registrosDia[persona.trim().toLowerCase()] || 'Asistencia';
+            const regActual = registrosDia[persona.trim().toLowerCase()] || { estatus: 'Asistencia', motivo: '' };
+            const estatusActual = regActual.estatus;
+            const motivoActual = regActual.motivo;
+
             let claseSelect = estatusActual === 'Retardo' ? 'estatus-retardo' : (estatusActual === 'Falta' ? 'estatus-falta' : (estatusActual === 'Permiso' ? 'estatus-permiso' : (estatusActual === 'Vacaciones' ? 'estatus-vacaciones' : 'estatus-asistencia')));
+
+            // Mostrar el input de motivo si el estatus es Falta, Retardo o Permiso (opcional)
+            const mostrarInputMotivo = (estatusActual === 'Falta' || estatusActual === 'Retardo' || estatusActual === 'Permiso');
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b>${persona}</b></td>
-                <td class="text-center">
-                    <select class="asistencia-select ${claseSelect}" data-persona="${persona}" onchange="actualizarColorSelect(this)">
-                        <option value="Asistencia" ${estatusActual === 'Asistencia' ? 'selected' : ''}>Asistencia</option>
-                        <option value="Retardo" ${estatusActual === 'Retardo' ? 'selected' : ''}>Retardo</option>
-                        <option value="Falta" ${estatusActual === 'Falta' ? 'selected' : ''}>Falta</option>
-                        <option value="Permiso" ${estatusActual === 'Permiso' ? 'selected' : ''}>Permiso</option>
-                        <option value="Vacaciones" ${estatusActual === 'Vacaciones' ? 'selected' : ''}>Vacaciones</option>
-                    </select>
+                <td>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <select class="asistencia-select ${claseSelect}" data-persona="${persona}" onchange="actualizarColorSelect(this)">
+                            <option value="Asistencia" ${estatusActual === 'Asistencia' ? 'selected' : ''}>Asistencia</option>
+                            <option value="Retardo" ${estatusActual === 'Retardo' ? 'selected' : ''}>Retardo</option>
+                            <option value="Falta" ${estatusActual === 'Falta' ? 'selected' : ''}>Falta</option>
+                            <option value="Permiso" ${estatusActual === 'Permiso' ? 'selected' : ''}>Permiso</option>
+                            <option value="Vacaciones" ${estatusActual === 'Vacaciones' ? 'selected' : ''}>Vacaciones</option>
+                        </select>
+                        <input type="text" class="input-motivo-asistencia" placeholder="Escribir motivo..." value="${motivoActual}" style="flex-grow: 1; padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; ${mostrarInputMotivo ? '' : 'display: none;'}">
+                    </div>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -1228,24 +1238,47 @@ function actualizarColorSelect(selectElement) {
     if (estatus === 'Falta') selectElement.classList.add('estatus-falta');
     if (estatus === 'Permiso') selectElement.classList.add('estatus-permiso');
     if (estatus === 'Vacaciones') selectElement.classList.add('estatus-vacaciones');
+
+    // Mostrar u ocultar el campo de motivo dinámicamente al cambiar el select
+    const contenedorPadre = selectElement.parentElement;
+    const inputMotivo = contenedorPadre.querySelector('.input-motivo-asistencia');
+    if (inputMotivo) {
+        if (estatus === 'Falta' || estatus === 'Retardo' || estatus === 'Permiso') {
+            inputMotivo.style.display = 'block';
+        } else {
+            inputMotivo.style.display = 'none';
+            inputMotivo.value = ''; // Limpiar si cambia a asistencia
+        }
+    }
 }
 
 async function guardarCambiosAsistencias() {
     const fecha = document.getElementById('asistFechaCalendario').value;
-    const selects = document.querySelectorAll('.asistencia-select');
+    const filas = document.querySelectorAll('#tablaMatrizAsistencias tr');
     let promesas = [];
-    selects.forEach(sel => {
-        promesas.push(fetch('/api/asistencias', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ personal: sel.getAttribute('data-persona'), fecha, estatus: sel.value })
-        }));
+
+    filas.forEach(fila => {
+        const select = fila.querySelector('.asistencia-select');
+        const inputMotivo = fila.querySelector('.input-motivo-asistencia');
+        if (select) {
+            const personal = select.getAttribute('data-persona');
+            const estatus = select.value;
+            const motivo = inputMotivo ? inputMotivo.value.trim() : '';
+
+            promesas.push(fetch('/api/asistencias', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ personal, fecha, estatus, motivo })
+            }));
+        }
     });
+
     await Promise.all(promesas);
     cargarReporteSemanal();
     cargarReporteMensual();
     cargarReporteAnual();
     cargarPendientes();
+    alert("Asistencias y motivos guardados correctamente.");
 }
 
 function obtenerDiasSemana(fechaStr) {
