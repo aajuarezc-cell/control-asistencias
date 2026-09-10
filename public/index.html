@@ -324,12 +324,13 @@
 </div>
         </section>
 
-        <!-- MÓDULO 5: ASISTENCIAS -->
+       <!-- MÓDULO 5: ASISTENCIAS -->
         <section id="moduloAsistencias" class="modulo-vista">
             <nav class="nav-submodulos">
                 <button class="btn-submodulo activo" onclick="cambiarSubmodulo('subAsistRegistro', this)">Registro Diario</button>
                 <button class="btn-submodulo" onclick="cambiarSubmodulo('subAsistSemanal', this)">Reporte Semanal</button>
                 <button class="btn-submodulo" onclick="cambiarSubmodulo('subAsistMensual', this)">Reporte Mensual</button>
+                <button class="btn-submodulo" onclick="cambiarSubmodulo('subAsistAnual', this); cargarReporteAnual();">Reporte Anual</button>
             </nav>
 
             <div id="subAsistRegistro" class="submodulo-vista activo">
@@ -402,6 +403,34 @@
                     </table>
                 </div>
                 <button class="btn-pdf" onclick="exportarPDF('subAsistMensual')">🖨️ Exportar Reporte Mensual</button>
+            </div>
+
+            <!-- NUEVO SUBMÓDULO DE REPORTE ANUAL -->
+            <div id="subAsistAnual" class="submodulo-vista">
+                <div class="filter-box">
+                    <label for="filtroAnioReporte">Año:</label>
+                    <select id="filtroAnioReporte" onchange="cargarReporteAnual()">
+                        <option value="2026" selected>2026</option>
+                        <option value="2027">2027</option>
+                    </select>
+                    <label for="filtroPersonaAnual">Personal:</label>
+                    <select id="filtroPersonaAnual" onchange="cargarReporteAnual()"></select>
+                    <button class="btn-limpiar-filtro" onclick="limpiarFiltroAnual()">Restablecer</button>
+                </div>
+                <div class="table-container">
+                    <table class="tabla-asistencia">
+                        <thead>
+                            <tr>
+                                <th>Personal</th>
+                                <th class="text-center">Total Retardos</th>
+                                <th class="text-center">Total Faltas</th>
+                                <th class="text-center">Total Permisos</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaReporteAnual"></tbody>
+                    </table>
+                </div>
+                <button class="btn-pdf" onclick="exportarPDF('subAsistAnual')">🖨️ Exportar Reporte Anual</button>
             </div>
         </section>
 

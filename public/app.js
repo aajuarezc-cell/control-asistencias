@@ -52,6 +52,9 @@ function cambiarModulo(idModulo, btnElement) {
         cargarPendientes();
     } else if (idModulo === 'moduloAsistencias') {
         cargarMatrizAsistencias();
+        cargarReporteSemanal();
+        cargarReporteMensual();
+        cargarReporteAnual();
     } else if (idModulo === 'moduloVacaciones') {
         cargarResumenVacaciones();
     } else if (idModulo === 'moduloNotasLibres') {
@@ -130,6 +133,16 @@ if (selectPersonaMensual) {
         const opt = document.createElement('option');
         opt.value = p; opt.textContent = p;
         selectPersonaMensual.appendChild(opt);
+    });
+}
+
+const selectPersonaAnual = document.getElementById('filtroPersonaAnual');
+if (selectPersonaAnual) {
+    selectPersonaAnual.innerHTML = '<option value="TODOS">-- Todos --</option>';
+    personalLista.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        selectPersonaAnual.appendChild(opt);
     });
 }
 
@@ -1228,6 +1241,7 @@ async function guardarCambiosAsistencias() {
     await Promise.all(promesas);
     cargarReporteSemanal();
     cargarReporteMensual();
+    cargarReporteAnual();
     cargarPendientes();
 }
 
@@ -1300,10 +1314,8 @@ async function cargarReporteMensual() {
         const data = await res.json();
         const registrosMes = data.filter(a => a.fecha.startsWith(mesSel));
 
-        // Actualizar la cabecera de la tabla mensual para incluir Permisos si está estática o asegurarnos de que la estructura coincida
         const headerRow = document.querySelector('#moduloAsistencias #ReporteMensual table thead tr') || document.querySelector('#ReporteMensual thead tr');
         if (headerRow && headerRow.children.length === 3) {
-            // Si solo tiene Personal, Retardos, Faltas, agregamos la columna de Permisos
             if (!document.getElementById('thTotalPermisosMensual')) {
                 const thPermisos = document.createElement('th');
                 thPermisos.id = 'thTotalPermisosMensual';
@@ -1343,6 +1355,55 @@ async function cargarReporteMensual() {
     } catch (e) { console.error("Error mensual:", e); }
 }
 
+async function cargarReporteAnual() {
+    try {
+        const anioSel = document.getElementById('filtroAnioReporte')?.value || '2026';
+        const personaSel = document.getElementById('filtroPersonaAnual')?.value || 'TODOS';
+        
+        const res = await fetch('/api/asistencias');
+        const data = await res.json();
+        const registrosAnio = data.filter(a => a.fecha && a.fecha.startsWith(anioSel));
+
+        const conteo = {};
+        personalLista.forEach(p => conteo[p.trim().toLowerCase()] = { retardos: 0, faltas: 0, permisos: 0 });
+        
+        registrosAnio.forEach(a => {
+            const n = a.personal.trim().toLowerCase();
+            if (conteo[n]) {
+                if (a.estatus === 'Retardo') conteo[n].retardos++;
+                if (a.estatus === 'Falta') conteo[n].faltas++;
+                if (a.estatus === 'Permiso') conteo[n].permisos++;
+            }
+        });
+
+        const tbody = document.getElementById('tablaReporteAnual');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        
+        let listaMostrar = personaSel !== 'TODOS' ? [personaSel] : personalLista;
+
+        listaMostrar.forEach(persona => {
+            const stats = conteo[persona.trim().toLowerCase()] || { retardos: 0, faltas: 0, permisos: 0 };
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${persona}</b></td>
+                <td class="text-center ${stats.retardos > 0 ? 'alerta-retardo' : ''}">${stats.retardos}</td>
+                <td class="text-center ${stats.faltas > 0 ? 'alerta-falta' : ''}">${stats.faltas}</td>
+                <td class="text-center ${stats.permisos > 0 ? 'alerta-permiso' : ''}">${stats.permisos}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error("Error al cargar reporte anual:", e);
+    }
+}
+
+function limpiarFiltroAnual() {
+    if (document.getElementById('filtroAnioReporte')) document.getElementById('filtroAnioReporte').value = '2026';
+    if (document.getElementById('filtroPersonaAnual')) document.getElementById('filtroPersonaAnual').value = 'TODOS';
+    cargarReporteAnual();
+}
+
 async function guardarVacaciones(e) {
     e.preventDefault();
     const payload = {
@@ -1368,6 +1429,7 @@ async function guardarVacaciones(e) {
             cargarMatrizAsistencias();
             cargarReporteSemanal();
             cargarReporteMensual();
+            cargarReporteAnual();
             renderizarCalendarioVacaciones();
             cargarPendientes();
         }
@@ -1481,6 +1543,7 @@ async function eliminarRegistroVacacion(id) {
     cargarMatrizAsistencias();
     cargarReporteSemanal();
     cargarReporteMensual();
+    cargarReporteAnual();
 }
 
 function exportarPDF(seccionId) {
