@@ -11,7 +11,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Manejadores globales para evitar cierres inesperados en Render
 process.on('uncaughtException', (err) => {
     console.error('🔴 Error no capturado:', err);
 });
@@ -20,18 +19,11 @@ process.on('unhandledRejection', (reason, promise) => {
     console.error('🔴 Promesa rechazada no manejada:', reason);
 });
 
-// ==========================================
-// CONEXIÓN A MONGODB
-// ==========================================
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://tu_usuario:tu_password@cluster.mongodb.net/control_asistencias?retryWrites=true&w=majority';
 
 mongoose.connect(MONGO_URI)
 .then(() => console.log("🟢 Conectado exitosamente a MongoDB"))
 .catch(err => console.error("🔴 Error conectando a MongoDB:", err));
-
-// ==========================================
-// MODELOS DE MONGOOSE
-// ==========================================
 
 const pendienteSchema = new mongoose.Schema({
     folio: { type: String, required: true, unique: true },
@@ -91,11 +83,6 @@ const notaLibreSchema = new mongoose.Schema({
     }]
 });
 const NotaLibre = mongoose.model('NotaLibre', notaLibreSchema);
-
-
-// ==========================================
-// RUTAS API: PENDIENTES / AGENDA / ACTIVIDADES
-// ==========================================
 
 app.get('/api/pendientes', async (req, res) => {
     try {
@@ -222,11 +209,6 @@ app.delete('/api/pendientes/vaciar-finalizados/:tipo', async (req, res) => {
     }
 });
 
-
-// ==========================================
-// RUTAS API: ASISTENCIAS
-// ==========================================
-
 app.get('/api/asistencias', async (req, res) => {
     try {
         const registros = await Asistencia.find();
@@ -252,11 +234,6 @@ app.post('/api/asistencias', async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
-
-
-// ==========================================
-// RUTAS API: VACACIONES
-// ==========================================
 
 app.get('/api/vacaciones', async (req, res) => {
     try {
@@ -333,11 +310,6 @@ app.delete('/api/vacaciones/:id', async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
-
-
-// ==========================================
-// RUTAS API: ÁREAS Y NOTAS LIBRES
-// ==========================================
 
 app.get('/api/areas', async (req, res) => {
     try {
@@ -429,11 +401,6 @@ app.delete('/api/notas-libres/:id', async (req, res) => {
     }
 });
 
-
-// ==========================================
-// TELEGRAM: ENVÍO AUTOMÁTICO Y MANUAL
-// ==========================================
-
 async function enviarNotificacionTelegramAutomatica() {
     const botToken = "8693041611:AAEQOOZFCDYLEALj3UY4Sh6xpunztRWt54A";
     const chatId = "7091534524";
@@ -444,12 +411,13 @@ async function enviarNotificacionTelegramAutomatica() {
         const reunionesActivas = pendientes.filter(p => p.tipo === 'Reunión');
         const actividadesAlta = pendientes.filter(p => p.tipo !== 'Reunión' && p.prioridad === 'Alta');
 
-        let mensaje = `🔔 *Reporte Dinámico de Actividades*\n\n`;
+        let mensaje = `🔔 *Agenda ejecutiva de actividades*\n\n`;
 
         mensaje += `📅 *Reuniones Activas (${reunionesActivas.length}):*\n`;
         if (reunionesActivas.length > 0) {
             reunionesActivas.forEach(r => {
-                mensaje += `• [${r.folio}] ${r.incidente} (${r.vencimiento || 'Sin fecha'})\n`;
+                const horaInfo = r.horaReunion ? ` a las ${r.horaReunion}` : '';
+                mensaje += `• [${r.folio}] ${r.incidente} (${r.vencimiento || 'Sin fecha'}${horaInfo})\n`;
             });
         } else {
             mensaje += `• Ninguna\n`;
@@ -495,16 +463,10 @@ app.post('/api/forzar-telegram', async (req, res) => {
     }
 });
 
-// Programar tarea con node-cron: De lunes a viernes (1-5) en el minuto 0 de cada hora
 cron.schedule('0 * * * 1-5', () => {
     console.log("⏰ Ejecutando tarea programada: Notificación de Telegram (Lunes a Viernes)");
     enviarNotificacionTelegramAutomatica();
 });
-
-
-// ==========================================
-// RUTA COMODÍN Y ARRANQUE
-// ==========================================
 
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
